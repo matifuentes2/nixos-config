@@ -39,13 +39,21 @@ let
     hash = "sha256-PIkfJzLt001TojAnE/rdRhgVEwSvCvUJm/vNPLSWjpY=";
   };
 
-  telescopeTerraformDoc = mkLockedPlugin {
-    pname = "telescope-terraform-doc.nvim";
-    owner = "ANGkeith";
-    repo = "telescope-terraform-doc.nvim";
-    rev = "28efe1f3cb2ed4c83fa69000ae8afd2f85d62826";
-    hash = "sha256-ZMdsaW9wjmep0CMNCj8k2jSvV8aLMYmiOFm3iD8/pJw=";
-  };
+  telescopeTerraformDoc =
+    (mkLockedPlugin {
+      pname = "telescope-terraform-doc.nvim";
+      owner = "ANGkeith";
+      repo = "telescope-terraform-doc.nvim";
+      rev = "28efe1f3cb2ed4c83fa69000ae8afd2f85d62826";
+      hash = "sha256-ZMdsaW9wjmep0CMNCj8k2jSvV8aLMYmiOFm3iD8/pJw=";
+    }).overrideAttrs
+      {
+        # Upstream derives this from its .git directory, which fixed-output Nix
+        # sources intentionally omit. Avoid a noisy `git remote` failure on load.
+        postPatch = ''
+          printf '%s\n' 'lua vim.g.terraform_doc_git_namespace = "ANGkeith"' > plugin/init.vim
+        '';
+      };
 
   telescopeTerraform = mkLockedPlugin {
     pname = "telescope-terraform.nvim";
@@ -226,6 +234,7 @@ in
       fd
       fzf
       git
+      lazygit
       nodejs
       ripgrep
       uv
