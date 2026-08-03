@@ -142,6 +142,11 @@
     };
   };
 
+  # Provide resilient remote shells over SSH and allow Mosh's UDP traffic.
+  programs.mosh = {
+    enable = true;
+    openFirewall = true;
+  };
 
   # Open ports in the firewall.
   # networking.firewall.allowedTCPPorts = [ ... ];
