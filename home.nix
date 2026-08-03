@@ -38,6 +38,8 @@
 
     # Put Bash-specific functions and other interactive setup here.
     initExtra = ''
+      set -o vi
+
       # Example:
       # mkcd() { mkdir -p "$1" && cd "$1"; }
     '';
