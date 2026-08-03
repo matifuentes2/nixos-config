@@ -37,14 +37,27 @@
   #   useXkbConfig = true; # use xkb.options in tty.
   # };
 
-  # Enable the X11 windowing system.
+  # Run a Wayland-native Hyprland desktop with an SDDM login screen.
+  programs.hyprland.enable = true;
 
-services.xserver = {
-enable = true;
-displayManager.lightdm.enable = true;
-desktopManager.xfce.enable = true;
-};
-  
+  services.displayManager = {
+    defaultSession = "hyprland";
+    sddm = {
+      enable = true;
+      wayland.enable = true;
+    };
+  };
+
+  # Desktop integration used by the Home Manager Hyprland configuration.
+  security.pam.services.hyprlock = { };
+  programs.thunar.enable = true;
+  services.gvfs.enable = true;
+  services.tumbler.enable = true;
+
+  fonts.packages = with pkgs; [
+    font-awesome
+    nerd-fonts.jetbrains-mono
+  ];
 
   # Configure keymap in X11
   # services.xserver.xkb.layout = "us";

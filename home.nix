@@ -1,7 +1,10 @@
 { config, lib, pkgs, ... }:
 
 {
-  imports = [ ./neovim ];
+  imports = [
+    ./hyprland
+    ./neovim
+  ];
 
   home.username = "pi";
   home.homeDirectory = "/home/pi";
