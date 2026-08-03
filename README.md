@@ -16,7 +16,8 @@ debug adapters are supplied by Nix rather than downloaded at runtime.
 ## Desktop
 
 Hyprland is configured under [`hyprland/`](./hyprland/) and starts from SDDM.
-The main shortcuts use the Super key:
+See the [Hyprland desktop guide](./docs/hyprland.md) for the complete keybind
+reference. The main shortcuts use the Super key:
 
 - `Super+Return`: terminal
 - `Super+R`: application launcher
