@@ -1,5 +1,15 @@
 { config, lib, pkgs, ... }:
 
+let
+  piExtensions = pkgs.buildNpmPackage {
+    pname = "pi-extensions";
+    version = "1.0.0";
+    src = ./pi-extensions;
+    npmDepsHash = "sha256-y2o8yPp01IaAmkIMmf/rreDDvSvWo0k7mmktiamKcxQ=";
+    dontNpmBuild = true;
+    npmFlags = [ "--omit=peer" ];
+  };
+in
 {
   imports = [
     ./hyprland
@@ -22,6 +32,17 @@
   home.sessionVariables = {
     EDITOR = "nvim";
     VISUAL = "nvim";
+  };
+
+  # Pi loads this locally built package from the immutable Nix store. Its npm
+  # dependency graph is pinned by pi-extensions/package-lock.json.
+  home.file.".pi/agent/settings.json".text = builtins.toJSON {
+    lastChangelogVersion = "0.83.0";
+    theme = "dark";
+    defaultProvider = "openai-codex";
+    defaultModel = "gpt-5.6-sol";
+    defaultThinkingLevel = "minimal";
+    packages = [ "${piExtensions}/lib/node_modules/pi-extensions" ];
   };
 
   programs.zoxide = {

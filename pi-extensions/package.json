@@ -1,0 +1,25 @@
+{
+  "name": "pi-extensions",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "pi-mcp-adapter": "2.19.0",
+    "pi-vim": "0.14.1",
+    "pi-web-access": "0.18.0"
+  },
+  "bundledDependencies": [
+    "pi-mcp-adapter",
+    "pi-vim",
+    "pi-web-access"
+  ],
+  "pi": {
+    "extensions": [
+      "node_modules/pi-mcp-adapter/index.ts",
+      "node_modules/pi-vim/index.ts",
+      "node_modules/pi-web-access/index.ts"
+    ],
+    "skills": [
+      "node_modules/pi-mcp-adapter/skills"
+    ]
+  }
+}
