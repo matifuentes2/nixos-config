@@ -78,35 +78,43 @@
   # services.libinput.enable = true;
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
-   users.users.pi = {
-     isNormalUser = true;
-     description = "Pi user";
-     extraGroups = [ "wheel"
-"networkmanager"
-"video"
-"audio" ]; # Enable ‘sudo’ for the user.
-     packages = with pkgs; [
-       tree
-     ];
-   };
+  users.users.pi = {
+    isNormalUser = true;
+    description = "Pi user";
+    # Allow sudo and access to networking, graphics, and audio devices.
+    extraGroups = [
+      "wheel"
+      "networkmanager"
+      "video"
+      "audio"
+    ];
+    openssh.authorizedKeys.keys = [
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAt+/czluQsmX++mLb+H96Zy5SKcU7uzRikipfvG1FSn"
+    ];
+    packages = with pkgs; [
+      tree
+    ];
+  };
 
   programs.firefox.enable = true;
 
   # List packages installed in system profile.
   # You can use https://search.nixos.org/ to find more packages (and options).
-environment.systemPackages = 
-let
-unstable = import nixpkgs-unstable {
-system = pkgs.stdenv.hostPlatform.system;
-config = config.nixpkgs.config;
-};  
-in 
- with pkgs; [
-     vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
-     wget
-     unstable.pi-coding-agent
-     gh
-   ];
+  environment.systemPackages =
+    let
+      unstable = import nixpkgs-unstable {
+        system = pkgs.stdenv.hostPlatform.system;
+        config = config.nixpkgs.config;
+      };
+    in
+    with pkgs;
+    [
+      vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
+      wget
+      git
+      unstable.pi-coding-agent
+      gh
+    ];
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
@@ -124,15 +132,15 @@ in
     openFirewall = true;
   };
 
-  # Enable the OpenSSH daemon.
-    services.openssh = {
-enable = true;
-openFirewall = true;
-settings = {
-PasswordAuthentication = false;
-KbdInteractiveAuthentication = false;
-};  
-};
+  # Enable key-only remote access through OpenSSH.
+  services.openssh = {
+    enable = true;
+    openFirewall = true;
+    settings = {
+      PasswordAuthentication = false;
+      KbdInteractiveAuthentication = false;
+    };
+  };
 
 
   # Open ports in the firewall.

@@ -1,7 +1,9 @@
 # NixOS configuration
 
 This repository is the declarative source of truth for the `nixos` host and the
-Home Manager configuration for user `pi`.
+Home Manager configuration for user `pi`. For a new Raspberry Pi 4, follow the
+[fresh-installation guide](./docs/fresh-install.md); it uses the official
+AArch64 NixOS SD image and the repository bootstrap script.
 
 ## Rebuild
 
