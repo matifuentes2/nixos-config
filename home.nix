@@ -36,13 +36,16 @@ in
 
   # Pi loads this locally built package from the immutable Nix store. Its npm
   # dependency graph is pinned by pi-extensions/package-lock.json.
-  home.file.".pi/agent/settings.json".text = builtins.toJSON {
-    lastChangelogVersion = "0.83.0";
-    theme = "dark";
-    defaultProvider = "openai-codex";
-    defaultModel = "gpt-5.6-sol";
-    defaultThinkingLevel = "minimal";
-    packages = [ "${piExtensions}/lib/node_modules/pi-extensions" ];
+  home.file.".pi/agent/settings.json" = {
+    force = true;
+    text = builtins.toJSON {
+      lastChangelogVersion = "0.83.0";
+      theme = "dark";
+      defaultProvider = "openai-codex";
+      defaultModel = "gpt-5.6-sol";
+      defaultThinkingLevel = "minimal";
+      packages = [ "${piExtensions}/lib/node_modules/pi-extensions" ];
+    };
   };
 
   programs.zoxide = {
