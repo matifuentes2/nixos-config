@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, herdr, ... }:
 
 let
   piExtensions = pkgs.buildNpmPackage {
@@ -27,6 +27,7 @@ in
     ripgrep
     fd
     jq
+    herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
 
   home.sessionVariables = {
