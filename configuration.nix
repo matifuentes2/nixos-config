@@ -12,6 +12,23 @@
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
+  # Collie's VAPID private key is encrypted in the repository. sops-nix
+  # decrypts its dotenv file for the Collie user service at activation time.
+  sops = {
+    defaultSopsFile = ./secrets/collie.yaml;
+    age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+    secrets."collie-env" = {
+      owner = "pi";
+      group = "users";
+      mode = "0400";
+    };
+  };
+
+  systemd.tmpfiles.rules = [
+    "d /home/pi/.config/herdr/plugins/config/herdr.collie 0700 pi users -"
+    "L+ /home/pi/.config/herdr/plugins/config/herdr.collie/.env - - - - /run/secrets/collie-env"
+  ];
+
   # Use the extlinux boot loader. (NixOS wants to enable GRUB by default)
   boot.loader.grub.enable = false;
   # Enables the generation of /boot/extlinux/extlinux.conf
