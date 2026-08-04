@@ -5,18 +5,21 @@
   "dependencies": {
     "pi-mcp-adapter": "2.19.0",
     "pi-vim": "0.14.1",
-    "pi-web-access": "0.18.0"
+    "pi-web-access": "0.18.0",
+    "pi-zentui": "0.17.0"
   },
   "bundledDependencies": [
     "pi-mcp-adapter",
     "pi-vim",
-    "pi-web-access"
+    "pi-web-access",
+    "pi-zentui"
   ],
   "pi": {
     "extensions": [
       "node_modules/pi-mcp-adapter/index.ts",
       "node_modules/pi-vim/index.ts",
-      "node_modules/pi-web-access/index.ts"
+      "node_modules/pi-web-access/index.ts",
+      "dist/pi-zentui.mjs"
     ],
     "skills": [
       "node_modules/pi-mcp-adapter/skills"

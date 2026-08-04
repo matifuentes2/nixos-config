@@ -12,9 +12,28 @@ let
     pname = "pi-extensions";
     version = "1.0.0";
     src = ./pi-extensions;
-    npmDepsHash = "sha256-y2o8yPp01IaAmkIMmf/rreDDvSvWo0k7mmktiamKcxQ=";
+    npmDepsHash = "sha256-tq/agu1M8ZTMNgm2Sf5dWsWO4BSgUztxlJg8eA17xZQ=";
     dontNpmBuild = true;
     npmFlags = [ "--omit=peer" ];
+    nativeBuildInputs = [ pkgs.esbuild ];
+
+    # Zentui ships as a large TypeScript module graph. Bundle it once during
+    # the Nix build so Pi does not transpile and resolve that graph at startup.
+    postInstall = ''
+      mkdir -p "$out/lib/node_modules/pi-extensions/dist"
+      esbuild \
+        "$out/lib/node_modules/pi-extensions/node_modules/pi-zentui/extensions/zentui/index.ts" \
+        --bundle \
+        --platform=node \
+        --format=esm \
+        --target=node20 \
+        --external:@earendil-works/pi-ai \
+        --external:@earendil-works/pi-coding-agent \
+        --external:@earendil-works/pi-tui \
+        --minify-syntax \
+        --minify-whitespace \
+        --outfile="$out/lib/node_modules/pi-extensions/dist/pi-zentui.mjs"
+    '';
   };
 in
 {
