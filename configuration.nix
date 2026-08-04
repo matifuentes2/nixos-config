@@ -123,13 +123,36 @@
         system = pkgs.stdenv.hostPlatform.system;
         config = config.nixpkgs.config;
       };
+      upstreamPi = unstable.pi-coding-agent;
+
+      # Run the unmodified upstream CLI with its supported Bun runtime. This
+      # avoids Node's large ESM startup cost without maintaining a Pi fork.
+      pi = pkgs.writeShellApplication {
+        name = "pi";
+        runtimeInputs = [
+          pkgs.fd
+          pkgs.ripgrep
+        ];
+        text = ''
+          export PI_SKIP_VERSION_CHECK="''${PI_SKIP_VERSION_CHECK-1}"
+          export PI_TELEMETRY="''${PI_TELEMETRY-0}"
+
+          if [[ -z "''${BUN_RUNTIME_TRANSPILER_CACHE_PATH+x}" ]]; then
+            cache_root="''${XDG_CACHE_HOME:-$HOME/.cache}"
+            export BUN_RUNTIME_TRANSPILER_CACHE_PATH="$cache_root/bun/runtime-transpiler"
+          fi
+
+          exec -a "$0" ${lib.getExe pkgs.bun} \
+            ${upstreamPi}/lib/node_modules/pi-monorepo/dist/bun/cli.js "$@"
+        '';
+      };
     in
     with pkgs;
     [
       vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
       wget
       git
-      unstable.pi-coding-agent
+      pi
       gh
     ];
 

@@ -78,10 +78,6 @@ in
   home.sessionVariables = {
     EDITOR = "nvim";
     VISUAL = "nvim";
-
-    # Node 24's persistent bytecode cache avoids reparsing Pi and its extensions
-    # on every launch. Node namespaces cache entries by runtime version.
-    NODE_COMPILE_CACHE = "${config.xdg.cacheHome}/node-compile-cache";
   };
 
   # Pi loads this locally built package from the immutable Nix store. Its npm
