@@ -27,6 +27,7 @@ in
     ripgrep
     fd
     jq
+    bun
     herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
 

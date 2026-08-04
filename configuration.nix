@@ -130,6 +130,8 @@
   services.tailscale = {
     enable = true;
     openFirewall = true;
+    # Let the primary user manage tailnet-only Serve mappings without sudo.
+    extraSetFlags = [ "--operator=pi" ];
   };
 
   # Enable key-only remote access through OpenSSH.
