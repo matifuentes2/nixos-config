@@ -4,7 +4,6 @@
   pkgs,
   herdr,
   herdr-worktrunk,
-  worktrunk,
   mcp-nixos,
   ...
 }:
@@ -74,7 +73,7 @@ in
     jq
     fzf
     bun
-    worktrunk.packages.${pkgs.stdenv.hostPlatform.system}.default
+    worktrunk
     herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
     mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
@@ -89,7 +88,7 @@ in
   # network-backed `herdr plugin install`.
   home.activation.linkHerdrWorktrunk = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
-      plugin link --enabled ${herdr-worktrunk}
+      plugin link ${herdr-worktrunk} --enabled
   '';
 
   xdg.configFile."herdr/config.toml" = {
