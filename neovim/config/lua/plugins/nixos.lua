@@ -5,6 +5,18 @@ if type(vim.g.nix_plugin_paths) ~= "table" then
 end
 
 return {
+  -- lazyvim.json is deployed read-only from the Nix store, so LazyVim cannot
+  -- persist its "news viewed" marker. Disable automatic news popups instead.
+  {
+    "LazyVim/LazyVim",
+    opts = {
+      news = {
+        lazyvim = false,
+        neovim = false,
+      },
+    },
+  },
+
   -- Mason's mutable package store conflicts with a flake-locked setup. With
   -- mason-lspconfig absent, LazyVim configures and enables PATH-provided LSPs.
   { "mason-org/mason.nvim", enabled = false },
