@@ -12,27 +12,44 @@ let
     pname = "pi-extensions";
     version = "1.0.0";
     src = ./pi-extensions;
-    npmDepsHash = "sha256-tq/agu1M8ZTMNgm2Sf5dWsWO4BSgUztxlJg8eA17xZQ=";
+    npmDepsHash = "sha256-DhbUY1KPu4+p+hzETwZ3xebIxpOr5I/jGuYGsk1ICo0=";
     dontNpmBuild = true;
     npmFlags = [ "--omit=peer" ];
     nativeBuildInputs = [ pkgs.esbuild ];
 
-    # Zentui ships as a large TypeScript module graph. Bundle it once during
-    # the Nix build so Pi does not transpile and resolve that graph at startup.
+    # Bundle large TypeScript extension graphs once during the Nix build so Pi
+    # does not transpile and resolve them on every startup. Keep Pi's own API
+    # packages external so every extension uses the instances owned by Pi.
     postInstall = ''
-      mkdir -p "$out/lib/node_modules/pi-extensions/dist"
-      esbuild \
-        "$out/lib/node_modules/pi-extensions/node_modules/pi-zentui/extensions/zentui/index.ts" \
-        --bundle \
-        --platform=node \
-        --format=esm \
-        --target=node20 \
-        --external:@earendil-works/pi-ai \
-        --external:@earendil-works/pi-coding-agent \
-        --external:@earendil-works/pi-tui \
-        --minify-syntax \
-        --minify-whitespace \
-        --outfile="$out/lib/node_modules/pi-extensions/dist/pi-zentui.mjs"
+      extensions="$out/lib/node_modules/pi-extensions/node_modules"
+      common=(
+        --bundle
+        --platform=node
+        --format=esm
+        --target=node20
+        --minify-syntax
+        --minify-whitespace
+      )
+
+      esbuild "$extensions/pi-mcp-adapter/index.ts" \
+        "''${common[@]}" \
+        '--external:@earendil-works/*' \
+        --external:@napi-rs/keyring \
+        --external:open \
+        --outfile="$extensions/pi-mcp-adapter/index.bundle.mjs"
+
+      esbuild "$extensions/pi-vim/index.ts" \
+        "''${common[@]}" \
+        --packages=external \
+        --outfile="$extensions/pi-vim/index.bundle.mjs"
+
+      esbuild "$extensions/pi-zentui/extensions/zentui/index.ts" \
+        "''${common[@]}" \
+        --packages=external \
+        --outfile="$extensions/pi-zentui/index.bundle.mjs"
+
+      # pi-web-access intentionally remains unbundled: bundling eagerly loads
+      # its optional extractor graph and was slower in startup benchmarks.
     '';
   };
 in
@@ -61,6 +78,10 @@ in
   home.sessionVariables = {
     EDITOR = "nvim";
     VISUAL = "nvim";
+
+    # Node 24's persistent bytecode cache avoids reparsing Pi and its extensions
+    # on every launch. Node namespaces cache entries by runtime version.
+    NODE_COMPILE_CACHE = "${config.xdg.cacheHome}/node-compile-cache";
   };
 
   # Pi loads this locally built package from the immutable Nix store. Its npm
