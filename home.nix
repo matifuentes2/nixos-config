@@ -1,4 +1,11 @@
-{ config, lib, pkgs, herdr, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  herdr,
+  mcp-nixos,
+  ...
+}:
 
 let
   piExtensions = pkgs.buildNpmPackage {
@@ -29,6 +36,7 @@ in
     jq
     bun
     herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
+    mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
 
   home.sessionVariables = {
@@ -47,6 +55,19 @@ in
       defaultModel = "gpt-5.6-sol";
       defaultThinkingLevel = "minimal";
       packages = [ "${piExtensions}/lib/node_modules/pi-extensions" ];
+    };
+  };
+
+  # pi-mcp-adapter reads this configuration and starts the pinned server only
+  # when its tools are first used.
+  home.file.".pi/agent/mcp.json" = {
+    force = true;
+    text = builtins.toJSON {
+      mcpServers.nixos = {
+        command = lib.getExe mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default;
+        args = [ ];
+        lifecycle = "lazy";
+      };
     };
   };
 
