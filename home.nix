@@ -3,6 +3,8 @@
   lib,
   pkgs,
   herdr,
+  herdr-worktrunk,
+  worktrunk,
   mcp-nixos,
   ...
 }:
@@ -70,7 +72,9 @@ in
     ripgrep
     fd
     jq
+    fzf
     bun
+    worktrunk.packages.${pkgs.stdenv.hostPlatform.system}.default
     herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
     mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
@@ -78,6 +82,44 @@ in
   home.sessionVariables = {
     EDITOR = "nvim";
     VISUAL = "nvim";
+  };
+
+  # Herdr's plugin registry is mutable state, so register the pinned plugin
+  # source on every Home Manager activation. This is idempotent and avoids a
+  # network-backed `herdr plugin install`.
+  home.activation.linkHerdrWorktrunk = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
+      plugin link --enabled ${herdr-worktrunk}
+  '';
+
+  xdg.configFile."herdr/config.toml" = {
+    force = true;
+    text = ''
+    onboarding = false
+
+    [theme]
+    name = "tokyo-night"
+    auto_switch = false
+
+    # Worktrunk plugin keybindings recommended by its README.
+    [[keys.command]]
+    key = "prefix+shift+g"
+    type = "plugin_action"
+    command = "worktrunk.open"
+    description = "Worktree: switch / create from default branch"
+
+    [[keys.command]]
+    key = "prefix+shift+c"
+    type = "plugin_action"
+    command = "worktrunk.open-current"
+    description = "Worktree: switch / create from current branch"
+
+    [[keys.command]]
+    key = "prefix+shift+d"
+    type = "plugin_action"
+    command = "worktrunk.remove"
+    description = "Worktree: remove"
+    '';
   };
 
   # Pi loads this locally built package from the immutable Nix store. Its npm
