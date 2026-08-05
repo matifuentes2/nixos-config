@@ -149,6 +149,10 @@ in
     };
   };
 
+  # Install the release-matched Herdr agent skill from the pinned flake input.
+  home.file.".pi/agent/skills/herdr/SKILL.md".source =
+    "${herdr}/skills/herdr/SKILL.md";
+
   # pi-mcp-adapter reads this configuration and starts the pinned server only
   # when its tools are first used.
   home.file.".pi/agent/mcp.json" = {
