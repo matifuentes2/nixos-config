@@ -12,6 +12,9 @@
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
+  # Let tools such as uv run upstream, dynamically linked Python builds.
+  programs.nix-ld.enable = true;
+
   # Collie's VAPID private key is encrypted in the repository. sops-nix
   # decrypts its dotenv file for the Collie user service at activation time.
   sops = {
