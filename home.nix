@@ -74,6 +74,7 @@ in
     jq
     fzf
     bun
+    uv
     worktrunk
     herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
     mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default
