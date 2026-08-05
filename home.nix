@@ -4,6 +4,7 @@
   pkgs,
   herdr,
   herdr-worktrunk,
+  herdr-collie,
   mcp-nixos,
   ...
 }:
@@ -89,6 +90,19 @@ in
   home.activation.linkHerdrWorktrunk = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
       plugin link ${herdr-worktrunk} --enabled
+  '';
+
+  # Collie's build writes generated assets into its checkout. Copy the pinned
+  # flake source to mutable user state before linking it into Herdr.
+  home.activation.linkHerdrCollie = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    collie_dir="$HOME/.local/share/herdr-collie"
+    run rm -rf "$collie_dir"
+    run cp -R ${herdr-collie} "$collie_dir"
+    run chmod -R u+w "$collie_dir"
+    run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
+      plugin link "$collie_dir" --enabled
+    run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
+      plugin action invoke restart --plugin herdr.collie
   '';
 
   xdg.configFile."herdr/config.toml" = {

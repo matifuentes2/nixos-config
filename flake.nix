@@ -12,6 +12,10 @@
       url = "github:devashish2203/herdr-worktrunk";
       flake = false;
     };
+    herdr-collie = {
+      url = "github:AltanS/collie/v0.24.0";
+      flake = false;
+    };
     mcp-nixos.url = "github:utensils/mcp-nixos";
     sops-nix = {
       url = "github:Mic92/sops-nix";
@@ -29,6 +33,7 @@
       nixpkgs-unstable,
       herdr,
       herdr-worktrunk,
+      herdr-collie,
       mcp-nixos,
       sops-nix,
       home-manager,
@@ -47,7 +52,7 @@
             home-manager.useUserPackages = true;
             home-manager.users.pi = import ./home.nix;
             home-manager.extraSpecialArgs = {
-              inherit herdr herdr-worktrunk mcp-nixos;
+              inherit herdr herdr-worktrunk herdr-collie mcp-nixos;
             };
           }
         ];

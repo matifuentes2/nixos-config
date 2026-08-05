@@ -61,6 +61,23 @@
         "type": "github"
       }
     },
+    "herdr-collie": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1785920724,
+        "narHash": "sha256-yDGngxHhVbtbd+Oigs+p2+Vl7Wfxp8HtQdm9/Buh0no=",
+        "owner": "AltanS",
+        "repo": "collie",
+        "rev": "9db4b9b2a9bb2b82dde9e48b2f94dbdddf53f43a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "AltanS",
+        "ref": "v0.24.0",
+        "repo": "collie",
+        "type": "github"
+      }
+    },
     "herdr-worktrunk": {
       "flake": false,
       "locked": {
@@ -183,6 +200,7 @@
     "root": {
       "inputs": {
         "herdr": "herdr",
+        "herdr-collie": "herdr-collie",
         "herdr-worktrunk": "herdr-worktrunk",
         "home-manager": "home-manager",
         "mcp-nixos": "mcp-nixos",
