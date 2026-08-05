@@ -3,12 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "context-mode": "1.0.169",
     "pi-mcp-adapter": "2.19.0",
     "pi-vim": "0.14.1",
     "pi-web-access": "0.18.0",
     "pi-zentui": "https://github.com/matifuentes2/pi-zentui/archive/81b6a28b8a812b3e57f6bf8739a840ab7071d259.tar.gz"
   },
   "bundledDependencies": [
+    "context-mode",
     "pi-mcp-adapter",
     "pi-vim",
     "pi-web-access",
@@ -16,12 +18,14 @@
   ],
   "pi": {
     "extensions": [
+      "node_modules/context-mode/build/adapters/pi/extension.js",
       "node_modules/pi-mcp-adapter/index.bundle.mjs",
       "node_modules/pi-vim/index.bundle.mjs",
       "node_modules/pi-web-access/index.ts",
       "node_modules/pi-zentui/index.bundle.mjs"
     ],
     "skills": [
+      "node_modules/context-mode/skills",
       "node_modules/pi-mcp-adapter/skills"
     ]
   }

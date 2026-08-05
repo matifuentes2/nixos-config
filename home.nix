@@ -14,7 +14,7 @@ let
     pname = "pi-extensions";
     version = "1.0.0";
     src = ./pi-extensions;
-    npmDepsHash = "sha256-DhbUY1KPu4+p+hzETwZ3xebIxpOr5I/jGuYGsk1ICo0=";
+    npmDepsHash = "sha256-FJiHY17b9uB8ycVM5x/fniYRnyvBBqYnj9cU/tgF2t8=";
     dontNpmBuild = true;
     npmFlags = [ "--omit=peer" ];
     nativeBuildInputs = [ pkgs.esbuild ];
