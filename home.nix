@@ -75,6 +75,7 @@ in
     fzf
     bun
     uv
+    devenv
     worktrunk
     herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
     mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default
@@ -170,6 +171,12 @@ in
   programs.mise = {
     enable = true;
     enableBashIntegration = true;
+  };
+
+  programs.direnv = {
+    enable = true;
+    enableBashIntegration = true;
+    nix-direnv.enable = true;
   };
 
   programs.zoxide = {
