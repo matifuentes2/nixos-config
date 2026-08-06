@@ -1,5 +1,5 @@
 keys:
-  - &nixos age1ww9temynp0qnjewke8qcyxtkfnrkw3ulrtyxlkv6xhytpccz25dsn2e3qf
+  - &nixos age17kyj69njckalgzy5jtmnx9uqks2tf05cqrm7pks0jvyy5mwuuscqzkm5zg
 creation_rules:
   - path_regex: secrets/collie\.yaml$
     key_groups:

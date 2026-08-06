@@ -19,7 +19,10 @@
   # decrypts its dotenv file for the Collie user service at activation time.
   sops = {
     defaultSopsFile = ./secrets/collie.yaml;
-    age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+    age = {
+      keyFile = "/var/lib/sops-nix/key.txt";
+      sshKeyPaths = [ ];
+    };
     secrets."collie-env" = {
       owner = "pi";
       group = "users";
