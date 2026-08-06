@@ -21,6 +21,7 @@
     casks = [
       "karabiner-elements"
       "raycast"
+      "rectangle"
     ];
   };
 
