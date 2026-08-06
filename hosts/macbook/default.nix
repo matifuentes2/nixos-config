@@ -1,4 +1,4 @@
-{ username, ... }:
+{ pkgs, username, ... }:
 
 {
   imports = [
@@ -23,10 +23,13 @@
       "docker-desktop"
       "hiddenbar"
       "karabiner-elements"
+      "kitty"
       "raycast"
       "rectangle"
     ];
   };
+
+  fonts.packages = [ pkgs.jetbrains-mono ];
 
   # Keep this value when upgrading nix-darwin; it controls compatibility
   # defaults rather than the installed macOS version.
