@@ -17,4 +17,12 @@
   ];
 
   home.shellAliases.rebuild = "sudo darwin-rebuild switch --flake ~/nixos-config#macbook";
+
+  # Karabiner-Elements is installed by nix-darwin's Homebrew module. Keep its
+  # active configuration and imported complex-modification rule reproducible.
+  home.file = {
+    ".config/karabiner/karabiner.json".source = ./karabiner/karabiner.json;
+    ".config/karabiner/assets/complex_modifications/1698155918.json".source =
+      ./karabiner/assets/complex_modifications/1698155918.json;
+  };
 }
