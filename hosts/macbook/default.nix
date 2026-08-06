@@ -19,6 +19,9 @@
   homebrew = {
     enable = true;
     casks = [
+      "betterdisplay"
+      "docker-desktop"
+      "hiddenbar"
       "karabiner-elements"
       "raycast"
       "rectangle"
