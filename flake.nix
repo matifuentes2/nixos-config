@@ -87,6 +87,7 @@
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
+            home-manager.backupFileExtension = "backup";
             home-manager.users.${darwinUsername} = import ./hosts/macbook/home.nix;
             home-manager.extraSpecialArgs = homeSpecialArgs // {
               username = darwinUsername;
