@@ -1,8 +1,9 @@
 # Fresh installation on the Raspberry Pi 4
 
-This repository configures the `nixos` host running on a 64-bit Raspberry Pi 4.
-It expects the partition layout from the official generic AArch64 NixOS SD-card
-image:
+This guide installs the repository's `nixos` flake output on a 64-bit
+Raspberry Pi 4. The repository also contains a separate nix-darwin `macbook`
+output; none of the macOS modules are applied by this procedure. The Pi expects
+the partition layout from the official generic AArch64 NixOS SD-card image:
 
 - a small `FIRMWARE` partition containing the Raspberry Pi boot files;
 - an ext4 `NIXOS_SD` root partition; and
@@ -13,8 +14,9 @@ Do not use a PC-oriented NixOS ISO, manually repartition the card, or run
 system. After booting it, the bootstrap script replaces its configuration and
 runs `nixos-rebuild`.
 
-> These instructions are specific to the Raspberry Pi 4. Do not apply this
-> flake to another computer without adding a separate hardware configuration.
+> These instructions are specific to the Raspberry Pi 4. Do not apply the
+> `nixos` output to another computer; each device needs its own host and
+> hardware configuration under `hosts/`.
 
 ## 1. Download the NixOS SD image
 
@@ -146,7 +148,8 @@ sudo reboot
 The configuration starts SDDM and Hyprland. Log in locally as `pi` with the
 password selected during bootstrap.
 
-OpenSSH accepts the public key declared in `configuration.nix`; SSH password
+OpenSSH accepts the public key declared in
+`hosts/raspberry-pi/default.nix`; SSH password
 login remains disabled. From a computer holding the corresponding private key,
 connect with:
 

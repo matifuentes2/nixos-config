@@ -1,16 +1,14 @@
-# Edit this configuration file to define what should be installed on
-# your system. Help is available in the configuration.nix(5) man page, on
+# Raspberry Pi-specific NixOS configuration. Help is available in the
+# configuration.nix(5) man page and on
 # https://search.nixos.org/options and in the NixOS manual (`nixos-help`).
 
-{ config, lib, pkgs, nixpkgs-unstable, ... }:
+{ pkgs, ... }:
 
 {
-  imports =
-    [ # Include the results of the hardware scan.
-      ./hardware-configuration.nix
-    ];
-
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  imports = [
+    ../../modules/system/common.nix
+    ./hardware-configuration.nix
+  ];
 
   # Let tools such as uv run upstream, dynamically linked Python builds.
   programs.nix-ld.enable = true;
@@ -18,7 +16,7 @@
   # Collie's VAPID private key is encrypted in the repository. sops-nix
   # decrypts its dotenv file for the Collie user service at activation time.
   sops = {
-    defaultSopsFile = ./secrets/collie.yaml;
+    defaultSopsFile = ../../secrets/collie.yaml;
     age = {
       keyFile = "/var/lib/sops-nix/key.txt";
       sshKeyPaths = [ ];
@@ -114,53 +112,18 @@
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAt+/czluQsmX++mLb+H96Zy5SKcU7uzRikipfvG1FSn"
     ];
-    packages = with pkgs; [
-      tree
-    ];
   };
 
   programs.firefox.enable = true;
 
-  # List packages installed in system profile.
-  # You can use https://search.nixos.org/ to find more packages (and options).
-  environment.systemPackages =
-    let
-      unstable = import nixpkgs-unstable {
-        system = pkgs.stdenv.hostPlatform.system;
-        config = config.nixpkgs.config;
-      };
-      upstreamPi = unstable.pi-coding-agent;
-
-      # Run the unmodified upstream CLI with its supported Bun runtime. This
-      # avoids Node's large ESM startup cost without maintaining a Pi fork.
-      pi = pkgs.writeShellApplication {
-        name = "pi";
-        runtimeInputs = [
-          pkgs.fd
-          pkgs.ripgrep
-        ];
-        text = ''
-          export PI_SKIP_VERSION_CHECK="''${PI_SKIP_VERSION_CHECK-1}"
-          export PI_TELEMETRY="''${PI_TELEMETRY-0}"
-
-          if [[ -z "''${BUN_RUNTIME_TRANSPILER_CACHE_PATH+x}" ]]; then
-            cache_root="''${XDG_CACHE_HOME:-$HOME/.cache}"
-            export BUN_RUNTIME_TRANSPILER_CACHE_PATH="$cache_root/bun/runtime-transpiler"
-          fi
-
-          exec -a "$0" ${lib.getExe pkgs.bun} \
-            ${upstreamPi}/lib/node_modules/pi-monorepo/dist/bun/cli.js "$@"
-        '';
-      };
-    in
-    with pkgs;
-    [
-      vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
-      wget
-      git
-      pi
-      gh
-    ];
+  # Packages installed in the system profile. Cross-platform user packages
+  # belong in modules/home/common.nix instead.
+  environment.systemPackages = with pkgs; [
+    vim
+    wget
+    git
+    gh
+  ];
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
@@ -227,4 +190,3 @@
   system.stateVersion = "25.11"; # Did you read the comment?
 
 }
-

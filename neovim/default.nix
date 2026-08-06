@@ -240,8 +240,6 @@ in
       nodejs
       ripgrep
       uv
-      wl-clipboard
-      xclip
 
       # Lua and shell tooling.
       lua-language-server
@@ -280,6 +278,11 @@ in
 
       # Required by flutter-tools.nvim. This also provides Dart.
       flutter
+    ]
+    ++ lib.optionals pkgs.stdenv.isLinux [
+      # Clipboard providers used by the Linux desktop.
+      pkgs.wl-clipboard
+      pkgs.xclip
     ];
   };
 

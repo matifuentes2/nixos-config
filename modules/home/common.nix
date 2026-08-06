@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  nixpkgs-unstable,
   herdr,
   herdr-worktrunk,
   herdr-collie,
@@ -10,10 +11,37 @@
 }:
 
 let
+  unstable = import nixpkgs-unstable {
+    system = pkgs.stdenv.hostPlatform.system;
+  };
+  upstreamPi = unstable.pi-coding-agent;
+
+  # Run the unmodified upstream CLI with its supported Bun runtime. This avoids
+  # Node's large ESM startup cost without maintaining a Pi fork.
+  pi = pkgs.writeShellApplication {
+    name = "pi";
+    runtimeInputs = [
+      pkgs.fd
+      pkgs.ripgrep
+    ];
+    text = ''
+      export PI_SKIP_VERSION_CHECK="''${PI_SKIP_VERSION_CHECK-1}"
+      export PI_TELEMETRY="''${PI_TELEMETRY-0}"
+
+      if [[ -z "''${BUN_RUNTIME_TRANSPILER_CACHE_PATH+x}" ]]; then
+        cache_root="''${XDG_CACHE_HOME:-$HOME/.cache}"
+        export BUN_RUNTIME_TRANSPILER_CACHE_PATH="$cache_root/bun/runtime-transpiler"
+      fi
+
+      exec -a "$0" ${lib.getExe pkgs.bun} \
+        ${upstreamPi}/lib/node_modules/pi-monorepo/dist/bun/cli.js "$@"
+    '';
+  };
+
   piExtensions = pkgs.buildNpmPackage {
     pname = "pi-extensions";
     version = "1.0.0";
-    src = ./pi-extensions;
+    src = ../../pi-extensions;
     npmDepsHash = "sha256-FJiHY17b9uB8ycVM5x/fniYRnyvBBqYnj9cU/tgF2t8=";
     dontNpmBuild = true;
     npmFlags = [ "--omit=peer" ];
@@ -57,15 +85,8 @@ let
 in
 {
   imports = [
-    ./hyprland
-    ./neovim
+    ../../neovim
   ];
-
-  home.username = "pi";
-  home.homeDirectory = "/home/pi";
-
-  # Keep this at the version used when Home Manager was first configured.
-  home.stateVersion = "25.11";
 
   # Packages installed only for this user.
   home.packages = with pkgs; [
@@ -77,6 +98,7 @@ in
     uv
     devenv
     worktrunk
+    pi
     herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
     mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
@@ -110,30 +132,30 @@ in
   xdg.configFile."herdr/config.toml" = {
     force = true;
     text = ''
-    onboarding = false
+      onboarding = false
 
-    [theme]
-    name = "tokyo-night"
-    auto_switch = false
+      [theme]
+      name = "tokyo-night"
+      auto_switch = false
 
-    # Worktrunk plugin keybindings recommended by its README.
-    [[keys.command]]
-    key = "prefix+shift+g"
-    type = "plugin_action"
-    command = "worktrunk.open"
-    description = "Worktree: switch / create from default branch"
+      # Worktrunk plugin keybindings recommended by its README.
+      [[keys.command]]
+      key = "prefix+shift+g"
+      type = "plugin_action"
+      command = "worktrunk.open"
+      description = "Worktree: switch / create from default branch"
 
-    [[keys.command]]
-    key = "prefix+shift+c"
-    type = "plugin_action"
-    command = "worktrunk.open-current"
-    description = "Worktree: switch / create from current branch"
+      [[keys.command]]
+      key = "prefix+shift+c"
+      type = "plugin_action"
+      command = "worktrunk.open-current"
+      description = "Worktree: switch / create from current branch"
 
-    [[keys.command]]
-    key = "prefix+shift+d"
-    type = "plugin_action"
-    command = "worktrunk.remove"
-    description = "Worktree: remove"
+      [[keys.command]]
+      key = "prefix+shift+d"
+      type = "plugin_action"
+      command = "worktrunk.remove"
+      description = "Worktree: remove"
     '';
   };
 
@@ -152,10 +174,8 @@ in
   };
 
   # Install Pi agent skills declaratively from pinned or tracked sources.
-  home.file.".pi/agent/skills/herdr/SKILL.md".source =
-    "${herdr}/skills/herdr/SKILL.md";
-  home.file.".pi/agent/skills/devenv-setup/SKILL.md".source =
-    ./pi-skills/devenv-setup/SKILL.md;
+  home.file.".pi/agent/skills/herdr/SKILL.md".source = "${herdr}/skills/herdr/SKILL.md";
+  home.file.".pi/agent/skills/devenv-setup/SKILL.md".source = ../../pi-skills/devenv-setup/SKILL.md;
 
   # pi-mcp-adapter reads this configuration and starts the pinned server only
   # when its tools are first used.
@@ -173,28 +193,30 @@ in
   programs.mise = {
     enable = true;
     enableBashIntegration = true;
+    enableZshIntegration = true;
   };
 
   programs.direnv = {
     enable = true;
     enableBashIntegration = true;
+    enableZshIntegration = true;
     nix-direnv.enable = true;
   };
 
   programs.zoxide = {
     enable = true;
     enableBashIntegration = true;
+    enableZshIntegration = true;
+  };
+
+  home.shellAliases = {
+    ll = "ls -alh";
+    la = "ls -A";
+    gs = "git status";
   };
 
   programs.bash = {
     enable = true;
-
-    shellAliases = {
-      ll = "ls -alh";
-      la = "ls -A";
-      gs = "git status";
-      rebuild = "sudo nixos-rebuild switch --flake /etc/nixos#nixos";
-    };
 
     # Put Bash-specific functions and other interactive setup here.
     initExtra = ''
@@ -205,11 +227,11 @@ in
     '';
   };
 
-  # Ported from https://github.com/matifuentes2/dotfiles. The original prompt
-  # uses an Apple glyph; use the NixOS glyph on this host instead.
+  # Ported from https://github.com/matifuentes2/dotfiles.
   programs.starship = {
     enable = true;
     enableBashIntegration = true;
+    enableZshIntegration = true;
 
     settings = {
       format = lib.concatStrings [
@@ -286,7 +308,7 @@ in
         format = "[[  $time ](fg:#a0a9cb bg:#1d2230)]($style)";
       };
 
-      character.vicmd_symbol = "N >";
+      character.vicmd_symbol = if pkgs.stdenv.isDarwin then " >" else "N >";
     };
   };
 
