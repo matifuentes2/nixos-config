@@ -20,12 +20,16 @@
     enable = true;
     casks = [
       "betterdisplay"
+      "bitwarden"
+      "chatgpt"
       "docker-desktop"
+      "google-chrome"
       "hiddenbar"
       "karabiner-elements"
       "kitty"
       "raycast"
       "rectangle"
+      "whatsapp"
     ];
   };
 
