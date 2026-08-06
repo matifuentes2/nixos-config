@@ -56,34 +56,27 @@ See the [Hyprland desktop guide](./docs/hyprland.md) for its keybindings.
 
 ## macOS
 
-The checked-in Mac defaults assume:
-
-- Apple Silicon (`aarch64-darwin`); and
-- a macOS short account name of `matif`.
-
-Before the first activation, change `darwinSystem` and `darwinUsername` in
-[`flake.nix`](./flake.nix) if either assumption differs. The value must be the
-short account name shown by `id -un`, not the full display name.
-
-Install Nix on the Mac, clone this repository, and run the initial activation:
+A new Apple Silicon Mac with the short account name `matif` can be bootstrapped
+from the stock Terminal with one command:
 
 ```sh
-git clone https://github.com/matifuentes2/nixos-config.git ~/nixos-config
-cd ~/nixos-config
-sudo nix --extra-experimental-features 'nix-command flakes' \
-  run nix-darwin/master#darwin-rebuild -- switch --flake .#macbook
+curl --proto '=https' --tlsv1.2 -fsSL \
+  https://raw.githubusercontent.com/matifuentes2/nixos-config/main/scripts/bootstrap-macos.sh \
+  | bash
 ```
 
-After nix-darwin is active, rebuild with:
+No separate Nix, Git, Xcode Command Line Tools, Homebrew, or nix-darwin setup is
+required. The script installs the missing bootstrap tools, clones this
+repository to `~/nixos-config`, checks and builds the locked configuration, and
+activates nix-darwin, Home Manager, Homebrew, and the declared GUI applications.
+See the [fresh macOS installation guide](./docs/macos-fresh-install.md) for the
+expected prompts, an inspect-before-running procedure, reruns, and updates.
+
+After installation, rebuild with:
 
 ```sh
 sudo darwin-rebuild switch --flake ~/nixos-config#macbook
 ```
-
-The Mac configuration currently manages native Nix packages only. Add macOS
-GUI applications declaratively with nix-darwin's `homebrew` options if
-Homebrew is installed; do not install them imperatively without recording them
-in this repository.
 
 ## Validation and pinned dependencies
 

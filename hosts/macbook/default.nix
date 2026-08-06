@@ -16,6 +16,14 @@
   # in modules/home/darwin.nix.
   programs.zsh.enable = true;
 
+  # nix-homebrew installs the pinned Homebrew distribution. nix-darwin then
+  # manages the applications below with Homebrew Bundle.
+  nix-homebrew = {
+    enable = true;
+    user = username;
+    autoMigrate = true;
+  };
+
   homebrew = {
     enable = true;
     casks = [

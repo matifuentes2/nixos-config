@@ -8,6 +8,7 @@
       url = "github:nix-darwin/nix-darwin";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    nix-homebrew.url = "github:zhaofengli/nix-homebrew";
     herdr = {
       url = "github:herdrdev/herdr/v0.8.0";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -36,6 +37,7 @@
       nixpkgs,
       nixpkgs-unstable,
       nix-darwin,
+      nix-homebrew,
       herdr,
       herdr-worktrunk,
       herdr-collie,
@@ -83,6 +85,7 @@
         };
         modules = [
           ./hosts/macbook
+          nix-homebrew.darwinModules.nix-homebrew
           home-manager.darwinModules.home-manager
           {
             home-manager.useGlobalPkgs = true;

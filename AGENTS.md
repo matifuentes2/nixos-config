@@ -32,6 +32,35 @@ appropriate flake output.
 - Preserve existing `system.stateVersion` and `home.stateVersion` values unless
   a migration explicitly requires changing them.
 
+## Privacy and public-repository safety
+
+Treat the working tree and the complete Git history as publicly accessible.
+Privacy-sensitive data must never enter a commit, because deleting it in a
+later commit does not remove it from history or existing forks.
+
+- Use `55928941+matifuentes2@users.noreply.github.com` for both author and
+  committer email addresses. Before creating a commit, verify the repository's
+  `git config user.email`; never commit with a personal email address.
+- Never add images or other media containing EXIF, XMP, IPTC, GPS, author,
+  device make/model, device serial number, or similar identifying metadata.
+  Strip metadata losslessly when possible and verify the cleaned file before
+  staging it. Check every added or modified binary file explicitly.
+- Do not commit unnecessary personal or network identifiers such as private
+  email addresses, physical locations, Wi-Fi SSIDs, MAC addresses, device
+  serial numbers, private host addresses, or private account identifiers.
+- Public cryptographic material such as SSH public keys and age recipients may
+  be tracked only when intentionally required by the configuration. Private
+  keys, recovery codes, session material, and plaintext secrets must never be
+  tracked.
+- Before finishing, scan both the working tree and reachable history with
+  Gitleaks (`gitleaks dir .` and `gitleaks git .`) and verify that every author
+  and committer email in `git log --all` uses the GitHub noreply address. Do not
+  suppress or allowlist a finding without explaining why it is a false positive.
+- Never rewrite or force-push shared history merely to hide exposed sensitive
+  data without explicit approval. Assume anything already pushed may have been
+  copied, and rotate exposed credentials even if history is subsequently
+  cleaned.
+
 Rebuild the Raspberry Pi with:
 
 ```sh
@@ -44,8 +73,9 @@ Rebuild the Mac from its checkout with:
 sudo darwin-rebuild switch --flake ~/nixos-config#macbook
 ```
 
-Before finishing a change, ensure new files are tracked and run `nix flake
-check`. Validate the affected host with a non-switching build when possible:
+Before finishing a change, ensure new files are tracked, complete the privacy
+checks above, and run `nix flake check`. Validate the affected host with a
+non-switching build when possible:
 
 ```sh
 sudo nixos-rebuild build --flake /etc/nixos#nixos
