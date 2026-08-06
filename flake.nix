@@ -46,9 +46,9 @@
     }:
     let
       # Change these two values before the first macOS activation if the Mac is
-      # Intel-based or its local short account name is not "matias".
+      # Intel-based or its local short account name is not "matif".
       darwinSystem = "aarch64-darwin";
-      darwinUsername = "matias";
+      darwinUsername = "matif";
 
       homeSpecialArgs = {
         inherit

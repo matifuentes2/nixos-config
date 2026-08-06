@@ -5,7 +5,7 @@ This repository is the declarative source of truth for:
 - the `nixos` flake output: a 64-bit Raspberry Pi 4 running NixOS, with Home
   Manager for user `pi`; and
 - the `macbook` flake output: an Apple Silicon Mac managed by nix-darwin, with
-  Home Manager for user `matias`.
+  Home Manager for user `matif`.
 
 Shared command-line packages, Pi/Herdr configuration, shell tools, Starship,
 and Neovim live in [`modules/home/common.nix`](./modules/home/common.nix).
@@ -59,7 +59,7 @@ See the [Hyprland desktop guide](./docs/hyprland.md) for its keybindings.
 The checked-in Mac defaults assume:
 
 - Apple Silicon (`aarch64-darwin`); and
-- a macOS short account name of `matias`.
+- a macOS short account name of `matif`.
 
 Before the first activation, change `darwinSystem` and `darwinUsername` in
 [`flake.nix`](./flake.nix) if either assumption differs. The value must be the
