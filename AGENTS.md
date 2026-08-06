@@ -14,6 +14,9 @@ appropriate flake output.
 - Put Linux-only Home Manager settings in `modules/home/linux.nix`, macOS-only
   settings in `modules/home/darwin.nix`, and per-device settings in that host's
   `home.nix`.
+- Install macOS GUI applications through Homebrew casks, but declare every cask
+  declaratively in the tracked Nix configuration (for example, via nix-darwin's
+  `homebrew.casks`). Do not install GUI applications imperatively with `brew`.
 - Put cross-platform system settings in `modules/system/common.nix`. Do not
   import NixOS-only options into nix-darwin or Darwin-only options into NixOS.
 - Manage inputs, host architecture, macOS username, and module wiring through
