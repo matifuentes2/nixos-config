@@ -76,12 +76,33 @@ sudo nmtui
 
 ## 4. Run the bootstrap script
 
+The encrypted system secrets require the age identity stored in Bitwarden.
+Before starting, make sure the private identity is the complete contents of a
+secure note named `NixOS SOPS age identity` and that you have the account's
+master password and Authenticator app available.
+
 Run the repository's bootstrap script directly from the Pi console:
 
 ```sh
 curl -fsSL \
   https://raw.githubusercontent.com/matifuentes2/nixos-config/main/scripts/bootstrap.sh \
   | sudo bash
+```
+
+The script uses the flake-pinned Bitwarden CLI to log in interactively with
+Authenticator method `0`, retrieve the secure note, verify that its public
+recipient matches `.sops.yaml`, and install it as root-only
+`/var/lib/sops-nix/key.txt`. This explicitly selects an Authenticator app code;
+the CLI does not use the account's passkey. Its temporary Bitwarden state and
+downloaded note are removed before the script exits. A rerun uses an
+already-installed matching identity without logging in again.
+
+To use a differently named secure note, set its name for the root process:
+
+```sh
+curl -fsSL \
+  https://raw.githubusercontent.com/matifuentes2/nixos-config/main/scripts/bootstrap.sh \
+  | sudo env BITWARDEN_ITEM_NAME="My NixOS age identity" bash
 ```
 
 The script deliberately stops unless it detects all of the following:
@@ -93,10 +114,13 @@ The script deliberately stops unless it detects all of the following:
 It then:
 
 1. obtains Git temporarily through Nix if Git is not already available;
-2. clones the `main` branch into `/etc/nixos`;
-3. runs `nix flake check`;
-4. applies `/etc/nixos#nixos` with `nixos-rebuild switch`; and
-5. asks for a local login and `sudo` password for user `pi`.
+2. clones the `main` branch into a temporary directory;
+3. retrieves and validates the SOPS age identity when it is not already
+   installed;
+4. runs `nix flake check`;
+5. places the checkout at `/etc/nixos` and applies `/etc/nixos#nixos` with
+   `nixos-rebuild switch`; and
+6. asks for a local login and `sudo` password for user `pi`.
 
 Any configuration originally at `/etc/nixos` is retained in a timestamped
 `/etc/nixos.backup-*` directory.
