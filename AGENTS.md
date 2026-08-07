@@ -67,6 +67,28 @@ later commit does not remove it from history or existing forks.
   copied, and rotate exposed credentials even if history is subsequently
   cleaned.
 
+## Bootstrap and release maintenance
+
+Agents changing `scripts/bootstrap*.sh`, installation guides, flake inputs,
+Homebrew taps, CI validation, GitHub repository controls, or bootstrap releases
+must first read [`docs/public-repository-security.md`](./docs/public-repository-security.md).
+
+- `bootstrap-release.env` is the single tracked record of the current reviewed
+  release, commit, archive name, and SHA-256 checksum. Never update only one
+  installation guide; run `scripts/check-bootstrap-release.sh` to ensure both
+  guides and the manifest agree.
+- Published `bootstrap-v*` releases and tags are immutable. Never attempt to
+  replace, edit, retag, or delete one. Publish the next semantic version with
+  `scripts/create-bootstrap-release.sh` only after the candidate commit is on
+  `main` and its validation workflow has passed.
+- Run `scripts/audit-github-settings.sh` after changing GitHub controls or
+  publishing a release. It verifies protected `main`, required checks,
+  immutable releases, protected release tags, and the release asset digest.
+- `main` is protected. Submit changes through a pull request and wait for both
+  required checks; do not weaken or temporarily bypass protection to merge.
+- Run every command under **Required checks** in the public-repository security
+  document before merging or publishing a release.
+
 Rebuild the Raspberry Pi with:
 
 ```sh

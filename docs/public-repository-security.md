@@ -12,14 +12,28 @@ bootstrap script then fetches and verifies the same Git commit before
 activation. This prevents a branch update or asset replacement between
 reviewing the release and activating the configuration.
 
-When publishing a new bootstrap release, maintainers should:
+`bootstrap-release.env` is the single tracked record of the current release,
+full commit, deterministic archive name, and SHA-256 checksum. CI runs
+`scripts/check-bootstrap-release.sh` to ensure both installation guides contain
+the same values.
 
-1. run the validation workflow and host build for the candidate commit;
-2. create an immutable GitHub release whose tag points to that commit;
-3. enable repository rules that prevent release-tag updates or deletion;
-4. publish the full commit ID and source archive checksum in the release notes;
-5. keep `main` protected from force-pushes and require passing checks; and
-6. update pinned bootstrap dependencies only through a reviewed pull request.
+To publish a new bootstrap release:
+
+1. merge the candidate through a pull request and wait for both required checks
+   on `main` to pass;
+2. from a clean, synchronized `main`, run
+   `scripts/audit-github-settings.sh`;
+3. run `scripts/create-bootstrap-release.sh bootstrap-vMAJOR.MINOR.PATCH`;
+4. let the script verify the successful workflow, create the deterministic
+   archive, publish the draft as an immutable release, and update
+   `bootstrap-release.env` plus both installation guides; and
+5. move those generated documentation changes to a branch, validate them, and
+   merge them through another pull request.
+
+The release script deliberately refuses an existing version, non-`main`
+revision, dirty checkout, failed workflow, or GitHub control audit. If anything
+fails after publication, the release remains immutable; use the printed commit
+and checksum to finish the manifest update rather than editing the release.
 
 The validation workflow follows GitHub's
 [secure-use guidance](https://docs.github.com/en/actions/reference/security/secure-use)
@@ -65,9 +79,15 @@ nix flake check
 nix build --no-link .#darwinConfigurations.macbook.system
 nix shell .#ci-tools -c actionlint
 nix shell .#ci-tools -c sh -c 'git ls-files -z "*.nix" | xargs -0 nixfmt --check'
-nix shell .#ci-tools -c shellcheck \
-  scripts/bootstrap.sh scripts/bootstrap-macos.sh scripts/check-public-repo.sh
+nix shell .#ci-tools -c shellcheck scripts/*.sh
+bash scripts/check-bootstrap-release.sh
 nix shell .#ci-tools -c bash scripts/check-public-repo.sh
+```
+
+Before publishing a bootstrap release, additionally run:
+
+```sh
+scripts/audit-github-settings.sh
 ```
 
 On the Raspberry Pi, also perform a non-switching host build:

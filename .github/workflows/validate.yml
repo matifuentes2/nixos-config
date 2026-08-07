@@ -37,8 +37,11 @@ jobs:
       - name: Check Nix formatting
         run: nix shell .#ci-tools --command sh -c 'git ls-files -z "*.nix" | xargs -0 nixfmt --check'
 
-      - name: Check bootstrap scripts
-        run: nix shell .#ci-tools --command shellcheck scripts/bootstrap.sh scripts/bootstrap-macos.sh scripts/check-public-repo.sh
+      - name: Check repository scripts
+        run: nix shell .#ci-tools --command shellcheck scripts/*.sh
+
+      - name: Check bootstrap release metadata
+        run: bash scripts/check-bootstrap-release.sh
 
       - name: Check public-repository safety
         run: nix shell .#ci-tools --command bash scripts/check-public-repo.sh

@@ -102,7 +102,9 @@ nix shell .#ci-tools -c bash scripts/check-public-repo.sh
 
 See the [public repository and bootstrap security policy](./docs/public-repository-security.md)
 for the release procedure, trust boundaries, automated checks, and secret
-rotation requirements.
+rotation requirements. The current immutable release metadata lives in
+[`bootstrap-release.env`](./bootstrap-release.env); tracked scripts validate
+that metadata, audit GitHub controls, and create the next release reproducibly.
 
 Neovim is configured under [`neovim/`](./neovim/); its plugins, parsers,
 language servers, formatters, and debug adapters are supplied by Nix rather
