@@ -24,17 +24,17 @@ new Terminal window.
 The bootstrap script:
 
 1. verifies that it is running as user `matif` on Apple Silicon macOS;
-2. installs Lix when Nix is not already available;
+2. installs Nix in multi-user daemon mode when it is not already available;
 3. clones this repository to `~/nixos-config`, using a Nix-provided Git when the
    Xcode Command Line Tools are absent;
 4. checks and builds the locked `macbook` flake output;
 5. activates nix-darwin and Home Manager; and
 6. installs the pinned Homebrew distribution and all declared Homebrew casks.
 
-Lix is the Nix implementation recommended by nix-darwin. Homebrew itself is
-installed declaratively by `nix-homebrew`; it is not a manual prerequisite. If
-Homebrew already exists at its standard prefix, `nix-homebrew` adopts it during
-the first activation.
+Nix is installed with the official `nixos.org` installer in multi-user daemon
+mode. Homebrew itself is installed declaratively by `nix-homebrew`; it is not a
+manual prerequisite. If Homebrew already exists at its standard prefix,
+`nix-homebrew` adopts it during the first activation.
 
 ## Inspect before running
 

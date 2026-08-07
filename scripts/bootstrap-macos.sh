@@ -22,9 +22,9 @@ die() {
   "this configuration expects the macOS short account name '$EXPECTED_USERNAME' (current: $(id -un))"
 
 if ! command -v nix >/dev/null 2>&1; then
-  log "Installing Lix (the Nix implementation recommended by nix-darwin)"
-  curl --proto '=https' --tlsv1.2 -fsSL https://install.lix.systems/lix \
-    | sh -s -- install --no-confirm
+  log "Installing Nix in multi-user daemon mode"
+  curl --proto '=https' --tlsv1.2 -fsSL https://nixos.org/nix/install \
+    | sh -s -- --daemon --yes
 fi
 
 # Make a newly installed Nix available without requiring a new Terminal window.

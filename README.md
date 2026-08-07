@@ -66,9 +66,10 @@ curl --proto '=https' --tlsv1.2 -fsSL \
 ```
 
 No separate Nix, Git, Xcode Command Line Tools, Homebrew, or nix-darwin setup is
-required. The script installs the missing bootstrap tools, clones this
-repository to `~/nixos-config`, checks and builds the locked configuration, and
-activates nix-darwin, Home Manager, Homebrew, and the declared GUI applications.
+required. The script installs Nix with the official `nixos.org` installer when
+needed, clones this repository to `~/nixos-config`, checks and builds the locked
+configuration, and activates nix-darwin, Home Manager, Homebrew, and the declared
+GUI applications.
 See the [fresh macOS installation guide](./docs/macos-fresh-install.md) for the
 expected prompts, an inspect-before-running procedure, reruns, and updates.
 
