@@ -78,6 +78,10 @@ sudo nixos-rebuild build --flake /etc/nixos#nixos
 
 The public-repository check scans the working tree and reachable Git history
 with Gitleaks, verifies author and committer addresses, and rejects identifying
-metadata in tracked media. Automated checks reduce risk but do not replace
-review of configuration values that may reveal personal preferences or account
+metadata in tracked media. Authors and locally created commits must use the
+configured GitHub noreply address. Protected-branch squash merges may use
+`GitHub <noreply@github.com>` as their verified server-side committer; this is
+an explicitly documented false positive because it contains no personal
+address. Automated checks reduce risk but do not replace review of
+configuration values that may reveal personal preferences or account
 identifiers.

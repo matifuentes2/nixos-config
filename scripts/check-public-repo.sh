@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 readonly REQUIRED_EMAIL="55928941+matifuentes2@users.noreply.github.com"
+readonly GITHUB_PLATFORM_EMAIL="noreply@github.com"
 
 for command_name in exiftool git gitleaks grep; do
   command -v "$command_name" >/dev/null 2>&1 || {
@@ -18,11 +19,26 @@ gitleaks git . --no-banner --redact
 
 printf 'Checking author and committer email addresses...\n'
 bad_email=false
-while IFS= read -r email; do
-  [[ -z $email || $email == "$REQUIRED_EMAIL" ]] && continue
-  printf 'Unexpected Git author or committer email: %s\n' "$email" >&2
+while IFS=$'\t' read -r commit author_email committer_name committer_email; do
+  if [[ $author_email != "$REQUIRED_EMAIL" ]]; then
+    printf 'Unexpected author email in %s: %s\n' "$commit" "$author_email" >&2
+    bad_email=true
+  fi
+
+  if [[ $committer_email == "$REQUIRED_EMAIL" ]]; then
+    continue
+  fi
+
+  # GitHub creates protected-branch squash commits server-side. Its verified
+  # platform committer is public infrastructure metadata, not a personal email.
+  if [[ $committer_name == "GitHub" && $committer_email == "$GITHUB_PLATFORM_EMAIL" ]]; then
+    continue
+  fi
+
+  printf 'Unexpected committer in %s: %s <%s>\n' \
+    "$commit" "$committer_name" "$committer_email" >&2
   bad_email=true
-done < <(git log --all --format='%ae%n%ce' | sort -u)
+done < <(git log --all --format='%H%x09%ae%x09%cn%x09%ce')
 [[ $bad_email == false ]] || exit 1
 
 printf 'Checking tracked media metadata...\n'
