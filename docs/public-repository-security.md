@@ -6,14 +6,13 @@ from `main`.
 
 ## Bootstrap trust model
 
-The installation guides resolve `main` once, validate that GitHub returned a
-full commit ID, download that immutable commit's archive, and require the
-bootstrap script to fetch and verify the same Git commit before activation.
-This prevents a branch update between inspecting the script and cloning the
-configuration.
+The installation guides pin an immutable bootstrap release, its full Git
+commit ID, and the SHA-256 checksum of its attached source archive. The
+bootstrap script then fetches and verifies the same Git commit before
+activation. This prevents a branch update or asset replacement between
+reviewing the release and activating the configuration.
 
-For a reviewed installation release, use a full commit ID directly instead of
-resolving `main`. Maintainers should:
+When publishing a new bootstrap release, maintainers should:
 
 1. run the validation workflow and host build for the candidate commit;
 2. create an immutable GitHub release whose tag points to that commit;
@@ -29,12 +28,13 @@ SHAs. GitHub's
 [immutable-release guidance](https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/supply-chain-security/immutable-releases)
 describes the repository setting used for reviewed release tags and assets.
 
-A commit ID prevents accidental movement and time-of-check/time-of-use races.
-It does not protect a new visitor if GitHub and the maintainer account are
-already compromised. A higher-assurance release should additionally sign a
-manifest containing the commit and archive checksum with a key stored outside
-GitHub, and distribute the verification key through an independent trusted
-channel.
+The repository currently enables immutable releases and protects
+`bootstrap-v*` tags against updates and deletion. A commit ID and checksum
+prevent accidental movement and time-of-check/time-of-use races. They do not
+protect a new visitor if GitHub and the maintainer account are already
+compromised. A higher-assurance release should additionally sign a manifest
+containing the commit and archive checksum with a key stored outside GitHub,
+and distribute the verification key through an independent trusted channel.
 
 ## Public cryptographic material
 
