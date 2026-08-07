@@ -83,27 +83,28 @@ Before starting, make sure the private identity is the complete contents of a
 secure note named `NixOS SOPS age identity` and that you have the account's
 master password and Authenticator app available.
 
-The following commands resolve `main` once to a full Git commit, download an
-archive for that immutable revision, and run the script from the same archive:
+The following commands download the reviewed, immutable `bootstrap-v1.0.0`
+release, verify its SHA-256 checksum, and run its bootstrap script:
 
 ```sh
 (
 set -eu
 repository="matifuentes2/nixos-config"
-revision=$(curl --proto '=https' --tlsv1.2 -fsSL \
-  "https://api.github.com/repos/$repository/commits/main" \
-  | awk -F '"' '/^[[:space:]]*"sha":/ { print $4; exit }')
-[ "${#revision}" -eq 40 ]
-case "$revision" in *[!0-9a-f]*) exit 1 ;; esac
+release="bootstrap-v1.0.0"
+revision="cd4fb5894282216f69e505aea7ec821e7a7f0e2e"
+archive="nixos-config-$release.tar.gz"
+archive_sha256="783f93ea75bc097d6a3a05a11e4c92c48b8f837d96f64015d438e5f8d27ca4df"
 
 bootstrap_directory=$(mktemp -d)
 trap 'rm -rf "$bootstrap_directory"' EXIT
 curl --proto '=https' --tlsv1.2 -fsSL \
-  "https://github.com/$repository/archive/$revision.tar.gz" \
-  -o "$bootstrap_directory/source.tar.gz"
-tar -xzf "$bootstrap_directory/source.tar.gz" -C "$bootstrap_directory"
-source_directory=$(find "$bootstrap_directory" -mindepth 1 -maxdepth 1 -type d -print -quit)
-[ -n "$source_directory" ]
+  "https://github.com/$repository/releases/download/$release/$archive" \
+  -o "$bootstrap_directory/$archive"
+actual_sha256=$(sha256sum "$bootstrap_directory/$archive" | awk '{ print $1 }')
+[ "$actual_sha256" = "$archive_sha256" ]
+tar -xzf "$bootstrap_directory/$archive" -C "$bootstrap_directory"
+source_directory="$bootstrap_directory/nixos-config-$revision"
+[ -x "$source_directory/scripts/bootstrap.sh" ]
 
 sudo env \
   NIXOS_CONFIG_REVISION="$revision" \
@@ -112,10 +113,8 @@ sudo env \
 )
 ```
 
-To install a previously reviewed release instead of the current `main`
-snapshot, replace the `revision=$(...)` command with its full 40-character
-commit. The archive and the commit fetched by Git are then tied to the same
-immutable identifier.
+The release tag, assets, commit, and checksum are protected by GitHub's
+immutable-release setting and a tag ruleset that prevents updates or deletion.
 
 The script uses the flake-pinned Bitwarden CLI to log in interactively with
 Authenticator method `0`, retrieve the secure note, verify that its public

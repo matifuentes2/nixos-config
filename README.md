@@ -61,11 +61,10 @@ from the stock Terminal without separately installing Nix, Git, the Xcode
 Command Line Tools, Homebrew, or nix-darwin. Follow the
 [fresh macOS installation guide](./docs/macos-fresh-install.md).
 
-The documented procedure resolves the repository to one full Git commit,
-downloads and optionally inspects that immutable source archive, and requires
-the bootstrap script to fetch and activate the same revision. Nix, Git,
-Homebrew, its taps, Home Manager, and nix-darwin are obtained from versioned or
-flake-locked sources.
+The documented procedure downloads a checksum-verified immutable release and
+requires the bootstrap script to fetch and activate that release's full Git
+commit. Nix, Git, Homebrew, its taps, Home Manager, and nix-darwin are obtained
+from versioned or flake-locked sources.
 
 After installation, rebuild with:
 
