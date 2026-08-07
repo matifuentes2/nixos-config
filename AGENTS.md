@@ -38,9 +38,13 @@ Treat the working tree and the complete Git history as publicly accessible.
 Privacy-sensitive data must never enter a commit, because deleting it in a
 later commit does not remove it from history or existing forks.
 
-- Use `55928941+matifuentes2@users.noreply.github.com` for both author and
-  committer email addresses. Before creating a commit, verify the repository's
-  `git config user.email`; never commit with a personal email address.
+- Use `55928941+matifuentes2@users.noreply.github.com` for every author and
+  for every committer under local control. Before creating a commit, verify the
+  repository's `git config user.email`; never commit with a personal email
+  address. Protected-branch squash merges created server-side by GitHub may use
+  the verified platform committer `GitHub <noreply@github.com>`; this is the
+  only accepted exception because it is public infrastructure metadata rather
+  than a personal address.
 - Never add images or other media containing EXIF, XMP, IPTC, GPS, author,
   device make/model, device serial number, or similar identifying metadata.
   Strip metadata losslessly when possible and verify the cleaned file before
@@ -54,8 +58,10 @@ later commit does not remove it from history or existing forks.
   tracked.
 - Before finishing, scan both the working tree and reachable history with
   Gitleaks (`gitleaks dir .` and `gitleaks git .`) and verify that every author
-  and committer email in `git log --all` uses the GitHub noreply address. Do not
-  suppress or allowlist a finding without explaining why it is a false positive.
+  and committer email in `git log --all` uses the configured GitHub noreply
+  address, apart from the documented GitHub platform committer above. Do not
+  suppress or allowlist any other finding without explaining why it is a false
+  positive.
 - Never rewrite or force-push shared history merely to hide exposed sensitive
   data without explicit approval. Assume anything already pushed may have been
   copied, and rotate exposed credentials even if history is subsequently
