@@ -57,21 +57,15 @@ See the [Hyprland desktop guide](./docs/hyprland.md) for its keybindings.
 ## macOS
 
 A new Apple Silicon Mac with the short account name `matif` can be bootstrapped
-from the stock Terminal with one command:
+from the stock Terminal without separately installing Nix, Git, the Xcode
+Command Line Tools, Homebrew, or nix-darwin. Follow the
+[fresh macOS installation guide](./docs/macos-fresh-install.md).
 
-```sh
-curl --proto '=https' --tlsv1.2 -fsSL \
-  https://raw.githubusercontent.com/matifuentes2/nixos-config/main/scripts/bootstrap-macos.sh \
-  | bash
-```
-
-No separate Nix, Git, Xcode Command Line Tools, Homebrew, or nix-darwin setup is
-required. The script installs Nix with the official `nixos.org` installer when
-needed, clones this repository to `~/nixos-config`, checks and builds the locked
-configuration, and activates nix-darwin, Home Manager, Homebrew, and the declared
-GUI applications.
-See the [fresh macOS installation guide](./docs/macos-fresh-install.md) for the
-expected prompts, an inspect-before-running procedure, reruns, and updates.
+The documented procedure resolves the repository to one full Git commit,
+downloads and optionally inspects that immutable source archive, and requires
+the bootstrap script to fetch and activate the same revision. Nix, Git,
+Homebrew, its taps, Home Manager, and nix-darwin are obtained from versioned or
+flake-locked sources.
 
 After installation, rebuild with:
 
@@ -100,6 +94,16 @@ darwin-rebuild build --flake ~/nixos-config#macbook
 A Linux host cannot build a Darwin activation package without a Darwin remote
 builder. `flake.lock` pins nixpkgs, nix-darwin, Home Manager, and the other
 flake inputs.
+
+Run the public-repository safety checks with:
+
+```sh
+nix shell .#ci-tools -c bash scripts/check-public-repo.sh
+```
+
+See the [public repository and bootstrap security policy](./docs/public-repository-security.md)
+for the release procedure, trust boundaries, automated checks, and secret
+rotation requirements.
 
 Neovim is configured under [`neovim/`](./neovim/); its plugins, parsers,
 language servers, formatters, and debug adapters are supplied by Nix rather

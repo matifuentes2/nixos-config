@@ -9,6 +9,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nix-homebrew.url = "github:zhaofengli/nix-homebrew";
+    homebrew-core = {
+      url = "github:homebrew/homebrew-core";
+      flake = false;
+    };
+    homebrew-cask = {
+      url = "github:homebrew/homebrew-cask";
+      flake = false;
+    };
     herdr = {
       url = "github:herdrdev/herdr/v0.8.0";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -38,6 +46,8 @@
       nixpkgs-unstable,
       nix-darwin,
       nix-homebrew,
+      homebrew-core,
+      homebrew-cask,
       herdr,
       herdr-worktrunk,
       herdr-collie,
@@ -61,8 +71,37 @@
           nixpkgs-unstable
           ;
       };
+
+      bootstrapSystems = [
+        "aarch64-linux"
+        "aarch64-darwin"
+        "x86_64-linux"
+      ];
     in
     {
+      # Bootstrap Git comes from this flake's locked nixpkgs input, avoiding a
+      # mutable registry or branch reference on fresh systems. CI tools are
+      # exposed for the repository's validation workflow.
+      packages = nixpkgs.lib.genAttrs bootstrapSystems (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          bootstrap-git = pkgs.git;
+          ci-tools = pkgs.buildEnv {
+            name = "nixos-config-ci-tools";
+            paths = [
+              pkgs.actionlint
+              pkgs.exiftool
+              pkgs.gitleaks
+              pkgs.nixfmt
+              pkgs.shellcheck
+            ];
+          };
+        }
+      );
+
       nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
         system = "aarch64-linux";
         modules = [
@@ -82,6 +121,7 @@
         system = darwinSystem;
         specialArgs = {
           username = darwinUsername;
+          inherit homebrew-core homebrew-cask;
         };
         modules = [
           ./hosts/macbook

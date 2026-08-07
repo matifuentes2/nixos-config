@@ -52,6 +52,7 @@ let
     # packages external so every extension uses the instances owned by Pi.
     postInstall = ''
       extensions="$out/lib/node_modules/pi-extensions/node_modules"
+      upstream_node_modules="${upstreamPi}/lib/node_modules/pi-monorepo/node_modules"
       common=(
         --bundle
         --platform=node
@@ -77,6 +78,16 @@ let
         "''${common[@]}" \
         --packages=external \
         --outfile="$extensions/pi-zentui/index.bundle.mjs"
+
+      mkdir -p "$extensions/@earendil-works"
+      ln -s "$upstream_node_modules/@earendil-works/pi-agent-core" \
+        "$extensions/@earendil-works/pi-agent-core"
+      ln -s "$upstream_node_modules/@earendil-works/pi-ai" \
+        "$extensions/@earendil-works/pi-ai"
+      ln -s "${upstreamPi}/lib/node_modules/pi-monorepo" \
+        "$extensions/@earendil-works/pi-coding-agent"
+      ln -s "$upstream_node_modules/@earendil-works/pi-tui" \
+        "$extensions/@earendil-works/pi-tui"
 
       # pi-web-access intentionally remains unbundled: bundling eagerly loads
       # its optional extractor graph and was slower in startup benchmarks.

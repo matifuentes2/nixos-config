@@ -35,9 +35,10 @@
     ".config/kitty/background.jpg".source = ./kitty/background.jpg;
     # Replace the pre-existing dotfiles symlink during the first activation.
     ".config/kitty/kitty.conf".force = true;
-    ".config/kitty/kitty.conf".text = builtins.replaceStrings
-      [ "@backgroundImage@" ]
-      [ "${config.home.homeDirectory}/.config/kitty/background.jpg" ]
-      (builtins.readFile ./kitty/kitty.conf);
+    ".config/kitty/kitty.conf".text =
+      builtins.replaceStrings
+        [ "@backgroundImage@" ]
+        [ "${config.home.homeDirectory}/.config/kitty/background.jpg" ]
+        (builtins.readFile ./kitty/kitty.conf);
   };
 }

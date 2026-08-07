@@ -83,13 +83,39 @@ Before starting, make sure the private identity is the complete contents of a
 secure note named `NixOS SOPS age identity` and that you have the account's
 master password and Authenticator app available.
 
-Run the repository's bootstrap script directly from the Pi console:
+The following commands resolve `main` once to a full Git commit, download an
+archive for that immutable revision, and run the script from the same archive:
 
 ```sh
-curl -fsSL \
-  https://raw.githubusercontent.com/matifuentes2/nixos-config/main/scripts/bootstrap.sh \
-  | sudo bash
+(
+set -eu
+repository="matifuentes2/nixos-config"
+revision=$(curl --proto '=https' --tlsv1.2 -fsSL \
+  "https://api.github.com/repos/$repository/commits/main" \
+  | awk -F '"' '/^[[:space:]]*"sha":/ { print $4; exit }')
+[ "${#revision}" -eq 40 ]
+case "$revision" in *[!0-9a-f]*) exit 1 ;; esac
+
+bootstrap_directory=$(mktemp -d)
+trap 'rm -rf "$bootstrap_directory"' EXIT
+curl --proto '=https' --tlsv1.2 -fsSL \
+  "https://github.com/$repository/archive/$revision.tar.gz" \
+  -o "$bootstrap_directory/source.tar.gz"
+tar -xzf "$bootstrap_directory/source.tar.gz" -C "$bootstrap_directory"
+source_directory=$(find "$bootstrap_directory" -mindepth 1 -maxdepth 1 -type d -print -quit)
+[ -n "$source_directory" ]
+
+sudo env \
+  NIXOS_CONFIG_REVISION="$revision" \
+  NIXOS_CONFIG_SOURCE_DIRECTORY="$source_directory" \
+  bash "$source_directory/scripts/bootstrap.sh"
+)
 ```
+
+To install a previously reviewed release instead of the current `main`
+snapshot, replace the `revision=$(...)` command with its full 40-character
+commit. The archive and the commit fetched by Git are then tied to the same
+immutable identifier.
 
 The script uses the flake-pinned Bitwarden CLI to log in interactively with
 Authenticator method `0`, retrieve the secure note, verify that its public
@@ -99,24 +125,29 @@ the CLI does not use the account's passkey. Its temporary Bitwarden state and
 downloaded note are removed before the script exits. A rerun uses an
 already-installed matching identity without logging in again.
 
-To use a differently named secure note, set its name for the root process:
+To use a differently named secure note, replace the final `sudo env` command
+inside the installation block with:
 
 ```sh
-curl -fsSL \
-  https://raw.githubusercontent.com/matifuentes2/nixos-config/main/scripts/bootstrap.sh \
-  | sudo env BITWARDEN_ITEM_NAME="My NixOS age identity" bash
+sudo env \
+  NIXOS_CONFIG_REVISION="$revision" \
+  NIXOS_CONFIG_SOURCE_DIRECTORY="$source_directory" \
+  BITWARDEN_ITEM_NAME="My NixOS age identity" \
+  bash "$source_directory/scripts/bootstrap.sh"
 ```
 
 The script deliberately stops unless it detects all of the following:
 
 - an ARM64 system;
-- a Raspberry Pi 4; and
-- the root filesystem UUID used by the official NixOS SD image.
+- a Raspberry Pi 4;
+- the root filesystem UUID used by the official NixOS SD image; and
+- a full, immutable configuration commit.
 
 It then:
 
-1. obtains Git temporarily through Nix if Git is not already available;
-2. clones the `main` branch into a temporary directory;
+1. obtains Git from the archive's locked nixpkgs input if Git is unavailable;
+2. fetches and cryptographically verifies the selected commit in a temporary
+   worktree;
 3. retrieves and validates the SOPS age identity when it is not already
    installed;
 4. runs `nix flake check`;
@@ -127,14 +158,11 @@ It then:
 Any configuration originally at `/etc/nixos` is retained in a timestamped
 `/etc/nixos.backup-*` directory.
 
-Running a downloaded script as root requires trusting its contents. To inspect
-it first, download and open it before execution:
+The procedure downloads the complete source before executing it. To inspect it
+before the final `sudo` command, use:
 
 ```sh
-curl -fLo bootstrap.sh \
-  https://raw.githubusercontent.com/matifuentes2/nixos-config/main/scripts/bootstrap.sh
-less bootstrap.sh
-sudo bash bootstrap.sh
+less "$source_directory/scripts/bootstrap.sh"
 ```
 
 ## 5. Reboot and connect
@@ -149,9 +177,8 @@ The configuration starts SDDM and Hyprland. Log in locally as `pi` with the
 password selected during bootstrap.
 
 OpenSSH accepts the public key declared in
-`hosts/raspberry-pi/default.nix`; SSH password
-login remains disabled. From a computer holding the corresponding private key,
-connect with:
+`hosts/raspberry-pi/default.nix`; SSH password login remains disabled. From a
+computer holding the corresponding private key, connect with:
 
 ```sh
 ssh pi@RASPBERRY_PI_ADDRESS
@@ -163,8 +190,10 @@ The authorized ED25519 key has this fingerprint:
 SHA256:PthH+8gCQ9QJMelH0BmgL6gYECOkPNaZYVscMvtESRw
 ```
 
-A public key and its fingerprint are safe to commit. Never copy the
-corresponding private key into this repository or onto an untrusted system.
+A public key and its fingerprint are safe to commit, but publishing a reused
+key can correlate identities across services. This key should be dedicated to
+this host. Never copy the corresponding private key into this repository or
+onto an untrusted system.
 
 ## Subsequent updates
 
@@ -181,3 +210,7 @@ Before switching larger changes, perform a non-switching build:
 ```sh
 sudo nixos-rebuild build --flake /etc/nixos#nixos
 ```
+
+Do not rerun an older bootstrap revision as an update: it deliberately installs
+that exact revision and may replace a newer checkout after retaining it as a
+backup.

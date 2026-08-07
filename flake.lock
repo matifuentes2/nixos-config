@@ -131,6 +131,38 @@
         "type": "github"
       }
     },
+    "homebrew-cask": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1786111970,
+        "narHash": "sha256-Ny1WZU6xOtr20vi8MgLGJfqheX1QMj7LhRT19qBKEZw=",
+        "owner": "homebrew",
+        "repo": "homebrew-cask",
+        "rev": "235949fba4094143cb615f8f3977dad35b1ee51c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "homebrew",
+        "repo": "homebrew-cask",
+        "type": "github"
+      }
+    },
+    "homebrew-core": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1786111911,
+        "narHash": "sha256-89tu7JlPaJQwxwTj6A2GPHd48/kAGbp7NaNzrlVUCt4=",
+        "owner": "homebrew",
+        "repo": "homebrew-core",
+        "rev": "1989d509888c8854dc1e784baddd4f7bc2d121d8",
+        "type": "github"
+      },
+      "original": {
+        "owner": "homebrew",
+        "repo": "homebrew-core",
+        "type": "github"
+      }
+    },
     "mcp-nixos": {
       "inputs": {
         "devshell": "devshell",
@@ -258,6 +290,8 @@
         "herdr-collie": "herdr-collie",
         "herdr-worktrunk": "herdr-worktrunk",
         "home-manager": "home-manager",
+        "homebrew-cask": "homebrew-cask",
+        "homebrew-core": "homebrew-core",
         "mcp-nixos": "mcp-nixos",
         "nix-darwin": "nix-darwin",
         "nix-homebrew": "nix-homebrew",

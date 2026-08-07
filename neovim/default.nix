@@ -231,59 +231,61 @@ in
       require("config.lazy")
     '';
 
-    extraPackages = with pkgs; [
-      # Core commands used by LazyVim and the imported plugins.
-      fd
-      fzf
-      git
-      lazygit
-      nodejs
-      ripgrep
-      uv
+    extraPackages =
+      with pkgs;
+      [
+        # Core commands used by LazyVim and the imported plugins.
+        fd
+        fzf
+        git
+        lazygit
+        nodejs
+        ripgrep
+        uv
 
-      # Lua and shell tooling.
-      lua-language-server
-      shellcheck
-      shfmt
-      stylua
+        # Lua and shell tooling.
+        lua-language-server
+        shellcheck
+        shfmt
+        stylua
 
-      # Python LSP, linting, virtual environments, and DAP.
-      basedpyright
-      python3Packages.debugpy
-      ruff
+        # Python LSP, linting, virtual environments, and DAP.
+        basedpyright
+        python3Packages.debugpy
+        ruff
 
-      # Docker.
-      docker-compose-language-service
-      dockerfile-language-server
-      hadolint
+        # Docker.
+        docker-compose-language-service
+        dockerfile-language-server
+        hadolint
 
-      # JSON and Markdown.
-      markdown-toc
-      markdownlint-cli2
-      marksman
-      prettier
-      vscode-langservers-extracted
+        # JSON and Markdown.
+        markdown-toc
+        markdownlint-cli2
+        marksman
+        prettier
+        vscode-langservers-extracted
 
-      # Prisma, Tailwind, Terraform, TOML, and TypeScript.
-      prisma-language-server
-      tailwindcss-language-server
-      taplo
-      terraformCompat
-      terraform-ls
-      tflint
-      vtsls
+        # Prisma, Tailwind, Terraform, TOML, and TypeScript.
+        prisma-language-server
+        tailwindcss-language-server
+        taplo
+        terraformCompat
+        terraform-ls
+        tflint
+        vtsls
 
-      # JavaScript/TypeScript DAP expects this executable name.
-      jsDebugAdapter
+        # JavaScript/TypeScript DAP expects this executable name.
+        jsDebugAdapter
 
-      # Required by flutter-tools.nvim. This also provides Dart.
-      flutter
-    ]
-    ++ lib.optionals pkgs.stdenv.isLinux [
-      # Clipboard providers used by the Linux desktop.
-      pkgs.wl-clipboard
-      pkgs.xclip
-    ];
+        # Required by flutter-tools.nvim. This also provides Dart.
+        flutter
+      ]
+      ++ lib.optionals pkgs.stdenv.isLinux [
+        # Clipboard providers used by the Linux desktop.
+        pkgs.wl-clipboard
+        pkgs.xclip
+      ];
   };
 
   # LazyVim uses Nerd Font glyphs throughout its UI.

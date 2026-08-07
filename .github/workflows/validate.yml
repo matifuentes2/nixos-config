@@ -1,0 +1,59 @@
+name: Validate configuration
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository:
+    name: Flake, shell, and public-repository checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the exact revision with full history
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@2126ae7fc54c9df00dd18f7f18754393182c73cd # v31.9.1
+
+      - name: Check flake outputs
+        run: nix flake check --no-write-lock-file
+
+      - name: Check workflow syntax
+        run: nix shell .#ci-tools --command actionlint
+
+      - name: Check Nix formatting
+        run: nix shell .#ci-tools --command sh -c 'git ls-files -z "*.nix" | xargs -0 nixfmt --check'
+
+      - name: Check bootstrap scripts
+        run: nix shell .#ci-tools --command shellcheck scripts/bootstrap.sh scripts/bootstrap-macos.sh scripts/check-public-repo.sh
+
+      - name: Check public-repository safety
+        run: nix shell .#ci-tools --command bash scripts/check-public-repo.sh
+
+  darwin:
+    name: Build Apple Silicon nix-darwin configuration
+    runs-on: macos-14
+    steps:
+      - name: Check out the exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@2126ae7fc54c9df00dd18f7f18754393182c73cd # v31.9.1
+
+      - name: Build nix-darwin activation package
+        run: nix build --no-link --no-write-lock-file .#darwinConfigurations.macbook.system
