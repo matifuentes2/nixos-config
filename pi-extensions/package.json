@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "chrome-devtools-mcp": "1.6.0",
     "context-mode": "1.0.169",
     "pi-mcp-adapter": "2.19.0",
     "pi-vim": "0.14.1",
@@ -10,6 +11,7 @@
     "pi-zentui": "https://github.com/matifuentes2/pi-zentui/archive/81b6a28b8a812b3e57f6bf8739a840ab7071d259.tar.gz"
   },
   "bundledDependencies": [
+    "chrome-devtools-mcp",
     "context-mode",
     "pi-mcp-adapter",
     "pi-vim",

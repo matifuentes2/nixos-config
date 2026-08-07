@@ -42,7 +42,7 @@ let
     pname = "pi-extensions";
     version = "1.0.0";
     src = ../../pi-extensions;
-    npmDepsHash = "sha256-FJiHY17b9uB8ycVM5x/fniYRnyvBBqYnj9cU/tgF2t8=";
+    npmDepsHash = "sha256-4GjAJA+LuOSgvdjNwswC/16dZE0D6o/S/uO77WgRQ68=";
     dontNpmBuild = true;
     npmFlags = [ "--omit=peer" ];
     nativeBuildInputs = [ pkgs.esbuild ];
@@ -82,6 +82,28 @@ let
       # its optional extractor graph and was slower in startup benchmarks.
     '';
   };
+
+  chromeExecutable =
+    if pkgs.stdenv.isDarwin then
+      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    else
+      lib.getExe pkgs.chromium;
+
+  chromeDevtoolsMcp = pkgs.writeShellApplication {
+    name = "chrome-devtools-mcp";
+    runtimeInputs = lib.optionals pkgs.stdenv.isLinux [ pkgs.chromium ];
+    text = ''
+      export CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS=1
+      export CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS=1
+
+      exec ${lib.getExe pkgs.nodejs_22} \
+        ${piExtensions}/lib/node_modules/pi-extensions/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js \
+        --executable-path=${lib.escapeShellArg chromeExecutable} \
+        --isolated \
+        --no-performance-crux \
+        "$@"
+    '';
+  };
 in
 {
   imports = [
@@ -99,6 +121,7 @@ in
     devenv
     worktrunk
     pi
+    chromeDevtoolsMcp
     herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
     mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
@@ -177,15 +200,22 @@ in
   home.file.".pi/agent/skills/herdr/SKILL.md".source = "${herdr}/skills/herdr/SKILL.md";
   home.file.".pi/agent/skills/devenv-setup/SKILL.md".source = ../../pi-skills/devenv-setup/SKILL.md;
 
-  # pi-mcp-adapter reads this configuration and starts the pinned server only
-  # when its tools are first used.
+  # pi-mcp-adapter reads this configuration and starts each pinned server only
+  # when one of its tools is first used.
   home.file.".pi/agent/mcp.json" = {
     force = true;
     text = builtins.toJSON {
-      mcpServers.nixos = {
-        command = lib.getExe mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default;
-        args = [ ];
-        lifecycle = "lazy";
+      mcpServers = {
+        chrome-devtools = {
+          command = lib.getExe chromeDevtoolsMcp;
+          args = [ ];
+          lifecycle = "lazy";
+        };
+        nixos = {
+          command = lib.getExe mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default;
+          args = [ ];
+          lifecycle = "lazy";
+        };
       };
     };
   };
