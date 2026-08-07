@@ -42,7 +42,7 @@ let
     pname = "pi-extensions";
     version = "1.0.0";
     src = ../../pi-extensions;
-    npmDepsHash = "sha256-4GjAJA+LuOSgvdjNwswC/16dZE0D6o/S/uO77WgRQ68=";
+    npmDepsHash = "sha256-Kdl8pSx/CO1eHFFsKekGQaHXcaX3gkfkGemT0AVzYOo=";
     dontNpmBuild = true;
     npmFlags = [ "--omit=peer" ];
     nativeBuildInputs = [ pkgs.esbuild ];
@@ -91,6 +91,8 @@ let
 
       # pi-web-access intentionally remains unbundled: bundling eagerly loads
       # its optional extractor graph and was slower in startup benchmarks.
+      # pi-subagents also stays unbundled because its background runner resolves
+      # helper scripts relative to the original source-module locations.
     '';
   };
 
