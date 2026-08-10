@@ -84,17 +84,17 @@ Before starting, make sure the private identity is the complete contents of a
 secure note named `NixOS SOPS age identity` and that you have the account's
 master password and Authenticator app available.
 
-The following commands download the reviewed, immutable `bootstrap-v1.0.0`
+The following commands download the reviewed, immutable `bootstrap-v1.1.0`
 release, verify its SHA-256 checksum, and run its bootstrap script:
 
 ```sh
 (
 set -eu
 repository="matifuentes2/nixos-config"
-release="bootstrap-v1.0.0"
-revision="cd4fb5894282216f69e505aea7ec821e7a7f0e2e"
+release="bootstrap-v1.1.0"
+revision="d282ffa79e8ea8d555863db2fccdc9c180d3744f"
 archive="nixos-config-$release.tar.gz"
-archive_sha256="783f93ea75bc097d6a3a05a11e4c92c48b8f837d96f64015d438e5f8d27ca4df"
+archive_sha256="a64a5829822477e570ad7da829e2e0b9cce8e36fb0dd8d8c86e3483dfa96e746"
 
 bootstrap_directory=$(mktemp -d)
 trap 'rm -rf "$bootstrap_directory"' EXIT
