@@ -14,7 +14,28 @@ let
   unstable = import nixpkgs-unstable {
     system = pkgs.stdenv.hostPlatform.system;
   };
-  upstreamPi = unstable.pi-coding-agent;
+  # Pin the current upstream release until nixos-unstable catches up.
+  upstreamPi =
+    let
+      version = "0.84.1";
+      src = pkgs.fetchFromGitHub {
+        owner = "earendil-works";
+        repo = "pi";
+        tag = "v${version}";
+        hash = "sha256-lg+I4S/aAjazjhGZU567ow+rksoNiqOqjHl//TjAMes=";
+      };
+    in
+    unstable.pi-coding-agent.overrideAttrs {
+      inherit version src;
+      npmDeps = pkgs.fetchNpmDeps {
+        inherit src;
+        hash = "sha256-tufyZQRPAUeDtiq0UQodbKA/Y9xUAvNT8K+NWFjkeME=";
+      };
+      modelData = pkgs.fetchurl {
+        url = "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-${version}.tgz";
+        hash = "sha256-araJGJ58s95c2xJjEqPmDorDX+XuXxtj0A9xHIpDDHM=";
+      };
+    };
 
   # Run the unmodified upstream CLI with its supported Bun runtime. This avoids
   # Node's large ESM startup cost without maintaining a Pi fork.
@@ -42,7 +63,7 @@ let
     pname = "pi-extensions";
     version = "1.0.0";
     src = ../../pi-extensions;
-    npmDepsHash = "sha256-Kdl8pSx/CO1eHFFsKekGQaHXcaX3gkfkGemT0AVzYOo=";
+    npmDepsHash = "sha256-F92tzB80NDYUHbxxm6UOCEpye4WZnqNyjRTkICbA3l8=";
     dontNpmBuild = true;
     npmFlags = [ "--omit=peer" ];
     nativeBuildInputs = [ pkgs.esbuild ];
