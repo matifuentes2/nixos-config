@@ -1,7 +1,8 @@
 # Hyprland desktop
 
-Hyprland is the default desktop session and starts from SDDM. The configuration
-is managed through Home Manager in [`../hyprland/default.nix`](../hyprland/default.nix).
+Hyprland is the Raspberry Pi's default desktop session and starts from SDDM.
+The WSL2 host does not import this module. The configuration is managed through
+Home Manager in [`../hyprland/default.nix`](../hyprland/default.nix).
 
 The **Super** modifier is usually the Windows key on a standard keyboard.
 

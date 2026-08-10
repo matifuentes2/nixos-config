@@ -1,8 +1,9 @@
 # Fresh installation on the Raspberry Pi 4
 
 This guide installs the repository's `nixos` flake output on a 64-bit
-Raspberry Pi 4. The repository also contains a separate nix-darwin `macbook`
-output; none of the macOS modules are applied by this procedure. The Pi expects
+Raspberry Pi 4. The repository also contains separate NixOS-WSL `wsl2` and
+nix-darwin `macbook` outputs; none of their host modules are applied by this
+procedure. The Pi expects
 the partition layout from the official generic AArch64 NixOS SD-card image:
 
 - a small `FIRMWARE` partition containing the Raspberry Pi boot files;
