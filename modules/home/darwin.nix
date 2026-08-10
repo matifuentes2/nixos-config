@@ -1,4 +1,9 @@
-{ lib, username, ... }:
+{
+  lib,
+  pkgs,
+  username,
+  ...
+}:
 
 {
   # Clear completion state once when activating a generation. Deleting it from
@@ -28,6 +33,11 @@
         "/run/current-system/sw/bin"
         $path
       )
+
+      # Worktrunk must run as a shell function so `wt switch` can change the
+      # current shell's directory. Generate the integration from the pinned
+      # Nix package instead of letting `wt config shell install` edit ~/.zshrc.
+      eval "$(${lib.getExe pkgs.worktrunk} config shell init zsh)"
 
       bindkey -v
     '';
