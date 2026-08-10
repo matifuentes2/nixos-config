@@ -3,24 +3,25 @@
 ## Reproducibility is mandatory
 
 This GitHub repository (`matifuentes2/nixos-config`) is the single source of
-truth for the Raspberry Pi NixOS host and the Mac nix-darwin host. A fresh
-installation must be reproducible by cloning the repository and rebuilding the
-appropriate flake output.
+truth for the Raspberry Pi NixOS host, the NixOS-WSL host, and the Mac
+nix-darwin host. A fresh installation must be reproducible by cloning the
+repository and rebuilding the appropriate flake output.
 
 - Put host-specific operating-system configuration under `hosts/<host>/`.
-  The Raspberry Pi uses `hosts/raspberry-pi/`; the Mac uses `hosts/macbook/`.
+  The Raspberry Pi uses `hosts/raspberry-pi/`, WSL2 uses `hosts/wsl2/`, and the
+  Mac uses `hosts/macbook/`.
 - Put cross-platform user packages, dotfiles, shell settings, and application
   configuration in `modules/home/common.nix` or another tracked shared module.
-- Put Linux-only Home Manager settings in `modules/home/linux.nix`, macOS-only
+- Put Linux desktop Home Manager settings in `modules/home/linux.nix`, macOS-only
   settings in `modules/home/darwin.nix`, and per-device settings in that host's
-  `home.nix`.
+  `home.nix`. Do not import the Hyprland-oriented Linux module into WSL2.
 - Install macOS GUI applications through Homebrew casks, but declare every cask
   declaratively in the tracked Nix configuration (for example, via nix-darwin's
   `homebrew.casks`). Do not install GUI applications imperatively with `brew`.
 - Put cross-platform system settings in `modules/system/common.nix`. Do not
   import NixOS-only options into nix-darwin or Darwin-only options into NixOS.
-- Manage inputs, host architecture, macOS username, and module wiring through
-  `flake.nix`. Commit `flake.lock` whenever an input changes.
+- Manage inputs, host architectures, macOS and WSL usernames, and module wiring
+  through `flake.nix`. Commit `flake.lock` whenever an input changes.
 - Keep every referenced configuration file and custom module tracked in this
   repository. Do not rely on an untracked file already present on a machine.
 - Do not use imperative package installation or configuration as the final
@@ -74,9 +75,10 @@ Homebrew taps, CI validation, GitHub repository controls, or bootstrap releases
 must first read [`docs/public-repository-security.md`](./docs/public-repository-security.md).
 
 - `bootstrap-release.env` is the single tracked record of the current reviewed
-  release, commit, archive name, and SHA-256 checksum. Never update only one
-  installation guide; run `scripts/check-bootstrap-release.sh` to ensure both
-  guides and the manifest agree.
+  release, commit, archive name, and SHA-256 checksum. Never update only one of
+  the two bootstrap-backed installation guides; run
+  `scripts/check-bootstrap-release.sh` to ensure both guides and the manifest
+  agree.
 - Published `bootstrap-v*` releases and tags are immutable. Never attempt to
   replace, edit, retag, or delete one. Publish the next semantic version with
   `scripts/create-bootstrap-release.sh` only after the candidate commit is on
@@ -95,6 +97,12 @@ Rebuild the Raspberry Pi with:
 sudo nixos-rebuild switch --flake /etc/nixos#nixos
 ```
 
+Rebuild WSL2 from its checkout with:
+
+```sh
+sudo nixos-rebuild switch --flake ~/nixos-config#wsl2
+```
+
 Rebuild the Mac from its checkout with:
 
 ```sh
@@ -107,9 +115,12 @@ non-switching build when possible:
 
 ```sh
 sudo nixos-rebuild build --flake /etc/nixos#nixos
+# Run on x86-64 Linux or WSL2:
+nix build --no-link .#nixosConfigurations.wsl2.config.system.build.toplevel
 # Run on macOS:
 darwin-rebuild build --flake ~/nixos-config#macbook
 ```
 
 A Linux machine cannot build Darwin activation packages without a Darwin
-builder; perform the macOS build on the Mac.
+builder; perform the macOS build on the Mac. A Mac also needs a Linux builder
+to build the WSL2 activation package.

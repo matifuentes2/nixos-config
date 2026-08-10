@@ -6,16 +6,17 @@ from `main`.
 
 ## Bootstrap trust model
 
-The installation guides pin an immutable bootstrap release, its full Git
-commit ID, and the SHA-256 checksum of its attached source archive. The
-bootstrap script then fetches and verifies the same Git commit before
+The two bootstrap-backed installation guides pin an immutable release, its
+full Git commit ID, and the SHA-256 checksum of its attached source archive.
+The bootstrap script then fetches and verifies the same Git commit before
 activation. This prevents a branch update or asset replacement between
 reviewing the release and activating the configuration.
 
 `bootstrap-release.env` is the single tracked record of the current release,
 full commit, deterministic archive name, and SHA-256 checksum. CI runs
-`scripts/check-bootstrap-release.sh` to ensure both installation guides contain
-the same values.
+`scripts/check-bootstrap-release.sh` to ensure both bootstrap-backed
+installation guides contain the same values. The WSL2 guide installs the
+upstream NixOS-WSL image and is not part of this bootstrap-release mechanism.
 
 To publish a new bootstrap release:
 
@@ -76,6 +77,7 @@ Before merging or publishing a release, run:
 
 ```sh
 nix flake check
+nix eval --raw .#nixosConfigurations.wsl2.config.system.build.toplevel.drvPath
 nix build --no-link .#darwinConfigurations.macbook.system
 nix shell .#ci-tools -c actionlint
 nix shell .#ci-tools -c sh -c 'git ls-files -z "*.nix" | xargs -0 nixfmt --check'
@@ -90,7 +92,15 @@ Before publishing a bootstrap release, additionally run:
 scripts/audit-github-settings.sh
 ```
 
-On the Raspberry Pi, also perform a non-switching host build:
+The standard CI runner evaluates the WSL2 activation derivation rather than
+realizing its multi-gigabyte closure. On the WSL2 host, also perform a
+non-switching host build:
+
+```sh
+sudo nixos-rebuild build --flake ~/nixos-config#wsl2
+```
+
+On the Raspberry Pi, likewise perform a non-switching host build:
 
 ```sh
 sudo nixos-rebuild build --flake /etc/nixos#nixos

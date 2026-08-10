@@ -1,11 +1,15 @@
 {
-  description = "Shared NixOS and nix-darwin configuration";
+  description = "Shared NixOS, NixOS-WSL, and nix-darwin configuration";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     nix-darwin = {
       url = "github:nix-darwin/nix-darwin";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    nixos-wsl = {
+      url = "github:nix-community/NixOS-WSL/main";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nix-homebrew.url = "github:zhaofengli/nix-homebrew";
@@ -45,6 +49,7 @@
       nixpkgs,
       nixpkgs-unstable,
       nix-darwin,
+      nixos-wsl,
       nix-homebrew,
       homebrew-core,
       homebrew-cask,
@@ -57,10 +62,12 @@
       ...
     }:
     let
-      # Change these two values before the first macOS activation if the Mac is
-      # Intel-based or its local short account name is not "matif".
+      # Change these values before the first activation if the Mac is
+      # Intel-based or either host uses a different local account name.
       darwinSystem = "aarch64-darwin";
       darwinUsername = "matif";
+      wslSystem = "x86_64-linux";
+      wslUsername = "matif";
 
       homeSpecialArgs = {
         inherit
@@ -113,6 +120,26 @@
             home-manager.useUserPackages = true;
             home-manager.users.pi = import ./hosts/raspberry-pi/home.nix;
             home-manager.extraSpecialArgs = homeSpecialArgs;
+          }
+        ];
+      };
+
+      nixosConfigurations.wsl2 = nixpkgs.lib.nixosSystem {
+        system = wslSystem;
+        specialArgs = {
+          username = wslUsername;
+        };
+        modules = [
+          nixos-wsl.nixosModules.default
+          ./hosts/wsl2
+          home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.${wslUsername} = import ./hosts/wsl2/home.nix;
+            home-manager.extraSpecialArgs = homeSpecialArgs // {
+              username = wslUsername;
+            };
           }
         ];
       };

@@ -31,6 +31,9 @@ jobs:
       - name: Check flake outputs
         run: nix flake check --no-write-lock-file
 
+      - name: Evaluate x86-64 NixOS-WSL configuration
+        run: nix eval --raw --no-write-lock-file .#nixosConfigurations.wsl2.config.system.build.toplevel.drvPath
+
       - name: Check workflow syntax
         run: nix shell .#ci-tools --command actionlint
 

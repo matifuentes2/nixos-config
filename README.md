@@ -1,18 +1,21 @@
-# Shared NixOS and macOS configuration
+# Shared NixOS, WSL2, and macOS configuration
 
 This repository is the declarative source of truth for:
 
 - the `nixos` flake output: a 64-bit Raspberry Pi 4 running NixOS, with Home
-  Manager for user `pi`; and
+  Manager for user `pi`;
+- the `wsl2` flake output: an x86-64 NixOS-WSL environment running under WSL2,
+  with Home Manager for user `matif`; and
 - the `macbook` flake output: an Apple Silicon Mac managed by nix-darwin, with
   Home Manager for user `matif`.
 
 Shared command-line packages, Pi/Herdr configuration, shell tools, Starship,
 and Neovim live in [`modules/home/common.nix`](./modules/home/common.nix).
-Linux-only and macOS-only Home Manager settings are kept in
+Linux desktop and macOS-only Home Manager settings are kept in
 [`modules/home/linux.nix`](./modules/home/linux.nix) and
-[`modules/home/darwin.nix`](./modules/home/darwin.nix). Device configuration
-lives under [`hosts/`](./hosts/).
+[`modules/home/darwin.nix`](./modules/home/darwin.nix). WSL2 intentionally skips
+the Hyprland-oriented Linux desktop module. Device configuration lives under
+[`hosts/`](./hosts/).
 
 ## Repository layout
 
@@ -26,6 +29,9 @@ hosts/
   macbook/
     default.nix
     home.nix
+  wsl2/
+    default.nix
+    home.nix
 modules/
   home/
     common.nix
@@ -36,8 +42,8 @@ hyprland/
 neovim/
 ```
 
-Add packages needed on both machines to `modules/home/common.nix`. Add
-host-only user packages to the corresponding `hosts/<host>/home.nix`. Machine
+Add packages needed on every host to `modules/home/common.nix`. Add host-only
+user packages to the corresponding `hosts/<host>/home.nix`. Machine
 services, hardware settings, and operating-system packages belong in the
 host's `default.nix` or an imported platform-specific module.
 
@@ -53,6 +59,20 @@ sudo nixos-rebuild switch --flake /etc/nixos#nixos
 
 Hyprland is configured under [`hyprland/`](./hyprland/) and starts from SDDM.
 See the [Hyprland desktop guide](./docs/hyprland.md) for its keybindings.
+
+## WSL2
+
+The `wsl2` output uses the upstream NixOS-WSL module and shares the portable
+Home Manager configuration without installing the Raspberry Pi's boot or
+Hyprland desktop settings. Follow the
+[fresh WSL2 installation guide](./docs/wsl2-fresh-install.md) for a new Windows
+host.
+
+Rebuild an existing WSL2 host with:
+
+```sh
+sudo nixos-rebuild switch --flake ~/nixos-config#wsl2
+```
 
 ## macOS
 
@@ -84,6 +104,12 @@ Build the Raspberry Pi configuration without switching:
 sudo nixos-rebuild build --flake /etc/nixos#nixos
 ```
 
+Build the WSL2 configuration on an x86-64 Linux host without switching:
+
+```sh
+nix build --no-link .#nixosConfigurations.wsl2.config.system.build.toplevel
+```
+
 Build the Darwin configuration on the Mac:
 
 ```sh
@@ -91,7 +117,8 @@ darwin-rebuild build --flake ~/nixos-config#macbook
 ```
 
 A Linux host cannot build a Darwin activation package without a Darwin remote
-builder. `flake.lock` pins nixpkgs, nix-darwin, Home Manager, and the other
+builder, and a Mac needs a Linux builder for the WSL2 activation package.
+`flake.lock` pins nixpkgs, NixOS-WSL, nix-darwin, Home Manager, and the other
 flake inputs.
 
 Run the public-repository safety checks with:
