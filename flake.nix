@@ -30,7 +30,7 @@
       flake = false;
     };
     herdr-collie = {
-      url = "github:AltanS/collie/v0.24.0";
+      url = "github:AltanS/collie/v0.26.0";
       flake = false;
     };
     mcp-nixos.url = "github:utensils/mcp-nixos";

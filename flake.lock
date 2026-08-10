@@ -97,16 +97,16 @@
     "herdr-collie": {
       "flake": false,
       "locked": {
-        "lastModified": 1785920724,
-        "narHash": "sha256-yDGngxHhVbtbd+Oigs+p2+Vl7Wfxp8HtQdm9/Buh0no=",
+        "lastModified": 1786318370,
+        "narHash": "sha256-ukQBZ93sTvFWMJW/sUOREmaZb4ck+tueTu9f5XZCCRA=",
         "owner": "AltanS",
         "repo": "collie",
-        "rev": "9db4b9b2a9bb2b82dde9e48b2f94dbdddf53f43a",
+        "rev": "30371790c2eb486b02dbbfc668a551d0b4438617",
         "type": "github"
       },
       "original": {
         "owner": "AltanS",
-        "ref": "v0.24.0",
+        "ref": "v0.26.0",
         "repo": "collie",
         "type": "github"
       }
