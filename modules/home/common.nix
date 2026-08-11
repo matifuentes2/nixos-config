@@ -4,9 +4,13 @@
   pkgs,
   nixpkgs-unstable,
   herdr,
+  worktrunk,
   herdr-worktrunk,
   herdr-collie,
   mcp-nixos,
+  pi-codex-goal,
+  pi-pr-review-goal,
+  pi-parallel-go-pr-herdr,
   ...
 }:
 
@@ -117,6 +121,22 @@ let
     '';
   };
 
+  # pi-pr-review-goal verifies pi-codex-goal through the command's source path.
+  # Flake source inputs otherwise use a generic "*-source" store name, so copy
+  # each package into a descriptively named store path that preserves package
+  # provenance for Pi's command registry.
+  piCodexGoalPackage = pkgs.runCommand "pi-codex-goal" { } ''
+    cp -R ${pi-codex-goal}/. "$out"
+  '';
+
+  piPrReviewGoalPackage = pkgs.runCommand "pi-pr-review-goal" { } ''
+    cp -R ${pi-pr-review-goal}/. "$out"
+  '';
+
+  piParallelGoPrHerdrPackage = pkgs.runCommand "pi-parallel-go-pr-herdr" { } ''
+    cp -R ${pi-parallel-go-pr-herdr}/. "$out"
+  '';
+
   chromeExecutable =
     if pkgs.stdenv.isDarwin then
       "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -153,7 +173,7 @@ in
     bun
     uv
     devenv
-    worktrunk
+    worktrunk.packages.${pkgs.stdenv.hostPlatform.system}.default
     pi
     chromeDevtoolsMcp
     herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
@@ -226,13 +246,24 @@ in
       defaultProvider = "openai-codex";
       defaultModel = "gpt-5.6-sol";
       defaultThinkingLevel = "minimal";
-      packages = [ "${piExtensions}/lib/node_modules/pi-extensions" ];
+      packages = [
+        "${piExtensions}/lib/node_modules/pi-extensions"
+        "${piCodexGoalPackage}"
+        "${piPrReviewGoalPackage}"
+        "${piParallelGoPrHerdrPackage}"
+      ];
     };
   };
 
   # Install Pi agent skills declaratively from pinned or tracked sources.
   home.file.".pi/agent/skills/herdr/SKILL.md".source = "${herdr}/skills/herdr/SKILL.md";
   home.file.".pi/agent/skills/devenv-setup/SKILL.md".source = ../../pi-skills/devenv-setup/SKILL.md;
+
+  # Keep shared Pi prompt templates reproducible across every host.
+  home.file.".pi/agent/prompts/go-pr.md" = {
+    force = true;
+    source = ../../pi-prompts/go-pr.md;
+  };
 
   # pi-mcp-adapter reads this configuration and starts each pinned server only
   # when one of its tools is first used.

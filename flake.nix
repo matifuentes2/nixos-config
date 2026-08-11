@@ -25,6 +25,10 @@
       url = "github:herdrdev/herdr/v0.8.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    worktrunk = {
+      url = "github:max-sixty/worktrunk/v0.72.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     herdr-worktrunk = {
       url = "github:devashish2203/herdr-worktrunk";
       flake = false;
@@ -34,6 +38,18 @@
       flake = false;
     };
     mcp-nixos.url = "github:utensils/mcp-nixos";
+    pi-codex-goal = {
+      url = "github:matifuentes2/pi-codex-goal";
+      flake = false;
+    };
+    pi-pr-review-goal = {
+      url = "github:matifuentes2/pi-pr-review-goal";
+      flake = false;
+    };
+    pi-parallel-go-pr-herdr = {
+      url = "github:matifuentes2/pi-parallel-go-pr-herdr";
+      flake = false;
+    };
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -54,9 +70,13 @@
       homebrew-core,
       homebrew-cask,
       herdr,
+      worktrunk,
       herdr-worktrunk,
       herdr-collie,
       mcp-nixos,
+      pi-codex-goal,
+      pi-pr-review-goal,
+      pi-parallel-go-pr-herdr,
       sops-nix,
       home-manager,
       ...
@@ -72,10 +92,14 @@
       homeSpecialArgs = {
         inherit
           herdr
+          worktrunk
           herdr-worktrunk
           herdr-collie
           mcp-nixos
           nixpkgs-unstable
+          pi-codex-goal
+          pi-pr-review-goal
+          pi-parallel-go-pr-herdr
           ;
       };
 
