@@ -246,6 +246,13 @@ in
       defaultProvider = "openai-codex";
       defaultModel = "gpt-5.6-sol";
       defaultThinkingLevel = "minimal";
+      # GPT-5.6 Sol has a 272k context window; reserving 20% triggers
+      # auto-compaction when the conversation exceeds 80% (217,600 tokens).
+      compaction = {
+        enabled = true;
+        reserveTokens = 54400;
+        keepRecentTokens = 20000;
+      };
       packages = [
         "${piExtensions}/lib/node_modules/pi-extensions"
         "${piCodexGoalPackage}"
