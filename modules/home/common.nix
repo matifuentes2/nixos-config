@@ -120,6 +120,18 @@ let
     '';
   };
 
+  # pi-pr-review-goal verifies pi-codex-goal through the command's source path.
+  # Flake source inputs otherwise use a generic "*-source" store name, so copy
+  # each package into a descriptively named store path that preserves package
+  # provenance for Pi's command registry.
+  piCodexGoalPackage = pkgs.runCommand "pi-codex-goal" { } ''
+    cp -R ${pi-codex-goal}/. "$out"
+  '';
+
+  piPrReviewGoalPackage = pkgs.runCommand "pi-pr-review-goal" { } ''
+    cp -R ${pi-pr-review-goal}/. "$out"
+  '';
+
   chromeExecutable =
     if pkgs.stdenv.isDarwin then
       "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -231,8 +243,8 @@ in
       defaultThinkingLevel = "minimal";
       packages = [
         "${piExtensions}/lib/node_modules/pi-extensions"
-        "${pi-codex-goal}"
-        "${pi-pr-review-goal}"
+        "${piCodexGoalPackage}"
+        "${piPrReviewGoalPackage}"
       ];
     };
   };
