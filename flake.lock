@@ -374,33 +374,33 @@
     "pi-parallel-go-pr-herdr": {
       "flake": false,
       "locked": {
-        "lastModified": 1786461651,
-        "narHash": "sha256-YruU9j2nNk2QPaBYeUzysIpTgAmx5e4XYO7T8Ur+cUI=",
-        "ref": "refs/heads/main",
-        "rev": "48f3b39477815f588c01bf363a6e61bb531642bf",
-        "revCount": 1,
-        "type": "git",
-        "url": "https://github.com/matifuentes2/pi-parallel-go-pr-herdr.git"
+        "lastModified": 1786464296,
+        "narHash": "sha256-txbnCL/yqb3+xqCI6QkzTESc9SKCLHQ5S/8hscDN80g=",
+        "owner": "matifuentes2",
+        "repo": "pi-parallel-go-pr-herdr",
+        "rev": "1011a39c8e8afb5f028497d5b9eee32a327763e0",
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "https://github.com/matifuentes2/pi-parallel-go-pr-herdr.git"
+        "owner": "matifuentes2",
+        "repo": "pi-parallel-go-pr-herdr",
+        "type": "github"
       }
     },
     "pi-pr-review-goal": {
       "flake": false,
       "locked": {
-        "lastModified": 1784570162,
-        "narHash": "sha256-HRf/10UESDKoAPlEGDPY1SQnc2B4LT4EPYLxXKL/03g=",
-        "ref": "refs/heads/main",
-        "rev": "ef69bfa87e3828b1b5f6c61040abe4d8893bfeda",
-        "revCount": 6,
-        "type": "git",
-        "url": "https://github.com/matifuentes2/pi-pr-review-goal.git"
+        "lastModified": 1786464296,
+        "narHash": "sha256-lInB8c4a6inWtIH+NDob+3wzYEKLG0cV/8DTV5alWkw=",
+        "owner": "matifuentes2",
+        "repo": "pi-pr-review-goal",
+        "rev": "fd599275175343af18b82bcf261c8ca606d11683",
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "https://github.com/matifuentes2/pi-pr-review-goal.git"
+        "owner": "matifuentes2",
+        "repo": "pi-pr-review-goal",
+        "type": "github"
       }
     },
     "root": {

@@ -43,11 +43,11 @@
       flake = false;
     };
     pi-pr-review-goal = {
-      url = "git+https://github.com/matifuentes2/pi-pr-review-goal.git";
+      url = "github:matifuentes2/pi-pr-review-goal";
       flake = false;
     };
     pi-parallel-go-pr-herdr = {
-      url = "git+https://github.com/matifuentes2/pi-parallel-go-pr-herdr.git";
+      url = "github:matifuentes2/pi-parallel-go-pr-herdr";
       flake = false;
     };
     sops-nix = {
