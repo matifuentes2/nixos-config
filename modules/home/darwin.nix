@@ -1,6 +1,7 @@
 {
   lib,
   pkgs,
+  worktrunk,
   username,
   ...
 }:
@@ -37,7 +38,9 @@
       # Worktrunk must run as a shell function so `wt switch` can change the
       # current shell's directory. Generate the integration from the pinned
       # Nix package instead of letting `wt config shell install` edit ~/.zshrc.
-      eval "$(${lib.getExe pkgs.worktrunk} config shell init zsh)"
+      eval "$(${
+        lib.getExe worktrunk.packages.${pkgs.stdenv.hostPlatform.system}.default
+      } config shell init zsh)"
 
       bindkey -v
     '';

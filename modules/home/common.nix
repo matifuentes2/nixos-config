@@ -4,9 +4,12 @@
   pkgs,
   nixpkgs-unstable,
   herdr,
+  worktrunk,
   herdr-worktrunk,
   herdr-collie,
   mcp-nixos,
+  pi-codex-goal,
+  pi-pr-review-goal,
   ...
 }:
 
@@ -153,7 +156,7 @@ in
     bun
     uv
     devenv
-    worktrunk
+    worktrunk.packages.${pkgs.stdenv.hostPlatform.system}.default
     pi
     chromeDevtoolsMcp
     herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
@@ -226,7 +229,11 @@ in
       defaultProvider = "openai-codex";
       defaultModel = "gpt-5.6-sol";
       defaultThinkingLevel = "minimal";
-      packages = [ "${piExtensions}/lib/node_modules/pi-extensions" ];
+      packages = [
+        "${piExtensions}/lib/node_modules/pi-extensions"
+        "${pi-codex-goal}"
+        "${pi-pr-review-goal}"
+      ];
     };
   };
 
