@@ -10,6 +10,7 @@
   mcp-nixos,
   pi-codex-goal,
   pi-pr-review-goal,
+  pi-parallel-go-pr-herdr,
   ...
 }:
 
@@ -132,6 +133,10 @@ let
     cp -R ${pi-pr-review-goal}/. "$out"
   '';
 
+  piParallelGoPrHerdrPackage = pkgs.runCommand "pi-parallel-go-pr-herdr" { } ''
+    cp -R ${pi-parallel-go-pr-herdr}/. "$out"
+  '';
+
   chromeExecutable =
     if pkgs.stdenv.isDarwin then
       "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -245,6 +250,7 @@ in
         "${piExtensions}/lib/node_modules/pi-extensions"
         "${piCodexGoalPackage}"
         "${piPrReviewGoalPackage}"
+        "${piParallelGoPrHerdrPackage}"
       ];
     };
   };
@@ -252,6 +258,12 @@ in
   # Install Pi agent skills declaratively from pinned or tracked sources.
   home.file.".pi/agent/skills/herdr/SKILL.md".source = "${herdr}/skills/herdr/SKILL.md";
   home.file.".pi/agent/skills/devenv-setup/SKILL.md".source = ../../pi-skills/devenv-setup/SKILL.md;
+
+  # Keep shared Pi prompt templates reproducible across every host.
+  home.file.".pi/agent/prompts/go-pr.md" = {
+    force = true;
+    source = ../../pi-prompts/go-pr.md;
+  };
 
   # pi-mcp-adapter reads this configuration and starts each pinned server only
   # when one of its tools is first used.

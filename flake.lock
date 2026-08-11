@@ -371,6 +371,22 @@
         "type": "github"
       }
     },
+    "pi-parallel-go-pr-herdr": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1786461651,
+        "narHash": "sha256-YruU9j2nNk2QPaBYeUzysIpTgAmx5e4XYO7T8Ur+cUI=",
+        "ref": "refs/heads/main",
+        "rev": "48f3b39477815f588c01bf363a6e61bb531642bf",
+        "revCount": 1,
+        "type": "git",
+        "url": "https://github.com/matifuentes2/pi-parallel-go-pr-herdr.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://github.com/matifuentes2/pi-parallel-go-pr-herdr.git"
+      }
+    },
     "pi-pr-review-goal": {
       "flake": false,
       "locked": {
@@ -402,6 +418,7 @@
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-unstable": "nixpkgs-unstable",
         "pi-codex-goal": "pi-codex-goal",
+        "pi-parallel-go-pr-herdr": "pi-parallel-go-pr-herdr",
         "pi-pr-review-goal": "pi-pr-review-goal",
         "sops-nix": "sops-nix",
         "worktrunk": "worktrunk"

@@ -46,6 +46,10 @@
       url = "git+https://github.com/matifuentes2/pi-pr-review-goal.git";
       flake = false;
     };
+    pi-parallel-go-pr-herdr = {
+      url = "git+https://github.com/matifuentes2/pi-parallel-go-pr-herdr.git";
+      flake = false;
+    };
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -72,6 +76,7 @@
       mcp-nixos,
       pi-codex-goal,
       pi-pr-review-goal,
+      pi-parallel-go-pr-herdr,
       sops-nix,
       home-manager,
       ...
@@ -94,6 +99,7 @@
           nixpkgs-unstable
           pi-codex-goal
           pi-pr-review-goal
+          pi-parallel-go-pr-herdr
           ;
       };
 
