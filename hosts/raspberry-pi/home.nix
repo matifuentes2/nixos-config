@@ -18,7 +18,13 @@ in
   home.stateVersion = "25.11";
 
   home.packages = [
+    # Orca compiles node-pty on Linux when installing its SSH relay. Keep the
+    # native addon toolchain in the SSH user's profile so it is on PATH when
+    # Orca reconnects and reinstalls the relay dependencies.
+    pkgs.gcc
+    pkgs.gnumake
     nodejs
+    pkgs.python3
     pkgs.tree
   ];
 
