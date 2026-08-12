@@ -8,6 +8,7 @@
   imports = [
     ../../modules/system/common.nix
     ./hardware-configuration.nix
+    ./orca-server.nix
   ];
 
   # Let tools such as uv run upstream, dynamically linked Python builds.
