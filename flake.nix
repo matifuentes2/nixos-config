@@ -4,6 +4,9 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # Pin Node independently so the exact Raspberry Pi toolchain does not
+    # advance the nixpkgs revision used by every host.
+    nodejs-nixpkgs.url = "github:NixOS/nixpkgs/70ce234312134a463ba7728e94da2486a1d237ac";
     nix-darwin = {
       url = "github:nix-darwin/nix-darwin";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -67,6 +70,7 @@
       nix-darwin,
       nixos-wsl,
       nix-homebrew,
+      nodejs-nixpkgs,
       homebrew-core,
       homebrew-cask,
       herdr,
@@ -143,7 +147,9 @@
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.users.pi = import ./hosts/raspberry-pi/home.nix;
-            home-manager.extraSpecialArgs = homeSpecialArgs;
+            home-manager.extraSpecialArgs = homeSpecialArgs // {
+              nodejsNixpkgs = nodejs-nixpkgs;
+            };
           }
         ];
       };

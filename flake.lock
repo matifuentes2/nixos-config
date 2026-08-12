@@ -355,6 +355,22 @@
         "type": "github"
       }
     },
+    "nodejs-nixpkgs": {
+      "locked": {
+        "lastModified": 1785975029,
+        "narHash": "sha256-X44cn5rzytELc3NNoQsh0aLkjWA/QzPfc6HPQmsG3sU=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "70ce234312134a463ba7728e94da2486a1d237ac",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "70ce234312134a463ba7728e94da2486a1d237ac",
+        "type": "github"
+      }
+    },
     "pi-codex-goal": {
       "flake": false,
       "locked": {
@@ -417,6 +433,7 @@
         "nixos-wsl": "nixos-wsl",
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-unstable": "nixpkgs-unstable",
+        "nodejs-nixpkgs": "nodejs-nixpkgs",
         "pi-codex-goal": "pi-codex-goal",
         "pi-parallel-go-pr-herdr": "pi-parallel-go-pr-herdr",
         "pi-pr-review-goal": "pi-pr-review-goal",

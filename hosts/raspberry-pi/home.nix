@@ -1,5 +1,10 @@
-{ pkgs, ... }:
+{ nodejsNixpkgs, pkgs, ... }:
 
+let
+  nodejs = import ./nodejs.nix {
+    inherit nodejsNixpkgs pkgs;
+  };
+in
 {
   imports = [
     ../../modules/home/common.nix
@@ -13,6 +18,7 @@
   home.stateVersion = "25.11";
 
   home.packages = [
+    nodejs
     pkgs.tree
   ];
 
