@@ -1,11 +1,11 @@
 { lib, pkgs, ... }:
 
 let
-  version = "1.4.180";
+  version = "1.4.184";
 
   src = pkgs.fetchurl {
     url = "https://github.com/stablyai/orca/releases/download/v${version}/orca-linux-arm64.AppImage";
-    hash = "sha256-nECNc6/U0TK/dLVXQaWqDjD7FmcJzRsRsyNHvyNTYxg=";
+    hash = "sha256-dnrfGkmSIyNWpDZu1LaxaHKpmOwaeH37Yz77Nm5GdG8=";
   };
 
   appImageContents = pkgs.appimageTools.extractType2 {
