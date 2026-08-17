@@ -374,11 +374,11 @@
     "pi-parallel-go-pr-herdr": {
       "flake": false,
       "locked": {
-        "lastModified": 1786464296,
-        "narHash": "sha256-txbnCL/yqb3+xqCI6QkzTESc9SKCLHQ5S/8hscDN80g=",
+        "lastModified": 1786998360,
+        "narHash": "sha256-+ZOSZp48XiwWn6ZkkncaQzq648AgOPdjh7pObcuAq08=",
         "owner": "matifuentes2",
         "repo": "pi-parallel-go-pr-herdr",
-        "rev": "1011a39c8e8afb5f028497d5b9eee32a327763e0",
+        "rev": "7f6ecea93bb7264cbdf9d4030fe349820f304230",
         "type": "github"
       },
       "original": {
