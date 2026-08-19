@@ -2,6 +2,7 @@
   config,
   homebrew-cask,
   homebrew-core,
+  orca-homebrew,
   lib,
   pkgs,
   username,
@@ -90,6 +91,7 @@
     taps = {
       "homebrew/homebrew-core" = homebrew-core;
       "homebrew/homebrew-cask" = homebrew-cask;
+      "stablyai/homebrew-orca" = orca-homebrew;
     };
     mutableTaps = false;
   };
@@ -107,6 +109,7 @@
       "hiddenbar"
       "karabiner-elements"
       "kitty"
+      "stablyai/orca/orca"
       "raycast"
       "rectangle"
       "whatsapp"

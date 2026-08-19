@@ -355,6 +355,39 @@
         "type": "github"
       }
     },
+    "orca": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1787119545,
+        "narHash": "sha256-DQUTpIImlD+jdZhIRpFtxoiijOLKpTYG8ljeLDQOR9o=",
+        "owner": "stablyai",
+        "repo": "orca",
+        "rev": "709c3046d020f76b7e59f078e9154aea8673b8db",
+        "type": "github"
+      },
+      "original": {
+        "owner": "stablyai",
+        "ref": "v1.4.185",
+        "repo": "orca",
+        "type": "github"
+      }
+    },
+    "orca-homebrew": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1787121906,
+        "narHash": "sha256-GX9YyLPXc7N2nA9dZytoW2eN66N8lHt5vPevLfRP+qw=",
+        "owner": "stablyai",
+        "repo": "homebrew-orca",
+        "rev": "b6ac6afc2d0a95609d79d8917092981b76a77c2c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "stablyai",
+        "repo": "homebrew-orca",
+        "type": "github"
+      }
+    },
     "pi-codex-goal": {
       "flake": false,
       "locked": {
@@ -368,6 +401,23 @@
       "original": {
         "owner": "matifuentes2",
         "repo": "pi-codex-goal",
+        "type": "github"
+      }
+    },
+    "pi-execution-time": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1782973552,
+        "narHash": "sha256-1u/esRQQlDiPKYiXhNoesrX0EJ4P5MyZw2el3bVTWrk=",
+        "owner": "lukaspanni",
+        "repo": "pi-execution-time",
+        "rev": "81b18e039ddeac6d23cc1e6e176bdb158de19590",
+        "type": "github"
+      },
+      "original": {
+        "owner": "lukaspanni",
+        "repo": "pi-execution-time",
+        "rev": "81b18e039ddeac6d23cc1e6e176bdb158de19590",
         "type": "github"
       }
     },
@@ -417,7 +467,10 @@
         "nixos-wsl": "nixos-wsl",
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-unstable": "nixpkgs-unstable",
+        "orca": "orca",
+        "orca-homebrew": "orca-homebrew",
         "pi-codex-goal": "pi-codex-goal",
+        "pi-execution-time": "pi-execution-time",
         "pi-parallel-go-pr-herdr": "pi-parallel-go-pr-herdr",
         "pi-pr-review-goal": "pi-pr-review-goal",
         "sops-nix": "sops-nix",
