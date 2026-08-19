@@ -21,6 +21,10 @@
       url = "github:homebrew/homebrew-cask";
       flake = false;
     };
+    orca-homebrew = {
+      url = "github:stablyai/homebrew-orca";
+      flake = false;
+    };
     herdr = {
       url = "github:herdrdev/herdr/v0.8.0";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -50,6 +54,14 @@
       url = "github:matifuentes2/pi-parallel-go-pr-herdr";
       flake = false;
     };
+    pi-execution-time = {
+      url = "github:lukaspanni/pi-execution-time/81b18e039ddeac6d23cc1e6e176bdb158de19590";
+      flake = false;
+    };
+    orca = {
+      url = "github:stablyai/orca/v1.4.185";
+      flake = false;
+    };
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -69,6 +81,7 @@
       nix-homebrew,
       homebrew-core,
       homebrew-cask,
+      orca-homebrew,
       herdr,
       worktrunk,
       herdr-worktrunk,
@@ -77,6 +90,8 @@
       pi-codex-goal,
       pi-pr-review-goal,
       pi-parallel-go-pr-herdr,
+      pi-execution-time,
+      orca,
       sops-nix,
       home-manager,
       ...
@@ -100,6 +115,8 @@
           pi-codex-goal
           pi-pr-review-goal
           pi-parallel-go-pr-herdr
+          pi-execution-time
+          orca
           ;
       };
 
@@ -172,7 +189,7 @@
         system = darwinSystem;
         specialArgs = {
           username = darwinUsername;
-          inherit homebrew-core homebrew-cask;
+          inherit homebrew-core homebrew-cask orca-homebrew;
         };
         modules = [
           ./hosts/macbook

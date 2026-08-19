@@ -7,6 +7,31 @@
 }:
 
 {
+  # Orca's Homebrew cask exposes its version-matched CLI at this path. Setting
+  # the command explicitly lets the shared Orca skills avoid ambiguous command
+  # discovery and always target the Stably Orca CLI.
+  home.sessionVariables.ORCA_CLI_COMMAND = "/opt/homebrew/bin/orca";
+
+  # Keep Orca's experimental Cloud VM feature disabled, including when a prior
+  # mutable profile enabled it before this configuration was activated.
+  home.activation.disableOrcaCloudVm = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    data_dir="$HOME/Library/Application Support/Orca/profiles/local-default"
+    data_file="$data_dir/orca-data.json"
+    run mkdir -p "$data_dir"
+
+    if [[ -f "$data_file" ]]; then
+      tmp_file="$(${lib.getExe' pkgs.coreutils "mktemp"} "$data_file.tmp.XXXXXX")"
+      ${lib.getExe pkgs.jq} \
+        '.settings = (.settings // {}) | .settings.experimentalEphemeralVms = false' \
+        "$data_file" >"$tmp_file"
+      run mv "$tmp_file" "$data_file"
+    else
+      run ${lib.getExe' pkgs.coreutils "printf"} '%s\n' \
+        '{"schemaVersion":1,"settings":{"experimentalEphemeralVms":false}}' \
+        >"$data_file"
+    fi
+  '';
+
   # Clear completion state once when activating a generation. Deleting it from
   # every interactive shell startup would disable zsh's completion cache and
   # unnecessarily slow down new terminals.

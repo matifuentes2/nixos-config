@@ -1,12 +1,28 @@
 { lib, pkgs, ... }:
 
 let
-  version = "1.4.184";
+  version = "1.4.185";
 
   src = pkgs.fetchurl {
     url = "https://github.com/stablyai/orca/releases/download/v${version}/orca-linux-arm64.AppImage";
-    hash = "sha256-dnrfGkmSIyNWpDZu1LaxaHKpmOwaeH37Yz77Nm5GdG8=";
+    hash = "sha256-SGhVHPLyvBilUaSpJpkan555ic8AaQmMCNCacRiwudc=";
   };
+
+  computerUsePython = pkgs.python3.withPackages (pythonPackages: [
+    pythonPackages.pygobject3
+  ]);
+
+  computerUsePackages = [
+    computerUsePython
+    pkgs.at-spi2-core
+    pkgs.gdk-pixbuf
+    pkgs.gobject-introspection-unwrapped
+    pkgs.gtk3
+    pkgs.harfbuzz
+    pkgs.pango.out
+    pkgs.xclip
+    pkgs.xdotool
+  ];
 
   appImageContents = pkgs.appimageTools.extractType2 {
     pname = "orca-ide";
@@ -18,8 +34,9 @@ let
     inherit version src;
 
     # Although `orca serve` is headless, Electron still needs a virtual X
-    # server. Orca discovers and starts Xvfb itself when it is on PATH.
-    extraPkgs = pkgs: [ pkgs.xorg-server ];
+    # server. Include AT-SPI and its Python bridge so the computer-use skill can
+    # inspect and operate applications in the virtual desktop session.
+    extraPkgs = pkgs: [ pkgs.xorg-server ] ++ computerUsePackages;
 
     # The FHS wrapper normally replaces /etc. Keep the Raspberry Pi's tracked
     # source-of-truth checkout visible so Orca agents can work in this repo.
@@ -46,6 +63,22 @@ let
   # outside the AppImage sandbox: the sandbox's private X11 socket directory
   # prevents Orca's built-in Xvfb fallback from becoming ready under systemd.
   serverLauncher = pkgs.writeShellScript "orca-server" ''
+    # Override any stale mutable profile state so Cloud VMs remain disabled.
+    data_dir="$XDG_CONFIG_HOME/orca/profiles/local-default"
+    data_file="$data_dir/orca-data.json"
+    mkdir -p "$data_dir"
+    if [[ -f "$data_file" ]]; then
+      tmp_file="$(${lib.getExe' pkgs.coreutils "mktemp"} "$data_file.tmp.XXXXXX")"
+      ${lib.getExe pkgs.jq} \
+        '.settings = (.settings // {}) | .settings.experimentalEphemeralVms = false' \
+        "$data_file" >"$tmp_file"
+      mv "$tmp_file" "$data_file"
+    else
+      ${lib.getExe' pkgs.coreutils "printf"} '%s\n' \
+        '{"schemaVersion":1,"settings":{"experimentalEphemeralVms":false}}' \
+        >"$data_file"
+    fi
+
     mapfile -t addresses < <(${lib.getExe pkgs.tailscale} ip -4)
     if (( ''${#addresses[@]} == 0 )); then
       echo "Tailscale has no IPv4 address yet" >&2
@@ -83,14 +116,23 @@ let
     fi
 
     export DISPLAY=":$(<"$display_file")"
-    exec ${lib.getExe orcaCli} serve \
-      --port 6768 \
-      --pairing-address "''${addresses[0]}" \
-      --mobile-pairing
+    export XDG_RUNTIME_DIR="$RUNTIME_DIRECTORY"
+    exec ${lib.getExe' pkgs.dbus "dbus-run-session"} -- \
+      ${lib.getExe orcaCli} serve \
+        --port 6768 \
+        --pairing-address "''${addresses[0]}" \
+        --mobile-pairing
   '';
 in
 {
-  environment.systemPackages = [ orcaCli ];
+  environment.systemPackages = [
+    orcaCli
+    pkgs.android-tools
+  ]
+  ++ computerUsePackages;
+
+  # Make the Stably CLI unambiguous for Orca skills in ordinary Linux shells.
+  environment.sessionVariables.ORCA_CLI_COMMAND = lib.getExe orcaCli;
 
   # Orca is reachable only through Tailscale, never through a public or LAN
   # interface. Per-client Orca grants provide the application-level access.
@@ -113,6 +155,26 @@ in
       XDG_CACHE_HOME = "/home/pi/.cache";
       XDG_CONFIG_HOME = "/home/pi/.config";
       XDG_DATA_HOME = "/home/pi/.local/share";
+      GI_TYPELIB_PATH = lib.makeSearchPath "lib/girepository-1.0" [
+        pkgs.at-spi2-core
+        pkgs.gdk-pixbuf
+        pkgs.glib
+        pkgs.gobject-introspection-unwrapped
+        pkgs.gtk3
+        pkgs.harfbuzz
+        pkgs.pango.out
+      ];
+      XDG_DATA_DIRS =
+        lib.makeSearchPath "share" [
+          pkgs.at-spi2-core
+          pkgs.gdk-pixbuf
+          pkgs.gobject-introspection-unwrapped
+          pkgs.gtk3
+          pkgs.harfbuzz
+          pkgs.pango.out
+        ]
+        + ":/run/current-system/sw/share";
+      ORCA_CLI_COMMAND = lib.getExe orcaCli;
       # Agent CLIs installed through Home Manager must remain visible to Orca.
       PATH = lib.mkForce "/etc/profiles/per-user/pi/bin:/home/pi/.nix-profile/bin:/run/current-system/sw/bin";
     };

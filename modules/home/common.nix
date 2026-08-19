@@ -11,6 +11,8 @@
   pi-codex-goal,
   pi-pr-review-goal,
   pi-parallel-go-pr-herdr,
+  pi-execution-time,
+  orca,
   ...
 }:
 
@@ -18,25 +20,40 @@ let
   unstable = import nixpkgs-unstable {
     system = pkgs.stdenv.hostPlatform.system;
   };
+  piVersion = "0.84.2";
+  orcaSkillNames = [
+    "orca-cli"
+    "orchestration"
+    "computer-use"
+    "orca-linear"
+    "orca-emulator"
+    "orca-emulator-android"
+  ];
+  orcaSkills = pkgs.runCommand "orca-agent-skills" { } ''
+    mkdir -p "$out"
+    ${lib.concatMapStringsSep "\n" (name: ''
+      cp -R ${orca}/skills/${name} "$out/${name}"
+    '') orcaSkillNames}
+  '';
   # Pin the current upstream release until nixos-unstable catches up.
   upstreamPi =
     let
-      version = "0.84.2";
       src = pkgs.fetchFromGitHub {
         owner = "earendil-works";
         repo = "pi";
-        tag = "v${version}";
+        tag = "v${piVersion}";
         hash = "sha256-d29ft9otYxdHRWYIAX8KMHPpppToX9ME5LbPb1rPcYo=";
       };
     in
     unstable.pi-coding-agent.overrideAttrs {
-      inherit version src;
+      version = piVersion;
+      inherit src;
       npmDeps = pkgs.fetchNpmDeps {
         inherit src;
         hash = "sha256-6J5Efe+6ptCuR3VZojwYPZO8BBnnZsOQ4OAeB64uYOY=";
       };
       modelData = pkgs.fetchurl {
-        url = "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-${version}.tgz";
+        url = "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-${piVersion}.tgz";
         hash = "sha256-AmJ4Wnaw6y7sWWzYp6su4j7vidLvG7EhHE8KGUTaz0E=";
       };
     };
@@ -173,6 +190,7 @@ in
     bun
     uv
     devenv
+    android-tools
     worktrunk.packages.${pkgs.stdenv.hostPlatform.system}.default
     pi
     chromeDevtoolsMcp
@@ -241,7 +259,10 @@ in
   home.file.".pi/agent/settings.json" = {
     force = true;
     text = builtins.toJSON {
-      lastChangelogVersion = "0.83.0";
+      # This file is immutable, so Pi cannot persist the version after showing
+      # an update. Keep it aligned with the packaged version to suppress the
+      # automatic startup changelog; /changelog remains available on demand.
+      lastChangelogVersion = piVersion;
       theme = "dark";
       defaultProvider = "openai-codex";
       defaultModel = "gpt-5.6-sol";
@@ -258,6 +279,7 @@ in
         "${piCodexGoalPackage}"
         "${piPrReviewGoalPackage}"
         "${piParallelGoPrHerdrPackage}"
+        "${pi-execution-time}"
       ];
     };
   };
@@ -265,6 +287,14 @@ in
   # Install Pi agent skills declaratively from pinned or tracked sources.
   home.file.".pi/agent/skills/herdr/SKILL.md".source = "${herdr}/skills/herdr/SKILL.md";
   home.file.".pi/agent/skills/devenv-setup/SKILL.md".source = ../../pi-skills/devenv-setup/SKILL.md;
+
+  # ~/.agents/skills is discovered by both Pi and Orca. Installing the complete
+  # directories here lets Orca detect the skills and activate their setup UI,
+  # while preserving any references or assets shipped beside SKILL.md.
+  home.file.".agents/skills" = {
+    source = orcaSkills;
+    recursive = true;
+  };
 
   # Keep shared Pi prompt templates reproducible across every host.
   home.file.".pi/agent/prompts/go-pr.md" = {
