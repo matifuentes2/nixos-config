@@ -31,6 +31,10 @@
   nixpkgs.config.allowUnfree = true;
   services.xserver.videoDrivers = [ "nvidia" ];
   hardware = {
+    bluetooth = {
+      enable = true;
+      powerOnBoot = true;
+    };
     graphics.enable = true;
     nvidia = {
       # The current stable branch no longer supports Pascal GPUs. Keep this
@@ -74,6 +78,8 @@
   # Use compressed RAM-backed swap. Disk-backed swap and hibernation are
   # intentionally omitted from the initial installation.
   zramSwap.enable = true;
+
+  services.blueman.enable = true;
 
   services.tailscale = {
     enable = true;
