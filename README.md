@@ -4,6 +4,8 @@ This repository is the declarative source of truth for:
 
 - the `nixos` flake output: a 64-bit Raspberry Pi 4 running NixOS, with Home
   Manager for user `pi`;
+- the `amd64-lenovo-legion-y720` flake output: an x86-64 physical NixOS laptop
+  with encrypted Btrfs storage, Hyprland, and Home Manager for user `matif`;
 - the `wsl2` flake output: an x86-64 NixOS-WSL environment running under WSL2,
   with Home Manager for user `matif`; and
 - the `macbook` flake output: an Apple Silicon Mac managed by nix-darwin, with
@@ -13,7 +15,9 @@ Shared command-line packages, Pi/Herdr configuration, shell tools, Starship,
 and Neovim live in [`modules/home/common.nix`](./modules/home/common.nix).
 Linux desktop and macOS-only Home Manager settings are kept in
 [`modules/home/linux.nix`](./modules/home/linux.nix) and
-[`modules/home/darwin.nix`](./modules/home/darwin.nix). WSL2 intentionally skips
+[`modules/home/darwin.nix`](./modules/home/darwin.nix). Shared NixOS desktop
+services live in [`modules/system/linux-desktop.nix`](./modules/system/linux-desktop.nix).
+WSL2 intentionally skips
 the Hyprland-oriented Linux desktop module. Device configuration lives under
 [`hosts/`](./hosts/).
 
@@ -25,6 +29,11 @@ hosts/
   raspberry-pi/
     default.nix
     hardware-configuration.nix
+    home.nix
+  amd64-lenovo-legion-y720/
+    default.nix
+    disko.nix
+    hardware.nix
     home.nix
   macbook/
     default.nix
@@ -59,6 +68,20 @@ sudo nixos-rebuild switch --flake /etc/nixos#nixos
 
 Hyprland is configured under [`hyprland/`](./hyprland/) and starts from SDDM.
 See the [Hyprland desktop guide](./docs/hyprland.md) for its keybindings.
+
+## Lenovo Legion Y720
+
+The `amd64-lenovo-legion-y720` output installs the physical x86-64 laptop with
+a declarative Disko layout, LUKS encryption, Btrfs, Hyprland, and NVIDIA PRIME
+offload. Follow the
+[fresh-installation guide](./docs/amd64-lenovo-legion-y720-fresh-install.md).
+The Disko procedure owns and erases the complete selected internal disk.
+
+Build the installed host without switching:
+
+```sh
+sudo nixos-rebuild build --flake /etc/nixos#amd64-lenovo-legion-y720
+```
 
 ## WSL2
 
@@ -102,6 +125,13 @@ Build the Raspberry Pi configuration without switching:
 
 ```sh
 sudo nixos-rebuild build --flake /etc/nixos#nixos
+```
+
+Build the physical amd64 configuration on an x86-64 Linux host without
+switching:
+
+```sh
+nix build --no-link .#nixosConfigurations.amd64-lenovo-legion-y720.config.system.build.toplevel
 ```
 
 Build the WSL2 configuration on an x86-64 Linux host without switching:

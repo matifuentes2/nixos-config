@@ -8,8 +8,9 @@ nix-darwin host. A fresh installation must be reproducible by cloning the
 repository and rebuilding the appropriate flake output.
 
 - Put host-specific operating-system configuration under `hosts/<host>/`.
-  The Raspberry Pi uses `hosts/raspberry-pi/`, WSL2 uses `hosts/wsl2/`, and the
-  Mac uses `hosts/macbook/`.
+  The Raspberry Pi uses `hosts/raspberry-pi/`, the Lenovo Legion Y720 uses
+  `hosts/amd64-lenovo-legion-y720/`, WSL2 uses `hosts/wsl2/`, and the Mac uses
+  `hosts/macbook/`.
 - Put cross-platform user packages, dotfiles, shell settings, and application
   configuration in `modules/home/common.nix` or another tracked shared module.
 - Put Linux desktop Home Manager settings in `modules/home/linux.nix`, macOS-only
@@ -97,6 +98,12 @@ Rebuild the Raspberry Pi with:
 sudo nixos-rebuild switch --flake /etc/nixos#nixos
 ```
 
+Rebuild the Lenovo Legion Y720 from its checkout with:
+
+```sh
+sudo nixos-rebuild switch --flake /etc/nixos#amd64-lenovo-legion-y720
+```
+
 Rebuild WSL2 from its checkout with:
 
 ```sh
@@ -115,6 +122,8 @@ non-switching build when possible:
 
 ```sh
 sudo nixos-rebuild build --flake /etc/nixos#nixos
+# Run on x86-64 Linux:
+nix build --no-link .#nixosConfigurations.amd64-lenovo-legion-y720.config.system.build.toplevel
 # Run on x86-64 Linux or WSL2:
 nix build --no-link .#nixosConfigurations.wsl2.config.system.build.toplevel
 # Run on macOS:

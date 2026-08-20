@@ -12,6 +12,10 @@
       url = "github:nix-community/NixOS-WSL/main";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nix-homebrew.url = "github:zhaofengli/nix-homebrew";
     homebrew-core = {
       url = "github:homebrew/homebrew-core";
@@ -78,6 +82,7 @@
       nixpkgs-unstable,
       nix-darwin,
       nixos-wsl,
+      disko,
       nix-homebrew,
       homebrew-core,
       homebrew-cask,
@@ -103,6 +108,8 @@
       darwinUsername = "matif";
       wslSystem = "x86_64-linux";
       wslUsername = "matif";
+      amd64System = "x86_64-linux";
+      amd64Username = "matif";
 
       homeSpecialArgs = {
         inherit
@@ -148,6 +155,9 @@
             ];
           };
         }
+        // nixpkgs.lib.optionalAttrs (system == amd64System) {
+          inherit (disko.packages.${system}) disko disko-install;
+        }
       );
 
       nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
@@ -161,6 +171,26 @@
             home-manager.useUserPackages = true;
             home-manager.users.pi = import ./hosts/raspberry-pi/home.nix;
             home-manager.extraSpecialArgs = homeSpecialArgs;
+          }
+        ];
+      };
+
+      nixosConfigurations.amd64-lenovo-legion-y720 = nixpkgs.lib.nixosSystem {
+        system = amd64System;
+        specialArgs = {
+          username = amd64Username;
+        };
+        modules = [
+          disko.nixosModules.disko
+          ./hosts/amd64-lenovo-legion-y720
+          home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.${amd64Username} = import ./hosts/amd64-lenovo-legion-y720/home.nix;
+            home-manager.extraSpecialArgs = homeSpecialArgs // {
+              username = amd64Username;
+            };
           }
         ];
       };
