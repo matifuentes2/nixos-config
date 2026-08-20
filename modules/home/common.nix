@@ -220,8 +220,18 @@ in
     run chmod -R u+w "$collie_dir"
     run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
       plugin link "$collie_dir" --enabled
-    run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
-      plugin action invoke restart --plugin herdr.collie
+
+    # A fresh Home Manager activation runs before the user has launched Herdr,
+    # so no server socket exists yet. The linked plugin starts normally with
+    # Herdr; only request a live bridge restart when a server is available.
+    if [[ -S "$HOME/.config/herdr/herdr.sock" ]]; then
+      if ! run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
+        plugin action invoke restart --plugin herdr.collie; then
+        echo "Could not restart the live Collie bridge; the plugin remains linked"
+      fi
+    else
+      echo "Herdr is not running; skipping the Collie bridge restart"
+    fi
   '';
 
   xdg.configFile."herdr/config.toml" = {

@@ -59,9 +59,15 @@ disk and `/dev/sdb` is the USB installer.
 
 The Disko executable and all configuration inputs come from `flake.lock`:
 
+The live installer does not enable flakes by default, so pass the required
+experimental features explicitly:
+
 ```sh
-nix flake check
-nix eval --raw .#nixosConfigurations.amd64-lenovo-legion-y720.config.system.build.toplevel.drvPath
+nix --extra-experimental-features "nix-command flakes" \
+  flake check --no-write-lock-file
+nix --extra-experimental-features "nix-command flakes" \
+  eval --raw \
+  .#nixosConfigurations.amd64-lenovo-legion-y720.config.system.build.toplevel.drvPath
 ```
 
 Do not continue if either command fails.
@@ -74,10 +80,17 @@ inside a LUKS-encrypted partition. Disko asks for the new disk-encryption
 passphrase interactively. Store that passphrase securely; the machine asks for
 it during every boot and it cannot be recovered from this repository.
 
+Run the complete command in an explicit root shell; running only the generated
+Disko script as the live user leaves it unable to open the target device:
+
 ```sh
-sudo nix run .#disko -- \
-  --mode destroy,format,mount \
-  hosts/amd64-lenovo-legion-y720/disko.nix
+sudo sh -c '
+  cd /tmp/nixos-config &&
+  nix --extra-experimental-features "nix-command flakes" \
+    run .#disko -- \
+    --mode destroy,format,mount \
+    hosts/amd64-lenovo-legion-y720/disko.nix
+'
 ```
 
 Verify the resulting mounts:
@@ -102,7 +115,8 @@ sudo chown -R 1000:100 /mnt/etc/nixos
 Install the tracked host without creating a root password:
 
 ```sh
-sudo nixos-install \
+sudo env NIX_CONFIG="experimental-features = nix-command flakes" \
+  nixos-install \
   --no-root-passwd \
   --flake /mnt/etc/nixos#amd64-lenovo-legion-y720
 ```
@@ -117,13 +131,21 @@ This login password is separate from the LUKS disk-encryption passphrase.
 
 ## 6. Reboot
 
+Cleanly flush and unmount the installation before restarting:
+
 ```sh
+sync
+sudo umount -R /mnt
+sudo cryptsetup close crypted-root
 sudo reboot
 ```
 
-Remove the USB stick when the firmware begins restarting. Enter the LUKS
-passphrase when prompted, then log in to SDDM as `matif` using the account
-password selected above.
+Remove the USB stick when the firmware begins restarting. If the firmware uses
+an obsolete Windows entry on the first boot, press **F12** and select **Linux
+Boot Manager**. Enter the LUKS passphrase when prompted, then log in to SDDM as
+`matif` using the account password selected above. Use `efibootmgr` after login
+to place Linux Boot Manager first in the persistent firmware boot order; run
+`sudo efibootmgr` to inspect the firmware-specific boot identifiers.
 
 The Hyprland session uses Intel HD Graphics 630 by default. Run individual
 programs on the NVIDIA GTX 1060 Mobile with:
