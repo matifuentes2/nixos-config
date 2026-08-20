@@ -154,6 +154,15 @@ programs on the NVIDIA GTX 1060 Mobile with:
 nvidia-offload PROGRAM
 ```
 
+OpenSSH accepts the ED25519 public key tracked in the host configuration, which
+is a reproducible snapshot of the key published at
+<https://github.com/matifuentes2.keys>. Password-based SSH login remains
+disabled. Connect from the machine holding the corresponding private key:
+
+```sh
+ssh matif@AMD64_HOST_ADDRESS
+```
+
 ## Subsequent updates
 
 The persistent checkout is `/etc/nixos`. Pull reviewed changes, build without

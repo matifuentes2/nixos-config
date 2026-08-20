@@ -65,6 +65,11 @@
       "video"
       "audio"
     ];
+    # Pin the public key currently published by the user's GitHub account.
+    # Keeping the key here avoids a network dependency during SSH login.
+    openssh.authorizedKeys.keys = [
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAt+/czluQsmX++mLb+H96Zy5SKcU7uzRikipfvG1FSn"
+    ];
   };
 
   environment.systemPackages = with pkgs; [
