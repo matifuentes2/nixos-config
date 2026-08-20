@@ -1,0 +1,99 @@
+{
+  config,
+  pkgs,
+  username,
+  ...
+}:
+
+{
+  imports = [
+    ../../modules/system/common.nix
+    ../../modules/system/linux-desktop.nix
+    ./disko.nix
+    ./hardware.nix
+  ];
+
+  networking = {
+    hostName = "amd64-lenovo-legion-y720";
+    networkmanager.enable = true;
+  };
+
+  boot.loader = {
+    systemd-boot.enable = true;
+    efi.canTouchEfiVariables = true;
+  };
+
+  # Let tools such as uv run upstream dynamically linked binaries.
+  programs.nix-ld.enable = true;
+
+  # The GTX 1060 Mobile is a Pascal GPU and therefore uses NVIDIA's closed
+  # kernel module. PRIME offload keeps the Intel GPU as the desktop default.
+  nixpkgs.config.allowUnfree = true;
+  services.xserver.videoDrivers = [ "nvidia" ];
+  hardware = {
+    graphics.enable = true;
+    nvidia = {
+      # The current stable branch no longer supports Pascal GPUs. Keep this
+      # GTX 1060 Mobile on NVIDIA's final Maxwell/Pascal/Volta branch.
+      package = config.boot.kernelPackages.nvidiaPackages.legacy_580;
+      modesetting.enable = true;
+      open = false;
+      nvidiaSettings = true;
+      powerManagement.enable = true;
+      prime = {
+        intelBusId = "PCI:0:2:0";
+        nvidiaBusId = "PCI:1:0:0";
+        offload = {
+          enable = true;
+          enableOffloadCmd = true;
+        };
+      };
+    };
+  };
+
+  users.users.${username} = {
+    isNormalUser = true;
+    uid = 1000;
+    description = "NixOS user";
+    extraGroups = [
+      "wheel"
+      "networkmanager"
+      "video"
+      "audio"
+    ];
+  };
+
+  environment.systemPackages = with pkgs; [
+    gh
+    git
+    vim
+    wget
+  ];
+
+  # Use compressed RAM-backed swap. Disk-backed swap and hibernation are
+  # intentionally omitted from the initial installation.
+  zramSwap.enable = true;
+
+  services.tailscale = {
+    enable = true;
+    openFirewall = true;
+    extraSetFlags = [ "--operator=${username}" ];
+  };
+
+  services.openssh = {
+    enable = true;
+    openFirewall = true;
+    settings = {
+      PasswordAuthentication = false;
+      KbdInteractiveAuthentication = false;
+    };
+  };
+
+  programs.mosh = {
+    enable = true;
+    openFirewall = true;
+  };
+
+  # Keep this at the first NixOS version installed on this machine.
+  system.stateVersion = "26.11";
+}

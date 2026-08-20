@@ -77,6 +77,7 @@ Before merging or publishing a release, run:
 
 ```sh
 nix flake check
+nix eval --raw .#nixosConfigurations.amd64-lenovo-legion-y720.config.system.build.toplevel.drvPath
 nix eval --raw .#nixosConfigurations.wsl2.config.system.build.toplevel.drvPath
 nix build --no-link .#darwinConfigurations.macbook.system
 nix shell .#ci-tools -c actionlint
@@ -92,9 +93,15 @@ Before publishing a bootstrap release, additionally run:
 scripts/audit-github-settings.sh
 ```
 
-The standard CI runner evaluates the WSL2 activation derivation rather than
-realizing its multi-gigabyte closure. On the WSL2 host, also perform a
-non-switching host build:
+The standard CI runner evaluates the physical amd64 and WSL2 activation
+derivations rather than realizing their multi-gigabyte closures. On the Lenovo
+Legion Y720, perform a non-switching host build:
+
+```sh
+sudo nixos-rebuild build --flake /etc/nixos#amd64-lenovo-legion-y720
+```
+
+On the WSL2 host, also perform a non-switching host build:
 
 ```sh
 sudo nixos-rebuild build --flake ~/nixos-config#wsl2

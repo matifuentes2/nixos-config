@@ -7,6 +7,7 @@
 {
   imports = [
     ../../modules/system/common.nix
+    ../../modules/system/linux-desktop.nix
     ./hardware-configuration.nix
     ./orca-server.nix
   ];
@@ -58,28 +59,6 @@
   #   keyMap = "us";
   #   useXkbConfig = true; # use xkb.options in tty.
   # };
-
-  # Run a Wayland-native Hyprland desktop with an SDDM login screen.
-  programs.hyprland.enable = true;
-
-  services.displayManager = {
-    defaultSession = "hyprland";
-    sddm = {
-      enable = true;
-      wayland.enable = true;
-    };
-  };
-
-  # Desktop integration used by the Home Manager Hyprland configuration.
-  security.pam.services.hyprlock = { };
-  programs.thunar.enable = true;
-  services.gvfs.enable = true;
-  services.tumbler.enable = true;
-
-  fonts.packages = with pkgs; [
-    font-awesome
-    nerd-fonts.jetbrains-mono
-  ];
 
   # Configure keymap in X11
   # services.xserver.xkb.layout = "us";
