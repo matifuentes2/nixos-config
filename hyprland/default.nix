@@ -16,6 +16,22 @@ let
   loginctl = lib.getExe' pkgs.systemd "loginctl";
   hyprctl = lib.getExe' pkgs.hyprland "hyprctl";
   pgrep = lib.getExe' pkgs.procps "pgrep";
+  jq = lib.getExe pkgs.jq;
+
+  windowSwitcher = pkgs.writeShellApplication {
+    name = "hypr-window-switcher";
+    text = ''
+      address="$(
+        ${hyprctl} clients -j \
+          | ${jq} -r '.[] | [.address, .workspace.name, .class, .title] | @tsv' \
+          | ${launcher} --dmenu --match-mode=fuzzy --prompt='Window> ' \
+              --with-nth='{2}  {3}: {4}' --accept-nth=1 --only-match
+      )" || exit 0
+
+      [ -n "$address" ] || exit 0
+      exec ${hyprctl} dispatch focuswindow "address:$address"
+    '';
+  };
 in
 {
   home.packages = [
@@ -98,6 +114,7 @@ in
       bind = [
         "$mod, RETURN, exec, $terminal"
         "$mod, R, exec, $menu"
+        "$mod, W, exec, ${lib.getExe windowSwitcher}"
         "$mod, E, exec, $fileManager"
         "$mod SHIFT, V, exec, ${pavucontrol}"
         "$mod, N, exec, ${nmConnectionEditor}"
