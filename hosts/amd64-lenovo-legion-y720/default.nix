@@ -26,6 +26,22 @@
   # Let tools such as uv run upstream dynamically linked binaries.
   programs.nix-ld.enable = true;
 
+  # Keep Steam out of the default desktop. Opt in from a running system with:
+  # sudo /run/current-system/specialisation/steam/bin/switch-to-configuration switch
+  # The Steam specialisation is also available from the systemd-boot menu. Steam
+  # and the games it launches inherit PRIME offload variables for the NVIDIA GPU.
+  specialisation.steam.configuration.programs.steam = {
+    enable = true;
+    package = pkgs.steam.override {
+      extraEnv = {
+        __GLX_VENDOR_LIBRARY_NAME = "nvidia";
+        __NV_PRIME_RENDER_OFFLOAD = "1";
+        __NV_PRIME_RENDER_OFFLOAD_PROVIDER = "NVIDIA-G0";
+        __VK_LAYER_NV_optimus = "NVIDIA_only";
+      };
+    };
+  };
+
   # The GTX 1060 Mobile is a Pascal GPU and therefore uses NVIDIA's closed
   # kernel module. PRIME offload keeps the Intel GPU as the desktop default.
   nixpkgs.config.allowUnfree = true;

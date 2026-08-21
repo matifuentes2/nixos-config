@@ -91,6 +91,24 @@ making that behavior an amd64 default. The module is disabled and unused by all
 current hosts. See the
 [local-worker preparation and onboarding guide](./docs/local-worker-onboarding.md).
 
+### Opt-in Steam configuration
+
+Steam is excluded from the default desktop and enabled through the `steam`
+NixOS specialisation. The host's `rebuild` shell alias accepts the short `-c`
+form of `--specialisation`:
+
+```sh
+rebuild -c steam # Rebuild and activate the Steam configuration.
+rebuild          # Rebuild and return to the default Steam-free configuration.
+```
+
+The Steam specialisation is also selectable from the systemd-boot menu. Steam
+and its child game processes receive the NVIDIA PRIME offload environment by
+default, while the rest of the desktop continues to use the Intel GPU. Switching
+back to the default configuration removes Steam from the active system but does
+not delete games, saves, Proton prefixes, or other Steam data stored in the
+user's home directory.
+
 ## WSL2
 
 The `wsl2` output uses the upstream NixOS-WSL module and shares the portable

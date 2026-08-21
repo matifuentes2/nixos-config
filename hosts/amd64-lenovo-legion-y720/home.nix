@@ -22,6 +22,7 @@
     pkgs.nwg-displays
     pkgs.rofi
     pkgs.tree
+    pkgs.wlinhibit
   ];
 
   services.cliphist.enable = true;
