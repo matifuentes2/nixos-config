@@ -85,6 +85,16 @@
   # intentionally omitted from the initial installation.
   zramSwap.enable = true;
 
+  # Scrub each distinct Btrfs filesystem monthly for checksum and device
+  # errors. Do not list /home and /nix because they share the root filesystem.
+  services.btrfs.autoScrub = {
+    enable = true;
+    fileSystems = [
+      "/"
+      "/data"
+    ];
+  };
+
   services.blueman.enable = true;
 
   services.tailscale = {

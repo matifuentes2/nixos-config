@@ -72,10 +72,11 @@ See the [Hyprland desktop guide](./docs/hyprland.md) for its keybindings.
 ## Lenovo Legion Y720
 
 The `amd64-lenovo-legion-y720` output installs the physical x86-64 laptop with
-a declarative Disko layout, LUKS encryption, Btrfs, Hyprland, and NVIDIA PRIME
-offload. Follow the
+the encrypted NVMe system drive at `/`, `/home`, and `/nix`, plus the encrypted
+SATA bulk-storage drive at `/data`. The declarative Disko layout is documented
+in the
 [fresh-installation guide](./docs/amd64-lenovo-legion-y720-fresh-install.md).
-The Disko procedure owns and erases the complete selected internal disk.
+The Disko procedure owns and erases both internal drives.
 
 Build the installed host without switching:
 

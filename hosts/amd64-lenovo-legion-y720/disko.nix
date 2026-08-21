@@ -1,12 +1,12 @@
 { ... }:
 
 {
-  # This layout owns the complete internal disk. The confirmed target uses the
-  # non-identifying kernel path /dev/sda so this public repository does not
-  # disclose a serial-number-bearing /dev/disk/by-id path.
-  disko.devices.disk.main = {
+  # This layout owns both internal disks. The confirmed targets use
+  # non-identifying kernel paths so this public repository does not disclose
+  # serial-number-bearing /dev/disk/by-id paths.
+  disko.devices.disk.system = {
     type = "disk";
-    device = "/dev/sda";
+    device = "/dev/nvme0n1";
     content = {
       type = "gpt";
       partitions = {
@@ -28,6 +28,9 @@
           content = {
             type = "luks";
             name = "crypted-root";
+            # Permit the periodic fstrim service to reach the NVMe SSD. This
+            # leaks which physical blocks are unused but not their contents.
+            settings.allowDiscards = true;
             # With no key file configured, Disko asks for the passphrase
             # interactively and the initrd asks for it on every boot.
             content = {
@@ -50,6 +53,36 @@
                 };
                 "/nix" = {
                   mountpoint = "/nix";
+                  mountOptions = [
+                    "compress=zstd"
+                    "noatime"
+                  ];
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+
+  disko.devices.disk.data = {
+    type = "disk";
+    device = "/dev/sda";
+    content = {
+      type = "gpt";
+      partitions = {
+        encrypted-data = {
+          size = "100%";
+          content = {
+            type = "luks";
+            name = "crypted-data";
+            content = {
+              type = "btrfs";
+              extraArgs = [ "-f" ];
+              subvolumes = {
+                "/data" = {
+                  mountpoint = "/data";
                   mountOptions = [
                     "compress=zstd"
                     "noatime"
