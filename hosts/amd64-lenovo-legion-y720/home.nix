@@ -18,7 +18,7 @@
 
   home.packages = [
     pkgs.awww
-    pkgs.discord
+    pkgs.webcord
     pkgs.nwg-displays
     pkgs.rofi
     pkgs.tree
