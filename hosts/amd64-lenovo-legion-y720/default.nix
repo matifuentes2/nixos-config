@@ -20,7 +20,9 @@ let
     nativeBuildInputs = [ pkgs.makeWrapper ];
     postBuild = ''
       wrapProgram "$out/bin/lutris" \
-        ${lib.concatStringsSep " \\\n        " (lib.mapAttrsToList (name: value: "--set ${name} ${lib.escapeShellArg value}") nvidiaOffloadEnv)}
+        ${lib.concatStringsSep " \\\n        " (
+          lib.mapAttrsToList (name: value: "--set ${name} ${lib.escapeShellArg value}") nvidiaOffloadEnv
+        )}
     '';
   };
 in
