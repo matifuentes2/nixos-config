@@ -1,19 +1,26 @@
 # Fresh installation on the Lenovo Legion Y720
 
 This procedure installs the `amd64-lenovo-legion-y720` NixOS flake output on
-the physical Lenovo laptop. It uses Disko to replace the complete internal
-Western Digital disk with an encrypted Btrfs installation.
+the physical Lenovo laptop. It uses Disko to configure both internal drives:
 
-> **Destructive operation:** the confirmed target is `/dev/sda`, a 931.5 GiB
-> internal SATA disk. The Disko step permanently removes its existing NTFS
-> partition, Windows installation, recovery data, and every other file. The
-> installer USB observed during preparation is `/dev/sdb`; never substitute it
-> as the target.
+- the 953.9 GiB Intel NVMe drive (`/dev/nvme0n1`) contains the EFI System
+  Partition and the LUKS-encrypted Btrfs system volumes for `/`, `/home`, and
+  `/nix`;
+- the 931.5 GiB Western Digital SATA drive (`/dev/sda`) contains a
+  LUKS-encrypted Btrfs data volume mounted at `/data`.
 
-The initial installation uses UEFI without Secure Boot and compressed zram
-without disk-backed hibernation.
+> **Destructive operation:** Disko permanently erases both internal drives,
+> including every existing operating system, partition, recovery environment,
+> and user file. Identify the installer USB by its model and transport and
+> never substitute it for either target.
 
-## 1. Boot and connect
+The installation uses UEFI without Secure Boot and compressed zram without
+disk-backed hibernation.
+
+## 1. Configure firmware and boot the installer
+
+Keep the firmware storage-controller mode set to **AHCI**, not Intel RST or
+RAID. In RST/RAID mode Linux cannot access the remapped NVMe drive.
 
 Boot the graphical NixOS USB through its UEFI boot entry, start the live
 desktop, and connect to Wi-Fi or Ethernet. Do not start the graphical installer.
@@ -33,7 +40,7 @@ Stop unless this prints `UEFI`.
 
 ## 2. Fetch and inspect the configuration
 
-Clone the public repository into the live system:
+Clone the reviewed repository revision into the live system:
 
 ```sh
 git clone https://github.com/matifuentes2/nixos-config /tmp/nixos-config
@@ -49,17 +56,22 @@ less hosts/amd64-lenovo-legion-y720/disko.nix
 Confirm the disk identities again:
 
 ```sh
-lsblk -e7 -o NAME,PATH,SIZE,TYPE,FSTYPE,MOUNTPOINTS,MODEL,TRAN
+lsblk -d -e7 -o NAME,PATH,SIZE,TYPE,MODEL,TRAN
+lsblk -e7 -o NAME,PATH,SIZE,TYPE,FSTYPE,MOUNTPOINTS
 ```
 
-Proceed only when `/dev/sda` is the 931.5 GiB internal Western Digital SATA
-disk and `/dev/sdb` is the USB installer.
+Proceed only when all of the following are true:
+
+- `/dev/nvme0n1` is the 953.9 GiB Intel NVMe drive;
+- `/dev/sda` is the 931.5 GiB Western Digital SATA drive;
+- neither internal drive has a mounted partition; and
+- the installer USB has been identified as a different device by its model and
+  `usb` transport.
 
 ## 3. Validate the flake
 
-The Disko executable and all configuration inputs come from `flake.lock`:
-
-The live installer does not enable flakes by default, so pass the required
+The Disko executable and all configuration inputs come from `flake.lock`. The
+live installer does not enable flakes by default, so pass the required
 experimental features explicitly:
 
 ```sh
@@ -72,16 +84,16 @@ nix --extra-experimental-features "nix-command flakes" \
 
 Do not continue if either command fails.
 
-## 4. Erase, encrypt, format, and mount the disk
+## 4. Erase, encrypt, format, and mount both drives
 
-The following command is the destructive boundary. It erases `/dev/sda`,
-creates a GPT partition table and 1 GiB EFI System Partition, and places Btrfs
-inside a LUKS-encrypted partition. Disko asks for the new disk-encryption
-passphrase interactively. Store that passphrase securely; the machine asks for
-it during every boot and it cannot be recovered from this repository.
+The following command is the destructive boundary. Disko asks interactively
+for the encryption passphrase for each LUKS container. Store the passphrases
+securely; they cannot be recovered from this repository. Using the same strong
+passphrase for both containers may allow the boot-time prompt to reuse it, but
+the drives remain independently encrypted.
 
 Run the complete command in an explicit root shell; running only the generated
-Disko script as the live user leaves it unable to open the target device:
+Disko script as the live user leaves it unable to open the target devices:
 
 ```sh
 sudo sh -c '
@@ -93,13 +105,14 @@ sudo sh -c '
 '
 ```
 
-Verify the resulting mounts:
+Verify every resulting mount:
 
 ```sh
 findmnt /mnt
 findmnt /mnt/boot
 findmnt /mnt/home
 findmnt /mnt/nix
+findmnt /mnt/data
 ```
 
 ## 5. Preserve the checkout and install NixOS
@@ -127,7 +140,7 @@ Set the local login and `sudo` password for `matif`:
 sudo nixos-enter --root /mnt -c 'passwd matif'
 ```
 
-This login password is separate from the LUKS disk-encryption passphrase.
+This login password is separate from the LUKS disk-encryption passphrases.
 
 ## 6. Reboot
 
@@ -136,6 +149,7 @@ Cleanly flush and unmount the installation before restarting:
 ```sh
 sync
 sudo umount -R /mnt
+sudo cryptsetup close crypted-data
 sudo cryptsetup close crypted-root
 sudo reboot
 ```
@@ -146,6 +160,14 @@ Boot Manager**. Enter the LUKS passphrase when prompted, then log in to SDDM as
 `matif` using the account password selected above. Use `efibootmgr` after login
 to place Linux Boot Manager first in the persistent firmware boot order; run
 `sudo efibootmgr` to inspect the firmware-specific boot identifiers.
+
+After login, verify that the system is using both drives as declared:
+
+```sh
+findmnt /
+findmnt /data
+lsblk -e7 -o NAME,PATH,SIZE,TYPE,FSTYPE,MOUNTPOINTS,MODEL,TRAN
+```
 
 The Hyprland session uses Intel HD Graphics 630 by default. Run individual
 programs on the NVIDIA GTX 1060 Mobile with:

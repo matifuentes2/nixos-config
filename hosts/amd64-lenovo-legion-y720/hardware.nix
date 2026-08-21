@@ -10,9 +10,11 @@
     (modulesPath + "/installer/scan/not-detected.nix")
   ];
 
-  # The Legion Y720 boots its root filesystem from the internal SATA drive.
+  # The Legion Y720 boots from its internal NVMe drive and uses the SATA drive
+  # for encrypted bulk storage. Firmware storage mode must remain AHCI.
   boot.initrd.availableKernelModules = [
     "ahci"
+    "nvme"
     "sd_mod"
     "xhci_pci"
   ];
