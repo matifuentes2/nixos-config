@@ -134,6 +134,16 @@
       ];
     in
     {
+      # Importing this module is inert until its explicit enable option is set.
+      # It includes sops-nix so future physical x86-64 hosts can opt in without
+      # making local-worker behavior a default for NixOS or amd64 systems.
+      nixosModules.ci-cd-local-worker = {
+        imports = [
+          sops-nix.nixosModules.sops
+          ./modules/system/ci-cd-local-worker.nix
+        ];
+      };
+
       # Bootstrap Git comes from this flake's locked nixpkgs input, avoiding a
       # mutable registry or branch reference on fresh systems. CI tools are
       # exposed for the repository's validation workflow.
@@ -159,6 +169,10 @@
           inherit (disko.packages.${system}) disko disko-install;
         }
       );
+
+      checks.${amd64System}.ci-cd-local-worker-module = import ./tests/ci-cd-local-worker-module.nix {
+        inherit nixpkgs sops-nix;
+      };
 
       nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
         system = "aarch64-linux";

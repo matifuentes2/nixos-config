@@ -46,7 +46,9 @@ modules/
     common.nix
     linux.nix
     darwin.nix
-  system/common.nix
+  system/
+    common.nix
+    ci-cd-local-worker.nix
 hyprland/
 neovim/
 ```
@@ -83,6 +85,11 @@ Build the installed host without switching:
 ```sh
 sudo nixos-rebuild build --flake /etc/nixos#amd64-lenovo-legion-y720
 ```
+
+A physical x86-64 NixOS host can later opt in as a static k3s worker without
+making that behavior an amd64 default. The module is disabled and unused by all
+current hosts. See the
+[local-worker preparation and onboarding guide](./docs/local-worker-onboarding.md).
 
 ## WSL2
 
