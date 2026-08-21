@@ -21,6 +21,31 @@ let
     system = pkgs.stdenv.hostPlatform.system;
   };
   piVersion = "0.84.2";
+  bunVersion = "1.4.0";
+  bunSources = {
+    "aarch64-darwin" = pkgs.fetchurl {
+      url = "https://github.com/oven-sh/bun/releases/download/bun-v${bunVersion}/bun-darwin-aarch64.zip";
+      hash = "sha256-xmnpf2Fk4cluBwF0jbmN+ndJKQjL2DlMdVcTSnNd44E=";
+    };
+    "aarch64-linux" = pkgs.fetchurl {
+      url = "https://github.com/oven-sh/bun/releases/download/bun-v${bunVersion}/bun-linux-aarch64.zip";
+      hash = "sha256-SxozLuhhmD65O8/m93D/+U4+MbLDiL2uo8jtNeWO7Q4=";
+    };
+    "x86_64-linux" = pkgs.fetchurl {
+      url = "https://github.com/oven-sh/bun/releases/download/bun-v${bunVersion}/bun-linux-x64.zip";
+      hash = "sha256-LQP7X7g6yLVnrKCigbLOGhoZ1Ij1bClo2Iw/Jekv5FI=";
+    };
+  };
+  # Pin the current Bun release until nixpkgs catches up.
+  bun = pkgs.bun.overrideAttrs (oldAttrs: {
+    version = bunVersion;
+    src =
+      bunSources.${pkgs.stdenv.hostPlatform.system}
+        or (throw "Unsupported Bun system: ${pkgs.stdenv.hostPlatform.system}");
+    passthru = oldAttrs.passthru // {
+      sources = bunSources;
+    };
+  });
   orcaSkillNames = [
     "orca-cli"
     "orchestration"
@@ -75,7 +100,7 @@ let
         export BUN_RUNTIME_TRANSPILER_CACHE_PATH="$cache_root/bun/runtime-transpiler"
       fi
 
-      exec -a "$0" ${lib.getExe pkgs.bun} \
+      exec -a "$0" ${lib.getExe bun} \
         ${upstreamPi}/lib/node_modules/pi-monorepo/dist/bun/cli.js "$@"
     '';
   };
