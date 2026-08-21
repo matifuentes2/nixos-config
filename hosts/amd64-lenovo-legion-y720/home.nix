@@ -17,14 +17,20 @@
   home.stateVersion = "26.11";
 
   home.packages = [
+    pkgs.awww
     pkgs.discord
     pkgs.nwg-displays
+    pkgs.rofi
     pkgs.tree
   ];
 
+  services.cliphist.enable = true;
+
   # Let nwg-displays manage the local monitor layout without making the
   # connected display topology part of the declarative host configuration.
+  # Start the wallpaper daemon with the Hyprland session.
   wayland.windowManager.hyprland.extraConfig = ''
+    exec-once = awww-daemon
     source = ~/.config/hypr/monitors.conf
     source = ~/.config/hypr/workspaces.conf
   '';
