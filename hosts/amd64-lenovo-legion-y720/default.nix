@@ -81,6 +81,17 @@
     wget
   ];
 
+  # Use PipeWire for desktop audio with ALSA and PulseAudio compatibility.
+  security.rtkit.enable = true;
+  services.pipewire = {
+    enable = true;
+    alsa = {
+      enable = true;
+      support32Bit = true;
+    };
+    pulse.enable = true;
+  };
+
   # Use compressed RAM-backed swap. Disk-backed swap and hibernation are
   # intentionally omitted from the initial installation.
   zramSwap.enable = true;
