@@ -1,10 +1,31 @@
 {
   config,
+  lib,
   pkgs,
   username,
   ...
 }:
 
+let
+  nvidiaOffloadEnv = {
+    __GLX_VENDOR_LIBRARY_NAME = "nvidia";
+    __NV_PRIME_RENDER_OFFLOAD = "1";
+    __NV_PRIME_RENDER_OFFLOAD_PROVIDER = "NVIDIA-G0";
+    __VK_LAYER_NV_optimus = "NVIDIA_only";
+  };
+
+  lutrisNvidia = pkgs.symlinkJoin {
+    name = "lutris-nvidia";
+    paths = [ pkgs.lutris ];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      wrapProgram "$out/bin/lutris" \
+        ${lib.concatStringsSep " \\\n        " (
+          lib.mapAttrsToList (name: value: "--set ${name} ${lib.escapeShellArg value}") nvidiaOffloadEnv
+        )}
+    '';
+  };
+in
 {
   imports = [
     ../../modules/system/common.nix
@@ -26,20 +47,19 @@
   # Let tools such as uv run upstream dynamically linked binaries.
   programs.nix-ld.enable = true;
 
-  # Keep Steam out of the default desktop. Opt in from a running system with:
+  # Keep Steam and Lutris out of the default desktop. Opt in from a running system with:
   # sudo /run/current-system/specialisation/steam/bin/switch-to-configuration switch
-  # The Steam specialisation is also available from the systemd-boot menu. Steam
-  # and the games it launches inherit PRIME offload variables for the NVIDIA GPU.
-  specialisation.steam.configuration.programs.steam = {
-    enable = true;
-    package = pkgs.steam.override {
-      extraEnv = {
-        __GLX_VENDOR_LIBRARY_NAME = "nvidia";
-        __NV_PRIME_RENDER_OFFLOAD = "1";
-        __NV_PRIME_RENDER_OFFLOAD_PROVIDER = "NVIDIA-G0";
-        __VK_LAYER_NV_optimus = "NVIDIA_only";
+  # The Steam specialisation is also available from the systemd-boot menu. Steam,
+  # Lutris, and the games they launch inherit PRIME offload variables for the NVIDIA GPU.
+  specialisation.steam.configuration = {
+    programs.steam = {
+      enable = true;
+      package = pkgs.steam.override {
+        extraEnv = nvidiaOffloadEnv;
       };
     };
+
+    environment.systemPackages = [ lutrisNvidia ];
   };
 
   # The GTX 1060 Mobile is a Pascal GPU and therefore uses NVIDIA's closed
