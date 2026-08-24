@@ -24,6 +24,51 @@ let
     pkgs.xdotool
   ];
 
+  # Keep Pi as the sole coding agent offered by the remote server. Orca still
+  # detects installed CLIs for diagnostics, but disabled agents are omitted
+  # from its picker and automatic launch selection.
+  orcaSettings = {
+    experimentalEphemeralVms = false;
+    defaultTuiAgent = "pi";
+    disabledTuiAgents = [
+      "claude"
+      "claude-agent-teams"
+      "openclaude"
+      "codex"
+      "autohand"
+      "opencode"
+      "mimo-code"
+      "omp"
+      "gemini"
+      "antigravity"
+      "aider"
+      "goose"
+      "amp"
+      "kilo"
+      "kiro"
+      "crush"
+      "aug"
+      "cline"
+      "codebuff"
+      "command-code"
+      "continue"
+      "cursor"
+      "droid"
+      "kimi"
+      "mistral-vibe"
+      "qwen-code"
+      "rovo"
+      "hermes"
+      "openclaw"
+      "copilot"
+      "grok"
+      "devin"
+      "ante"
+      "trae"
+      "prime-agent"
+    ];
+  };
+
   appImageContents = pkgs.appimageTools.extractType2 {
     pname = "orca-ide";
     inherit version src;
@@ -63,19 +108,21 @@ let
   # outside the AppImage sandbox: the sandbox's private X11 socket directory
   # prevents Orca's built-in Xvfb fallback from becoming ready under systemd.
   serverLauncher = pkgs.writeShellScript "orca-server" ''
-    # Override any stale mutable profile state so Cloud VMs remain disabled.
+    # Override stale mutable profile state with the server's declarative
+    # settings, including the Pi-only coding-agent selection.
     data_dir="$XDG_CONFIG_HOME/orca/profiles/local-default"
     data_file="$data_dir/orca-data.json"
     mkdir -p "$data_dir"
     if [[ -f "$data_file" ]]; then
       tmp_file="$(${lib.getExe' pkgs.coreutils "mktemp"} "$data_file.tmp.XXXXXX")"
       ${lib.getExe pkgs.jq} \
-        '.settings = (.settings // {}) | .settings.experimentalEphemeralVms = false' \
+        --argjson managed_settings '${builtins.toJSON orcaSettings}' \
+        '.settings = ((.settings // {}) + $managed_settings)' \
         "$data_file" >"$tmp_file"
       mv "$tmp_file" "$data_file"
     else
       ${lib.getExe' pkgs.coreutils "printf"} '%s\n' \
-        '{"schemaVersion":1,"settings":{"experimentalEphemeralVms":false}}' \
+        '${builtins.toJSON { schemaVersion = 1; settings = orcaSettings; }}' \
         >"$data_file"
     fi
 
