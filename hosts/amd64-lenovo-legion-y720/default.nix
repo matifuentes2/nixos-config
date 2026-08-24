@@ -23,6 +23,9 @@ let
         ${lib.concatStringsSep " \\\n        " (
           lib.mapAttrsToList (name: value: "--set ${name} ${lib.escapeShellArg value}") nvidiaOffloadEnv
         )}
+      mv "$out/bin/lutris" "$out/bin/.lutris-nvidia"
+      makeWrapper ${lib.getExe pkgs.gamescope} "$out/bin/lutris" \
+        --add-flags "--force-grab-cursor -f -- $out/bin/.lutris-nvidia"
     '';
   };
 in
@@ -32,6 +35,7 @@ in
     ../../modules/system/linux-desktop.nix
     ./disko.nix
     ./hardware.nix
+    ./orca-server.nix
   ];
 
   networking = {
@@ -47,15 +51,42 @@ in
   # Let tools such as uv run upstream dynamically linked binaries.
   programs.nix-ld.enable = true;
 
+  # Collie's VAPID private key is encrypted in the repository. sops-nix
+  # decrypts its dotenv file for the Collie user service at activation time.
+  # Provision the same age identity used by the Raspberry Pi at this path.
+  sops = {
+    defaultSopsFile = ../../secrets/collie.yaml;
+    age = {
+      keyFile = "/var/lib/sops-nix/key.txt";
+      sshKeyPaths = [ ];
+    };
+    secrets."collie-env" = {
+      owner = username;
+      group = "users";
+      mode = "0400";
+    };
+  };
+
+  systemd.tmpfiles.rules = [
+    "d /home/${username}/.config/herdr/plugins/config/herdr.collie 0700 ${username} users -"
+    "L+ /home/${username}/.config/herdr/plugins/config/herdr.collie/.env - - - - /run/secrets/collie-env"
+  ];
+
   # Keep Steam and Lutris out of the default desktop. Opt in from a running system with:
   # sudo /run/current-system/specialisation/steam/bin/switch-to-configuration switch
   # The Steam specialisation is also available from the systemd-boot menu. Steam,
   # Lutris, and the games they launch inherit PRIME offload variables for the NVIDIA GPU.
   specialisation.steam.configuration = {
-    programs.steam = {
-      enable = true;
-      package = pkgs.steam.override {
-        extraEnv = nvidiaOffloadEnv;
+    programs = {
+      gamescope = {
+        enable = true;
+        capSysNice = true;
+      };
+      steam = {
+        enable = true;
+        package = pkgs.steam.override {
+          extraEnv = nvidiaOffloadEnv;
+        };
       };
     };
 
