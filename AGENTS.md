@@ -34,6 +34,25 @@ repository and rebuilding the appropriate flake output.
 - Preserve existing `system.stateVersion` and `home.stateVersion` values unless
   a migration explicitly requires changing them.
 
+## Raspberry Pi resource safety
+
+The Raspberry Pi is resource-constrained. Treat Nix evaluation and builds on
+that host as potentially disruptive, especially while the Orca server or other
+services are running.
+
+- Do not run `nix flake check`, a full NixOS build, or another broad evaluation
+  on the Raspberry Pi unless the user explicitly authorizes it. Prefer targeted
+  syntax checks and evaluation of only the changed option or derivation.
+- Defer complete flake checks and host builds to CI or a more capable machine
+  whenever possible. Report the deferred validation clearly instead of trying
+  to satisfy it locally at the cost of exhausting the host.
+- When an authorized build must run on the Raspberry Pi, serialize it with
+  `--max-jobs 1 --cores 1`, avoid concurrent checks/builds, and stop if memory,
+  swap, load, or temperature indicates resource pressure.
+- Never run multiple Nix evaluations or builds in parallel on the Raspberry Pi.
+  Start with the least expensive targeted validation and increase scope only
+  when necessary and approved.
+
 ## Privacy and public-repository safety
 
 Treat the working tree and the complete Git history as publicly accessible.
@@ -116,9 +135,11 @@ Rebuild the Mac from its checkout with:
 sudo darwin-rebuild switch --flake ~/nixos-config#macbook
 ```
 
-Before finishing a change, ensure new files are tracked, complete the privacy
-checks above, and run `nix flake check`. Validate the affected host with a
-non-switching build when possible:
+Before finishing a change, ensure new files are tracked and complete the
+privacy checks above. Run `nix flake check` and validate the affected host with
+a non-switching build when possible, except that on the Raspberry Pi these
+resource-intensive checks must follow the resource-safety rules above and be
+deferred unless explicitly authorized:
 
 ```sh
 sudo nixos-rebuild build --flake /etc/nixos#nixos
