@@ -84,7 +84,11 @@ let
 
     outputHashMode = "recursive";
     outputHashAlgo = "sha256";
-    outputHash = "sha256-fm9DRwYnNPNSMl5tJGCt6jWVtyeDRViNWX6tSvDoAOA=";
+    outputHash =
+      if pkgs.stdenv.hostPlatform.isDarwin then
+        "sha256-+svLTgDnCi2ujEqeqUrdVVvL2FDoufZ5uSWh2D1/TCg="
+      else
+        "sha256-fm9DRwYnNPNSMl5tJGCt6jWVtyeDRViNWX6tSvDoAOA=";
   };
   colliePlugin = pkgs.runCommand "herdr-collie-${collieVersion}" { } ''
     cp -R ${herdr-collie} "$out"
