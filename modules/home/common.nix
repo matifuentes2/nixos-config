@@ -13,6 +13,7 @@
   pi-parallel-go-pr-herdr,
   pi-execution-time,
   orca,
+  enableCollieService ? false,
   ...
 }:
 
@@ -46,6 +47,102 @@ let
       sources = bunSources;
     };
   });
+  collieVersion = "0.26.0";
+  # Build Collie's static web application as a fixed-output derivation. Bun may
+  # fetch only the dependencies pinned by the two upstream lockfiles, while the
+  # resulting store path is accepted only when its complete output hash matches.
+  collieWeb = pkgs.stdenvNoCC.mkDerivation {
+    pname = "collie-web";
+    version = collieVersion;
+    src = herdr-collie;
+    nativeBuildInputs = [ bun ];
+    dontConfigure = true;
+
+    buildPhase = ''
+      runHook preBuild
+      export HOME="$TMPDIR/home"
+      export XDG_CACHE_HOME="$TMPDIR/cache"
+      export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
+      mkdir -p "$HOME" "$XDG_CACHE_HOME"
+
+      substituteInPlace web/vite.config.ts \
+        --replace-fail \
+          'const buildTime = new Date().toISOString();' \
+          'const buildTime = new Date(${toString (herdr-collie.lastModified * 1000)}).toISOString();'
+
+      bun install --frozen-lockfile
+      (cd web && bun install --frozen-lockfile)
+      (cd web && bun ./node_modules/vite/bin/vite.js build)
+      runHook postBuild
+    '';
+
+    installPhase = ''
+      runHook preInstall
+      cp -R web/dist "$out"
+      runHook postInstall
+    '';
+
+    outputHashMode = "recursive";
+    outputHashAlgo = "sha256";
+    outputHash = "sha256-fm9DRwYnNPNSMl5tJGCt6jWVtyeDRViNWX6tSvDoAOA=";
+  };
+  colliePlugin = pkgs.runCommand "herdr-collie-${collieVersion}" { } ''
+    cp -R ${herdr-collie} "$out"
+    chmod -R u+w "$out"
+    rm -rf "$out/web/dist"
+    mkdir -p "$out/web/dist"
+    cp -R ${collieWeb}/. "$out/web/dist/"
+
+    # The web UI is already built by Nix, so never expose the upstream
+    # install-time Bun build. Updates are likewise owned by the flake input.
+    # On Linux, Home Manager owns service lifecycle actions as well. Process
+    # blank-line-delimited TOML blocks so read-only actions remain available.
+    awk -v remove_lifecycle=${if pkgs.stdenv.isLinux then "1" else "0"} '
+      BEGIN { RS = ""; ORS = "\n\n" }
+      /\[\[build\]\]/ { next }
+      /\[\[actions\]\]/ && /id = "update"/ { next }
+      remove_lifecycle && /\[\[actions\]\]/ && /id = "(start|stop|restart|uninstall)"/ { next }
+      { print }
+    ' "$out/herdr-plugin.toml" > "$out/herdr-plugin.toml.tmp"
+    mv "$out/herdr-plugin.toml.tmp" "$out/herdr-plugin.toml"
+  '';
+  collieConfigDir = "${config.home.homeDirectory}/.config/herdr/plugins/config/herdr.collie";
+  # The encrypted dotenv is shared with the Raspberry Pi and therefore contains
+  # that host's allowlisted MagicDNS name. Resolve this host's name at runtime
+  # and override only COLLIE_PUBLIC_HOSTS without exposing the tailnet suffix in
+  # this public repository.
+  collieLauncher = pkgs.writeShellScript "collie-launcher" ''
+    public_host=""
+    for _ in {1..30}; do
+      public_host="$(${lib.getExe pkgs.tailscale} status --json 2>/dev/null \
+        | ${lib.getExe pkgs.jq} -r '.Self.DNSName // "" | sub("\\.$"; "")')"
+      if [[ -n "$public_host" ]]; then
+        break
+      fi
+      ${lib.getExe' pkgs.coreutils "sleep"} 1
+    done
+    if [[ -z "$public_host" ]]; then
+      echo "Collie could not resolve this host's Tailscale DNS name" >&2
+      exit 1
+    fi
+
+    export COLLIE_PUBLIC_HOSTS="$public_host"
+    exec ${lib.getExe bun} run ${colliePlugin}/bridge/index.ts
+  '';
+  collieServe = pkgs.writeShellScript "collie-tailscale-serve" ''
+    export HERDR_PLUGIN_CONFIG_DIR=${lib.escapeShellArg collieConfigDir}
+    export PATH=${
+      lib.makeBinPath [
+        bun
+        pkgs.coreutils
+        pkgs.git
+        pkgs.jq
+        pkgs.systemd
+        pkgs.tailscale
+      ]
+    }
+    exec ${lib.getExe pkgs.bash} ${colliePlugin}/scripts/collie-ctl.sh serve
+  '';
   orcaSkillNames = [
     "orca-cli"
     "orchestration"
@@ -236,28 +333,76 @@ in
       plugin link ${herdr-worktrunk} --enabled
   '';
 
-  # Collie's build writes generated assets into its checkout. Copy the pinned
-  # flake source to mutable user state before linking it into Herdr.
+  # Link the pinned plugin with its web UI already built in the Nix store. This
+  # avoids runtime package installation and keeps activation network-independent.
   home.activation.linkHerdrCollie = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    collie_dir="$HOME/.local/share/herdr-collie"
-    run rm -rf "$collie_dir"
-    run cp -R ${herdr-collie} "$collie_dir"
-    run chmod -R u+w "$collie_dir"
     run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
-      plugin link "$collie_dir" --enabled
+      plugin link ${colliePlugin} --enabled
 
-    # A fresh Home Manager activation runs before the user has launched Herdr,
-    # so no server socket exists yet. The linked plugin starts normally with
-    # Herdr; only request a live bridge restart when a server is available.
-    if [[ -S "$HOME/.config/herdr/herdr.sock" ]]; then
-      if ! run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
-        plugin action invoke restart --plugin herdr.collie; then
-        echo "Could not restart the live Collie bridge; the plugin remains linked"
+    ${lib.optionalString pkgs.stdenv.isDarwin ''
+      # launchd remains managed by Collie's supported control script on macOS.
+      # Linux uses the declarative Home Manager units below instead.
+      if [[ -S "$HOME/.config/herdr/herdr.sock" ]]; then
+        if ! run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
+          plugin action invoke restart --plugin herdr.collie; then
+          echo "Could not restart the live Collie bridge; the plugin remains linked"
+        fi
+      else
+        echo "Herdr is not running; skipping the Collie bridge restart"
       fi
-    else
-      echo "Herdr is not running; skipping the Collie bridge restart"
-    fi
+    ''}
   '';
+
+  # Replace Collie's generated mutable Linux unit with Home Manager-owned units.
+  # The companion oneshot declaratively maintains the tailnet-only HTTPS proxy.
+  systemd.user.services = lib.mkIf (pkgs.stdenv.isLinux && enableCollieService) {
+    collie = {
+      Unit = {
+        Description = "Collie";
+        After = [ "default.target" ];
+        StartLimitIntervalSec = 0;
+      };
+      Service = {
+        Type = "simple";
+        WorkingDirectory = "${colliePlugin}";
+        ExecStart = "${collieLauncher}";
+        Restart = "on-failure";
+        RestartSec = 5;
+        NoNewPrivileges = true;
+        PrivateTmp = true;
+        Environment = [
+          "HERDR_SOCKET_PATH=${config.home.homeDirectory}/.config/herdr/herdr.sock"
+          "COLLIE_PORT=8787"
+          "HERDR_PLUGIN_CONFIG_DIR=${collieConfigDir}"
+        ];
+        EnvironmentFile = "-${collieConfigDir}/.env";
+      };
+      Install.WantedBy = [ "default.target" ];
+    };
+
+    collie-tailscale-serve = {
+      Unit = {
+        Description = "Publish Collie through Tailscale Serve";
+        After = [ "collie.service" ];
+        Requires = [ "collie.service" ];
+      };
+      Service = {
+        Type = "oneshot";
+        ExecStart = "${collieServe}";
+        RemainAfterExit = true;
+      };
+      Install.WantedBy = [ "default.target" ];
+    };
+  };
+
+  # Collie's former control script may have created this unit as a regular file.
+  # Allow Home Manager to replace it with the declarative generation symlink.
+  xdg.configFile."systemd/user/collie.service" = lib.mkIf (
+    pkgs.stdenv.isLinux && enableCollieService
+  ) { force = true; };
+  xdg.configFile."systemd/user/default.target.wants/collie.service" = lib.mkIf (
+    pkgs.stdenv.isLinux && enableCollieService
+  ) { force = true; };
 
   xdg.configFile."herdr/config.toml" = {
     force = true;

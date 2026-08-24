@@ -112,6 +112,7 @@
       amd64Username = "matif";
 
       homeSpecialArgs = {
+        enableCollieService = false;
         inherit
           herdr
           worktrunk
@@ -184,7 +185,9 @@
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.users.pi = import ./hosts/raspberry-pi/home.nix;
-            home-manager.extraSpecialArgs = homeSpecialArgs;
+            home-manager.extraSpecialArgs = homeSpecialArgs // {
+              enableCollieService = true;
+            };
           }
         ];
       };
@@ -196,6 +199,7 @@
         };
         modules = [
           disko.nixosModules.disko
+          sops-nix.nixosModules.sops
           ./hosts/amd64-lenovo-legion-y720
           home-manager.nixosModules.home-manager
           {
@@ -204,6 +208,7 @@
             home-manager.users.${amd64Username} = import ./hosts/amd64-lenovo-legion-y720/home.nix;
             home-manager.extraSpecialArgs = homeSpecialArgs // {
               username = amd64Username;
+              enableCollieService = true;
             };
           }
         ];
