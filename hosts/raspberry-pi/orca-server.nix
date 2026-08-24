@@ -122,7 +122,12 @@ let
       mv "$tmp_file" "$data_file"
     else
       ${lib.getExe' pkgs.coreutils "printf"} '%s\n' \
-        '${builtins.toJSON { schemaVersion = 1; settings = orcaSettings; }}' \
+        '${
+          builtins.toJSON {
+            schemaVersion = 1;
+            settings = orcaSettings;
+          }
+        }' \
         >"$data_file"
     fi
 
