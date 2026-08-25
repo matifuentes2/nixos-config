@@ -313,6 +313,7 @@ in
     fd
     jq
     fzf
+    lazygit
     bun
     uv
     devenv

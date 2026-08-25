@@ -29,6 +29,10 @@
       url = "github:stablyai/homebrew-orca";
       flake = false;
     };
+    omp = {
+      url = "github:can1357/oh-my-pi";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     herdr = {
       url = "github:herdrdev/herdr/v0.8.0";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -87,6 +91,7 @@
       homebrew-core,
       homebrew-cask,
       orca-homebrew,
+      omp,
       herdr,
       worktrunk,
       herdr-worktrunk,
@@ -238,7 +243,11 @@
         system = darwinSystem;
         specialArgs = {
           username = darwinUsername;
-          inherit homebrew-core homebrew-cask orca-homebrew;
+          inherit
+            homebrew-core
+            homebrew-cask
+            orca-homebrew
+            ;
         };
         modules = [
           ./hosts/macbook
@@ -251,6 +260,7 @@
             home-manager.users.${darwinUsername} = import ./hosts/macbook/home.nix;
             home-manager.extraSpecialArgs = homeSpecialArgs // {
               username = darwinUsername;
+              inherit omp;
             };
           }
         ];

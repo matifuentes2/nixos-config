@@ -101,6 +101,14 @@
     enableBashIntegration = false;
     enableZshIntegration = false;
     taps = builtins.attrNames config.nix-homebrew.taps;
+
+    # The taps are pinned by flake.lock, so upgrades realize the versions
+    # declared by those immutable tap revisions instead of silently retaining
+    # an older application bundle across rebuilds.
+    onActivation = {
+      autoUpdate = false;
+      upgrade = true;
+    };
     casks = [
       "betterdisplay"
       "bitwarden"

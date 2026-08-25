@@ -1,9 +1,54 @@
 {
   config,
+  omp,
   pkgs,
   username,
   ...
 }:
+
+let
+  ompPackage = omp.packages.${pkgs.stdenv.hostPlatform.system}.omp;
+  ompWithNativeChat = pkgs.writeShellApplication {
+    name = "omp";
+    text = ''
+      if [[ -z "''${ORCA_PANE_KEY:-}" ]]; then
+        exec ${pkgs.lib.getExe ompPackage} "$@"
+      fi
+
+      # Keep OMP's session storage aligned with Orca's Native Chat reader.
+      export PI_CODING_AGENT_DIR="$HOME/.omp/agent"
+
+      # Orca's generated OMP hook uses fire-and-forget delivery that OMP 18 can
+      # drop before Native Chat receives the provider session. Replace only
+      # that managed hook; preserve every user-supplied extension argument.
+      args=()
+      while (( $# > 0 )); do
+        if [[
+          ( "$1" == "--extension" || "$1" == "-e" )
+          && $# -ge 2
+          && -n "''${ORCA_OMP_STATUS_EXTENSION:-}"
+          && "$2" == "$ORCA_OMP_STATUS_EXTENSION"
+        ]]; then
+          shift 2
+          continue
+        fi
+        if [[
+          -n "''${ORCA_OMP_STATUS_EXTENSION:-}"
+          && "$1" == "--extension=$ORCA_OMP_STATUS_EXTENSION"
+        ]]; then
+          shift
+          continue
+        fi
+        args+=("$1")
+        shift
+      done
+
+      exec ${pkgs.lib.getExe ompPackage} \
+        "''${args[@]}" \
+        --extension ${./omp-orca-status.ts}
+    '';
+  };
+in
 
 {
   imports = [
@@ -18,7 +63,8 @@
   home.stateVersion = "25.11";
 
   # Add packages used only on this Mac here.
-  home.packages = with pkgs; [
+  home.packages = [
+    ompWithNativeChat
   ];
 
   home.shellAliases.rebuild = "sudo darwin-rebuild switch --flake ~/nixos-config#macbook";
