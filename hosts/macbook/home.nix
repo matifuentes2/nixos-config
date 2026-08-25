@@ -8,6 +8,7 @@
 
 let
   ompPackage = omp.packages.${pkgs.stdenv.hostPlatform.system}.omp;
+  ompPiVim = pkgs.callPackage ../../omp-extensions/pi-vim { };
   ompWithNativeChat = pkgs.writeShellApplication {
     name = "omp";
     text = ''
@@ -76,6 +77,11 @@ in
     ".config/karabiner/assets/complex_modifications/1698155918.json".source =
       ./karabiner/assets/complex_modifications/1698155918.json;
 
+    # OMP loads this patched Pi extension from the immutable Nix store.
+    ".omp/agent/extensions/pi-vim" = {
+      force = true;
+      source = ompPiVim;
+    };
     # Kitty is installed as a Homebrew cask, while Home Manager owns its
     # configuration and background image.
     ".config/kitty/background.jpg".source = ./kitty/background.jpg;
