@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ omp, pkgs, ... }:
 
 {
   imports = [
@@ -13,6 +13,7 @@
   home.stateVersion = "25.11";
 
   home.packages = [
+    omp.packages.${pkgs.stdenv.hostPlatform.system}.omp
     pkgs.tree
   ];
 
