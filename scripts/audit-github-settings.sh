@@ -6,7 +6,6 @@ readonly MAIN_BRANCH="main"
 readonly TAG_RULESET_NAME="Protect bootstrap release tags"
 readonly TAG_PATTERN="refs/tags/bootstrap-v*"
 readonly REQUIRED_CHECK_REPOSITORY="Flake, shell, and public-repository checks"
-readonly REQUIRED_CHECK_DARWIN="Build Apple Silicon nix-darwin configuration"
 
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
@@ -41,10 +40,8 @@ expect_api_true() {
 protection_endpoint="repos/$REPOSITORY/branches/$MAIN_BRANCH/protection"
 expect_api_true "required checks are strict" "$protection_endpoint" \
   '.required_status_checks.strict == true'
-expect_api_true "repository validation check is required" "$protection_endpoint" \
-  "([.required_status_checks.contexts[]] | index(\"$REQUIRED_CHECK_REPOSITORY\")) != null"
-expect_api_true "Apple Silicon build check is required" "$protection_endpoint" \
-  "([.required_status_checks.contexts[]] | index(\"$REQUIRED_CHECK_DARWIN\")) != null"
+expect_api_true "repository validation is the only required check" "$protection_endpoint" \
+  "(.required_status_checks.contexts == [\"$REQUIRED_CHECK_REPOSITORY\"])"
 expect_api_true "branch protection applies to administrators" "$protection_endpoint" \
   '.enforce_admins.enabled == true'
 expect_api_true "pull requests are required" "$protection_endpoint" \

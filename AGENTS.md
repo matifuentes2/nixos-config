@@ -106,8 +106,8 @@ must first read [`docs/public-repository-security.md`](./docs/public-repository-
 - Run `scripts/audit-github-settings.sh` after changing GitHub controls or
   publishing a release. It verifies protected `main`, required checks,
   immutable releases, protected release tags, and the release asset digest.
-- `main` is protected. Submit changes through a pull request and wait for both
-  required checks; do not weaken or temporarily bypass protection to merge.
+- `main` is protected. Submit changes through a pull request and wait for the
+  required check; do not weaken or temporarily bypass protection to merge.
 - Run every command under **Required checks** in the public-repository security
   document before merging or publishing a release.
 
