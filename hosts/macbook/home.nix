@@ -77,6 +77,14 @@ in
     ".config/karabiner/assets/complex_modifications/1698155918.json".source =
       ./karabiner/assets/complex_modifications/1698155918.json;
 
+    # OMP discovers native Markdown commands from ~/.omp/agent/commands. Keep
+    # these separate from Pi extensions so they use OMP's task and Orca flows.
+    ".omp/agent/commands" = {
+      force = true;
+      source = ../../omp-commands;
+      recursive = true;
+    };
+
     # OMP loads this patched Pi extension from the immutable Nix store.
     ".omp/agent/extensions/pi-vim" = {
       force = true;
