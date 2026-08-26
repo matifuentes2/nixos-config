@@ -40,6 +40,15 @@
   # Enables the generation of /boot/extlinux/extlinux.conf
   boot.loader.generic-extlinux-compatible.enable = true;
 
+  # Linux 6.18 repeatedly wedged the Pi 4's MMC worker in mmc_rescan.
+  boot.kernelPackages = pkgs.linuxPackages_6_12;
+
+  # Absorb transient agent memory spikes instead of invoking the OOM killer.
+  zramSwap = {
+    enable = true;
+    memoryPercent = 50;
+  };
+
   # networking.hostName = "nixos"; # Define your hostname.
 
   # Configure network connections interactively with nmcli or nmtui.
