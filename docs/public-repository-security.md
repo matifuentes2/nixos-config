@@ -20,7 +20,7 @@ upstream NixOS-WSL image and is not part of this bootstrap-release mechanism.
 
 To publish a new bootstrap release:
 
-1. merge the candidate through a pull request and wait for both required checks
+1. merge the candidate through a pull request and wait for the required check
    on `main` to pass;
 2. from a clean, synchronized `main`, run
    `scripts/audit-github-settings.sh`;
