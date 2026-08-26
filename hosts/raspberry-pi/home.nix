@@ -1,4 +1,4 @@
-{ omp, pkgs, ... }:
+{ pkgs, ... }:
 
 {
   imports = [
@@ -12,10 +12,7 @@
   # Keep this at the version used when Home Manager was first configured.
   home.stateVersion = "25.11";
 
-  home.packages = [
-    omp.packages.${pkgs.stdenv.hostPlatform.system}.omp
-    pkgs.tree
-  ];
+  home.packages = [ pkgs.tree ];
 
   home.shellAliases.rebuild = "sudo nixos-rebuild switch --flake /etc/nixos#nixos";
 }

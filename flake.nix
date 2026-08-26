@@ -192,7 +192,6 @@
             home-manager.users.pi = import ./hosts/raspberry-pi/home.nix;
             home-manager.extraSpecialArgs = homeSpecialArgs // {
               enableCollieService = true;
-              inherit omp;
             };
           }
         ];

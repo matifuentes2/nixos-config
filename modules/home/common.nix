@@ -48,6 +48,11 @@ let
     };
   });
   collieVersion = "0.26.0";
+  collieWebHashes = {
+    "aarch64-darwin" = "sha256-+svLTgDnCi2ujEqeqUrdVVvL2FDoufZ5uSWh2D1/TCg=";
+    "aarch64-linux" = "sha256-NkVi2/3l/zA3COvn/h6rPVm+QGB0EgCcwV7gyFxkrK8=";
+    "x86_64-linux" = "sha256-fm9DRwYnNPNSMl5tJGCt6jWVtyeDRViNWX6tSvDoAOA=";
+  };
   # Build Collie's static web application as a fixed-output derivation. Bun may
   # fetch only the dependencies pinned by the two upstream lockfiles, while the
   # resulting store path is accepted only when its complete output hash matches.
@@ -85,10 +90,8 @@ let
     outputHashMode = "recursive";
     outputHashAlgo = "sha256";
     outputHash =
-      if pkgs.stdenv.hostPlatform.isDarwin then
-        "sha256-+svLTgDnCi2ujEqeqUrdVVvL2FDoufZ5uSWh2D1/TCg="
-      else
-        "sha256-fm9DRwYnNPNSMl5tJGCt6jWVtyeDRViNWX6tSvDoAOA=";
+      collieWebHashes.${pkgs.stdenv.hostPlatform.system}
+        or (throw "Unsupported Collie system: ${pkgs.stdenv.hostPlatform.system}");
   };
   colliePlugin = pkgs.runCommand "herdr-collie-${collieVersion}" { } ''
     cp -R ${herdr-collie} "$out"
