@@ -267,21 +267,25 @@ let
     '';
   };
 
+  # Pi loads each package from its own immutable store path, so bare peer
+  # imports resolve only when that path exposes the shared extension runtime.
+  # Keep one dependency graph pinned by pi-extensions/package-lock.json and
+  # attach it to every separately sourced package.
+  piExtensionNodeModules = "${piExtensions}/lib/node_modules/pi-extensions/node_modules";
+  mkPiExtensionPackage =
+    name: src:
+    pkgs.runCommand name { } ''
+      cp -R ${src}/. "$out"
+      chmod u+w "$out"
+      ln -s ${piExtensionNodeModules} "$out/node_modules"
+    '';
+
   # pi-pr-review-goal verifies pi-codex-goal through the command's source path.
-  # Flake source inputs otherwise use a generic "*-source" store name, so copy
-  # each package into a descriptively named store path that preserves package
-  # provenance for Pi's command registry.
-  piCodexGoalPackage = pkgs.runCommand "pi-codex-goal" { } ''
-    cp -R ${pi-codex-goal}/. "$out"
-  '';
-
-  piPrReviewGoalPackage = pkgs.runCommand "pi-pr-review-goal" { } ''
-    cp -R ${pi-pr-review-goal}/. "$out"
-  '';
-
-  piParallelGoPrHerdrPackage = pkgs.runCommand "pi-parallel-go-pr-herdr" { } ''
-    cp -R ${pi-parallel-go-pr-herdr}/. "$out"
-  '';
+  # Descriptive output names preserve package provenance in Pi's registry.
+  piCodexGoalPackage = mkPiExtensionPackage "pi-codex-goal" pi-codex-goal;
+  piPrReviewGoalPackage = mkPiExtensionPackage "pi-pr-review-goal" pi-pr-review-goal;
+  piParallelGoPrHerdrPackage = mkPiExtensionPackage "pi-parallel-go-pr-herdr" pi-parallel-go-pr-herdr;
+  piExecutionTimePackage = mkPiExtensionPackage "pi-execution-time" pi-execution-time;
 
   chromeExecutable =
     if pkgs.stdenv.isDarwin then
@@ -467,7 +471,7 @@ in
         "${piCodexGoalPackage}"
         "${piPrReviewGoalPackage}"
         "${piParallelGoPrHerdrPackage}"
-        "${pi-execution-time}"
+        "${piExecutionTimePackage}"
       ];
     };
   };
