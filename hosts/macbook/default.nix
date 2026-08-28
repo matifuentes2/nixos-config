@@ -2,7 +2,6 @@
   config,
   homebrew-cask,
   homebrew-core,
-  orca-homebrew,
   lib,
   pkgs,
   username,
@@ -102,7 +101,9 @@
     taps = {
       "homebrew/homebrew-core" = homebrew-core;
       "homebrew/homebrew-cask" = homebrew-cask;
-      "stablyai/homebrew-orca" = orca-homebrew;
+      "stablyai/homebrew-orca" = pkgs.runCommand "homebrew-orca-tap" { } ''
+        cp -R ${../../homebrew/orca} "$out"
+      '';
     };
     mutableTaps = false;
   };
@@ -113,9 +114,9 @@
     enableZshIntegration = false;
     taps = builtins.attrNames config.nix-homebrew.taps;
 
-    # The taps are pinned by flake.lock, so upgrades realize the versions
-    # declared by those immutable tap revisions instead of silently retaining
-    # an older application bundle across rebuilds.
+    # Taps are pinned by flake.lock, and Orca's tracked local cask pins the
+    # reviewed release artifact. Activation upgrades realize those versions
+    # instead of silently retaining an older application bundle.
     onActivation = {
       autoUpdate = false;
       upgrade = true;
@@ -128,7 +129,10 @@
       "hiddenbar"
       "karabiner-elements"
       "kitty"
-      "stablyai/orca/orca"
+      {
+        name = "stablyai/orca/orca";
+        greedy = true;
+      }
       "raycast"
       "rectangle"
       "whatsapp"

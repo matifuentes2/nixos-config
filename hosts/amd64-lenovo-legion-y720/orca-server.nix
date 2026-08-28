@@ -6,12 +6,12 @@
 }:
 
 let
-  version = "1.4.188";
+  version = "1.4.190";
   userHome = "/home/${username}";
 
   src = pkgs.fetchurl {
     url = "https://github.com/stablyai/orca/releases/download/v${version}/orca-linux.AppImage";
-    hash = "sha256-LnDLXhmXQeVgKnBgglV1MZ9eA7wvqkuJzScyjz9V1LQ=";
+    hash = "sha256-9bMhV22ckJ+eaYeqO9IOj/nyFNiBtDxxCSgcvIeHjN4=";
   };
 
   computerUsePython = pkgs.python3.withPackages (pythonPackages: [

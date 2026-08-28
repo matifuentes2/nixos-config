@@ -5,6 +5,20 @@
   username,
   ...
 }:
+let
+  # Orca stores agent picker state in its mutable profile. Keep the macOS
+  # catalog reproducible while leaving Pi and unrelated agents enabled.
+  orcaSettings = {
+    experimentalEphemeralVms = false;
+    defaultTuiAgent = "omp";
+    disabledTuiAgents = [
+      "claude"
+      "claude-agent-teams"
+      "codex"
+    ];
+  };
+  orcaSettingsJson = builtins.toJSON orcaSettings;
+in
 
 {
   # Orca's Homebrew cask exposes its version-matched CLI at this path. Setting
@@ -12,9 +26,9 @@
   # discovery and always target the Stably Orca CLI.
   home.sessionVariables.ORCA_CLI_COMMAND = "/opt/homebrew/bin/orca";
 
-  # Keep Orca's experimental Cloud VM feature disabled, including when a prior
-  # mutable profile enabled it before this configuration was activated.
-  home.activation.disableOrcaCloudVm = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+  # Reapply managed Orca settings on every activation so mutable UI choices
+  # cannot override the declarative agent catalog or default.
+  home.activation.configureOrcaSettings = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     data_dir="$HOME/Library/Application Support/Orca/profiles/local-default"
     data_file="$data_dir/orca-data.json"
     run mkdir -p "$data_dir"
@@ -22,12 +36,14 @@
     if [[ -f "$data_file" ]]; then
       tmp_file="$(${lib.getExe' pkgs.coreutils "mktemp"} "$data_file.tmp.XXXXXX")"
       ${lib.getExe pkgs.jq} \
-        '.settings = (.settings // {}) | .settings.experimentalEphemeralVms = false' \
+        --argjson managedSettings '${orcaSettingsJson}' \
+        '.settings = ((.settings // {}) + $managedSettings)' \
         "$data_file" >"$tmp_file"
       run mv "$tmp_file" "$data_file"
     else
-      run ${lib.getExe' pkgs.coreutils "printf"} '%s\n' \
-        '{"schemaVersion":1,"settings":{"experimentalEphemeralVms":false}}' \
+      ${lib.getExe pkgs.jq} -n \
+        --argjson managedSettings '${orcaSettingsJson}' \
+        '{schemaVersion: 1, settings: $managedSettings}' \
         >"$data_file"
     fi
   '';

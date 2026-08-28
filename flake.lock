@@ -516,11 +516,11 @@
         "rust-overlay": "rust-overlay_2"
       },
       "locked": {
-        "lastModified": 1787577188,
-        "narHash": "sha256-0x+g2ukQWppnv0mtpUvFEDDDLDcbcXhjCSftnQOelcM=",
+        "lastModified": 1787839647,
+        "narHash": "sha256-kQ2B5ZFmdBFFlfjgSRKpOGfpS467umqaEA2LyEPDpZg=",
         "owner": "can1357",
         "repo": "oh-my-pi",
-        "rev": "989271449953548f1a399789bfc7500003115ebc",
+        "rev": "1030dd3dd77fb9b6f1bd40553d971e43000218c1",
         "type": "github"
       },
       "original": {
@@ -532,33 +532,17 @@
     "orca": {
       "flake": false,
       "locked": {
-        "lastModified": 1787378197,
-        "narHash": "sha256-r38OgALrjyy2V3g3ot+kyiauLH9LZS2PLIVATG7+QNY=",
+        "lastModified": 1787770914,
+        "narHash": "sha256-Twwu4ozQCqCS4zkXpKbjAFxeMv3EMBXFgL8/cU+Edn8=",
         "owner": "stablyai",
         "repo": "orca",
-        "rev": "f32ce859047a85a3ea4f507f633604dfbf596a0e",
+        "rev": "6e4f817101daa18d82824b69243d9079baa9c416",
         "type": "github"
       },
       "original": {
         "owner": "stablyai",
-        "ref": "v1.4.188",
+        "ref": "v1.4.190",
         "repo": "orca",
-        "type": "github"
-      }
-    },
-    "orca-homebrew": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1787379672,
-        "narHash": "sha256-PUl84cZslkYovIdIGE84LW0mbDwPuoHqJFzCq9z7JXk=",
-        "owner": "stablyai",
-        "repo": "homebrew-orca",
-        "rev": "130b3b113d63763f5fc1b38c8f2130b33e5685bb",
-        "type": "github"
-      },
-      "original": {
-        "owner": "stablyai",
-        "repo": "homebrew-orca",
         "type": "github"
       }
     },
@@ -644,7 +628,6 @@
         "nixpkgs-unstable": "nixpkgs-unstable",
         "omp": "omp",
         "orca": "orca",
-        "orca-homebrew": "orca-homebrew",
         "pi-codex-goal": "pi-codex-goal",
         "pi-execution-time": "pi-execution-time",
         "pi-parallel-go-pr-herdr": "pi-parallel-go-pr-herdr",
