@@ -25,10 +25,6 @@
       url = "github:homebrew/homebrew-cask";
       flake = false;
     };
-    orca-homebrew = {
-      url = "github:stablyai/homebrew-orca";
-      flake = false;
-    };
     omp = {
       url = "github:can1357/oh-my-pi";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -67,7 +63,7 @@
       flake = false;
     };
     orca = {
-      url = "github:stablyai/orca/v1.4.188";
+      url = "github:stablyai/orca/v1.4.190";
       flake = false;
     };
     sops-nix = {
@@ -90,7 +86,6 @@
       nix-homebrew,
       homebrew-core,
       homebrew-cask,
-      orca-homebrew,
       omp,
       herdr,
       worktrunk,
@@ -246,7 +241,6 @@
           inherit
             homebrew-core
             homebrew-cask
-            orca-homebrew
             ;
         };
         modules = [
