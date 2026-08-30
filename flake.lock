@@ -242,16 +242,16 @@
     "herdr-collie": {
       "flake": false,
       "locked": {
-        "lastModified": 1786318370,
-        "narHash": "sha256-ukQBZ93sTvFWMJW/sUOREmaZb4ck+tueTu9f5XZCCRA=",
+        "lastModified": 1788115964,
+        "narHash": "sha256-CsTpMwHbzyDf/XEydN/67mQ31khQS2DKMs0Woy1TKR0=",
         "owner": "AltanS",
         "repo": "collie",
-        "rev": "30371790c2eb486b02dbbfc668a551d0b4438617",
+        "rev": "96c3bc3374ea49920ba1c62cfe3135277e16bf00",
         "type": "github"
       },
       "original": {
         "owner": "AltanS",
-        "ref": "v0.26.0",
+        "ref": "v0.36.1",
         "repo": "collie",
         "type": "github"
       }
@@ -532,16 +532,16 @@
     "orca": {
       "flake": false,
       "locked": {
-        "lastModified": 1787770914,
-        "narHash": "sha256-Twwu4ozQCqCS4zkXpKbjAFxeMv3EMBXFgL8/cU+Edn8=",
+        "lastModified": 1787990236,
+        "narHash": "sha256-iZ6K5ZFhwnpYe3GWS/axnEQ32XOun5ERgfwwf7q9yvY=",
         "owner": "stablyai",
         "repo": "orca",
-        "rev": "6e4f817101daa18d82824b69243d9079baa9c416",
+        "rev": "ce4df07736baa38d742613bd68d5a3d845f79d25",
         "type": "github"
       },
       "original": {
         "owner": "stablyai",
-        "ref": "v1.4.190",
+        "ref": "v1.4.192",
         "repo": "orca",
         "type": "github"
       }

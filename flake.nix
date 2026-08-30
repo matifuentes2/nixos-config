@@ -42,7 +42,7 @@
       flake = false;
     };
     herdr-collie = {
-      url = "github:AltanS/collie/v0.26.0";
+      url = "github:AltanS/collie/v0.36.1";
       flake = false;
     };
     mcp-nixos.url = "github:utensils/mcp-nixos";
@@ -63,7 +63,7 @@
       flake = false;
     };
     orca = {
-      url = "github:stablyai/orca/v1.4.190";
+      url = "github:stablyai/orca/v1.4.192";
       flake = false;
     };
     sops-nix = {
