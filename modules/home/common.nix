@@ -110,7 +110,7 @@ let
     awk -v remove_lifecycle=${if pkgs.stdenv.isLinux then "1" else "0"} '
       BEGIN { RS = ""; ORS = "\n\n" }
       /\[\[build\]\]/ { next }
-      /\[\[actions\]\]/ && /id = "update"/ { next }
+      /\[\[actions\]\]/ && /id = "update(-major)?"/ { next }
       remove_lifecycle && /\[\[actions\]\]/ && /id = "(start|stop|restart|uninstall)"/ { next }
       { print }
     ' "$out/herdr-plugin.toml" > "$out/herdr-plugin.toml.tmp"
