@@ -1,11 +1,11 @@
 { lib, pkgs, ... }:
 
 let
-  version = "1.4.190";
+  version = "1.4.192";
 
   src = pkgs.fetchurl {
     url = "https://github.com/stablyai/orca/releases/download/v${version}/orca-linux-arm64.AppImage";
-    hash = "sha256-ikOPMxiJvE+8WgejmmWyfcEkI/MQwtDROIZJ3JOjKMg=";
+    hash = "sha256-hLCIjFWHup1/3EnuP73sdydeGeocZs2sI+YYIMiHPa8=";
   };
 
   computerUsePython = pkgs.python3.withPackages (pythonPackages: [

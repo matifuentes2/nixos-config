@@ -21,7 +21,7 @@ let
   unstable = import nixpkgs-unstable {
     system = pkgs.stdenv.hostPlatform.system;
   };
-  piVersion = "0.84.2";
+  piVersion = "0.84.4";
   bunVersion = "1.4.0";
   bunSources = {
     "aarch64-darwin" = pkgs.fetchurl {
@@ -47,11 +47,11 @@ let
       sources = bunSources;
     };
   });
-  collieVersion = "0.26.0";
+  collieVersion = "0.36.1";
   collieWebHashes = {
-    "aarch64-darwin" = "sha256-+svLTgDnCi2ujEqeqUrdVVvL2FDoufZ5uSWh2D1/TCg=";
-    "aarch64-linux" = "sha256-NkVi2/3l/zA3COvn/h6rPVm+QGB0EgCcwV7gyFxkrK8=";
-    "x86_64-linux" = "sha256-fm9DRwYnNPNSMl5tJGCt6jWVtyeDRViNWX6tSvDoAOA=";
+    "aarch64-darwin" = "sha256-M1CNvbznQaE1/XVBWwi3WEua0QVOCAFJW2tWFA/OXMU=";
+    "aarch64-linux" = "sha256-6j0QANkAitOc3e9mALm6I7BT2t/0jcggNXKapu0Mo8o=";
+    "x86_64-linux" = "sha256-SNZfy9ewVDKThGIfl4V0tu7YfjgXWKcq8I25BKQELQA=";
   };
   # Build Collie's static web application as a fixed-output derivation. Bun may
   # fetch only the dependencies pinned by the two upstream lockfiles, while the
@@ -60,7 +60,10 @@ let
     pname = "collie-web";
     version = collieVersion;
     src = herdr-collie;
-    nativeBuildInputs = [ bun ];
+    nativeBuildInputs = [
+      bun
+      pkgs.nodejs
+    ];
     dontConfigure = true;
 
     buildPhase = ''
@@ -107,7 +110,7 @@ let
     awk -v remove_lifecycle=${if pkgs.stdenv.isLinux then "1" else "0"} '
       BEGIN { RS = ""; ORS = "\n\n" }
       /\[\[build\]\]/ { next }
-      /\[\[actions\]\]/ && /id = "update"/ { next }
+      /\[\[actions\]\]/ && /id = "update(-major)?"/ { next }
       remove_lifecycle && /\[\[actions\]\]/ && /id = "(start|stop|restart|uninstall)"/ { next }
       { print }
     ' "$out/herdr-plugin.toml" > "$out/herdr-plugin.toml.tmp"
@@ -171,7 +174,7 @@ let
         owner = "earendil-works";
         repo = "pi";
         tag = "v${piVersion}";
-        hash = "sha256-d29ft9otYxdHRWYIAX8KMHPpppToX9ME5LbPb1rPcYo=";
+        hash = "sha256-7z8OXao1PzmBEepDkIqVqyfQBPHulBlKcGymDYsnMvc=";
       };
     in
     unstable.pi-coding-agent.overrideAttrs {
@@ -179,11 +182,11 @@ let
       inherit src;
       npmDeps = pkgs.fetchNpmDeps {
         inherit src;
-        hash = "sha256-6J5Efe+6ptCuR3VZojwYPZO8BBnnZsOQ4OAeB64uYOY=";
+        hash = "sha256-35GC3Q4Jf4URvqoEYHeM63x49tTmrth62//PvKm4I7Q=";
       };
       modelData = pkgs.fetchurl {
         url = "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-${piVersion}.tgz";
-        hash = "sha256-AmJ4Wnaw6y7sWWzYp6su4j7vidLvG7EhHE8KGUTaz0E=";
+        hash = "sha256-39PJKc7lpzhxmaCiTfwb4glvHqj1n/uChRmKDtAev5M=";
       };
     };
 
