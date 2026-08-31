@@ -532,16 +532,16 @@
     "orca": {
       "flake": false,
       "locked": {
-        "lastModified": 1787990236,
-        "narHash": "sha256-iZ6K5ZFhwnpYe3GWS/axnEQ32XOun5ERgfwwf7q9yvY=",
+        "lastModified": 1788153197,
+        "narHash": "sha256-zLcT0ksB+gPhiAmXP/OeT1lvk1nHrOqbZbVU8RL3Lvk=",
         "owner": "stablyai",
         "repo": "orca",
-        "rev": "ce4df07736baa38d742613bd68d5a3d845f79d25",
+        "rev": "898022d7fd8e0ff4a708de1673f54d71d3999f86",
         "type": "github"
       },
       "original": {
         "owner": "stablyai",
-        "ref": "v1.4.192",
+        "ref": "v1.4.193",
         "repo": "orca",
         "type": "github"
       }
