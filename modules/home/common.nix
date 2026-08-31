@@ -461,7 +461,7 @@ in
       theme = "dark";
       defaultProvider = "openai-codex";
       defaultModel = "gpt-5.6-sol";
-      defaultThinkingLevel = "minimal";
+      defaultThinkingLevel = "medium";
       # GPT-5.6 Sol has a 272k context window; reserving 20% triggers
       # auto-compaction when the conversation exceeds 80% (217,600 tokens).
       compaction = {
