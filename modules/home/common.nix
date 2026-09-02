@@ -103,6 +103,24 @@ let
     mkdir -p "$out/web/dist"
     cp -R ${collieWeb}/. "$out/web/dist/"
 
+    ${lib.optionalString pkgs.stdenv.isDarwin ''
+      # launchd does not inherit the interactive shell PATH. Collie's macOS
+      # agent discovers the MagicDNS name when it starts, so give it the
+      # declarative Tailscale CLI rather than starting with an empty Host
+      # allowlist and rejecting every request from the tailnet.
+      substituteInPlace "$out/scripts/collie-ctl.sh" \
+        --replace-fail \
+          '        <key>HERDR_PLUGIN_CONFIG_DIR</key>' \
+          '        <key>PATH</key>
+        <string>${
+          lib.makeBinPath [
+            bun
+            pkgs.tailscale
+          ]
+        }:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HERDR_PLUGIN_CONFIG_DIR</key>'
+    ''}
+
     # The web UI is already built by Nix, so never expose the upstream
     # install-time Bun build. Updates are likewise owned by the flake input.
     # On Linux, Home Manager owns service lifecycle actions as well. Process
