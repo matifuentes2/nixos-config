@@ -516,11 +516,11 @@
         "rust-overlay": "rust-overlay_2"
       },
       "locked": {
-        "lastModified": 1788180607,
-        "narHash": "sha256-hxL0DoBq17cPjizCYZUdYfH2N/A94TtsPkzi9p41orA=",
+        "lastModified": 1788451071,
+        "narHash": "sha256-DhpaavuM4G9GF+pHEyWRxibP7t2D00KPi3R7IrxTW60=",
         "owner": "can1357",
         "repo": "oh-my-pi",
-        "rev": "65f79e76fcc89b96632fe86a598f314bd7cfc725",
+        "rev": "c4da0d08e8275659f3e09cf381c7df7018a19025",
         "type": "github"
       },
       "original": {
@@ -532,16 +532,16 @@
     "orca": {
       "flake": false,
       "locked": {
-        "lastModified": 1788153197,
-        "narHash": "sha256-zLcT0ksB+gPhiAmXP/OeT1lvk1nHrOqbZbVU8RL3Lvk=",
+        "lastModified": 1788397452,
+        "narHash": "sha256-TrtMtJpBDqREjqNnxfSHi7AMLEMOFgxGYhmZZvSAbjs=",
         "owner": "stablyai",
         "repo": "orca",
-        "rev": "898022d7fd8e0ff4a708de1673f54d71d3999f86",
+        "rev": "aad4ae42ea5e555f25fdec679ebbcd18cc1e8911",
         "type": "github"
       },
       "original": {
         "owner": "stablyai",
-        "ref": "v1.4.193",
+        "ref": "v1.4.196",
         "repo": "orca",
         "type": "github"
       }
