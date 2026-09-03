@@ -63,7 +63,7 @@
       flake = false;
     };
     orca = {
-      url = "github:stablyai/orca/v1.4.193";
+      url = "github:stablyai/orca/v1.4.196";
       flake = false;
     };
     sops-nix = {
