@@ -21,6 +21,45 @@ let
   unstable = import nixpkgs-unstable {
     system = pkgs.stdenv.hostPlatform.system;
   };
+  miseVersion = "2026.9.1";
+  miseSources = {
+    "aarch64-darwin" = pkgs.fetchzip {
+      url = "https://github.com/jdx/mise/releases/download/v${miseVersion}/mise-v${miseVersion}-macos-arm64.tar.gz";
+      hash = "sha256-BXDSQ5H44YR8Xx7eW3jOYk2MM5qZEGHq/bP4gICgzSA=";
+    };
+    "aarch64-linux" = pkgs.fetchzip {
+      url = "https://github.com/jdx/mise/releases/download/v${miseVersion}/mise-v${miseVersion}-linux-arm64-musl.tar.gz";
+      hash = "sha256-c0dwC2fB3stf8AzRsjgWRV8/vkc4rvGdkRmuRUsuEsE=";
+    };
+    "x86_64-linux" = pkgs.fetchzip {
+      url = "https://github.com/jdx/mise/releases/download/v${miseVersion}/mise-v${miseVersion}-linux-x64-musl.tar.gz";
+      hash = "sha256-ICHS2mQ6wMdcmz+qnz7swUtP5LnQo3ZRk03xSaPdVrI=";
+    };
+  };
+  # Use upstream's release binaries until nixpkgs catches up.
+  misePackage = pkgs.stdenvNoCC.mkDerivation {
+    pname = "mise";
+    version = miseVersion;
+    src =
+      miseSources.${pkgs.stdenv.hostPlatform.system}
+        or (throw "Unsupported mise system: ${pkgs.stdenv.hostPlatform.system}");
+    dontBuild = true;
+    installPhase = ''
+      runHook preInstall
+      install -Dm755 bin/mise "$out/bin/mise"
+      install -Dm444 bin/mise.d "$out/bin/mise.d"
+      install -Dm444 LICENSE "$out/share/licenses/mise/LICENSE"
+      mkdir -p "$out/lib/mise"
+      touch "$out/lib/mise/.disable-self-update"
+      runHook postInstall
+    '';
+    meta = {
+      description = "Dev tools, env vars, and task runner";
+      homepage = "https://mise.jdx.dev";
+      license = lib.licenses.mit;
+      mainProgram = "mise";
+    };
+  };
   piVersion = "0.84.4";
   bunVersion = "1.4.0";
   bunSources = {
@@ -537,6 +576,7 @@ in
 
   programs.mise = {
     enable = true;
+    package = misePackage;
     enableBashIntegration = true;
     enableZshIntegration = true;
   };
