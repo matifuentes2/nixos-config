@@ -517,10 +517,9 @@ in
       lastChangelogVersion = piVersion;
       theme = "dark";
       defaultProvider = "openai-codex";
-      defaultModel = "gpt-5.6-sol";
+      defaultModel = "gpt-6-astra";
       defaultThinkingLevel = "medium";
-      # GPT-5.6 Sol has a 272k context window; reserving 20% triggers
-      # auto-compaction when the conversation exceeds 80% (217,600 tokens).
+      # Preserve the existing compaction token budget across model changes.
       compaction = {
         enabled = true;
         reserveTokens = 54400;
