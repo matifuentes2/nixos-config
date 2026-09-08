@@ -1,4 +1,6 @@
 {
+  config,
+  lib,
   pkgs,
   username,
   ...
@@ -26,6 +28,20 @@
   ];
 
   services.cliphist.enable = true;
+
+  # Seed writable files on a fresh installation. nwg-displays owns subsequent
+  # edits, so later activations must preserve both regular files and symlinks.
+  home.activation.initializeDisplayConfig = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    display_dir=${lib.escapeShellArg "${config.xdg.configHome}/hypr"}
+    run mkdir -p "$display_dir"
+    for name in monitors workspaces; do
+      display_file="$display_dir/$name.conf"
+      if [[ ! -e "$display_file" && ! -L "$display_file" ]]; then
+        run ${lib.getExe' pkgs.coreutils "install"} -m 0644 \
+          ${./display-default.conf} "$display_file"
+      fi
+    done
+  '';
 
   # Let nwg-displays manage the local monitor layout without making the
   # connected display topology part of the declarative host configuration.

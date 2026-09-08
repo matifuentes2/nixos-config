@@ -13,10 +13,14 @@ This repository is the declarative source of truth for:
 
 Shared command-line packages, Pi/Herdr configuration, shell tools, Starship,
 and Neovim live in [`modules/home/common.nix`](./modules/home/common.nix).
+Custom package definitions used there live in
+[`packages/home-tools.nix`](./packages/home-tools.nix).
 Linux desktop and macOS-only Home Manager settings are kept in
 [`modules/home/linux.nix`](./modules/home/linux.nix) and
 [`modules/home/darwin.nix`](./modules/home/darwin.nix). Shared NixOS desktop
 services live in [`modules/system/linux-desktop.nix`](./modules/system/linux-desktop.nix).
+The Pi and Lenovo share [`modules/system/orca-server.nix`](./modules/system/orca-server.nix),
+with each host declaring its user and pairing settings.
 WSL2 intentionally skips
 the Hyprland-oriented Linux desktop module. Device configuration lives under
 [`hosts/`](./hosts/).
@@ -49,6 +53,10 @@ modules/
   system/
     common.nix
     ci-cd-local-worker.nix
+    orca-server.nix
+packages/
+  home-tools.nix
+  update-orca-settings.nix
 hyprland/
 neovim/
 ```
@@ -139,6 +147,29 @@ After installation, rebuild with:
 
 ```sh
 sudo darwin-rebuild switch --flake ~/nixos-config#macbook
+```
+
+## Routine maintenance
+
+All hosts schedule Nix garbage collection weekly on Sunday at 04:00 local
+time; Linux adds up to 30 minutes of randomized delay. Generations older than
+30 days are eligible for deletion, while active generations and other live GC
+roots remain protected. The Pi runs collection with low CPU and I/O priority.
+The policy lives in `modules/system/common.nix` and takes effect on rebuild;
+building the configuration alone does not run garbage collection.
+
+The Pi and Lenovo enable user lingering so Collie's services can start before
+login and remain available after logout. Lenovo Home Manager activation seeds
+writable Hyprland monitor and workspace files only when absent, preserving
+later `nwg-displays` edits.
+
+Orca profile updates validate JSON before replacing the saved file. An invalid
+profile stops startup or activation with an error and leaves the original
+intact. After repairing that profile, restart the service or rerun activation.
+Run the updater's regression checks with Bash and jq available:
+
+```sh
+python3 tests/test-orca-settings.py
 ```
 
 ## Validation and pinned dependencies

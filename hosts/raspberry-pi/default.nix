@@ -49,6 +49,12 @@
     memoryPercent = 50;
   };
 
+  # Keep background store maintenance below interactive and server workloads.
+  systemd.services.nix-gc.serviceConfig = {
+    Nice = 19;
+    IOSchedulingClass = "idle";
+  };
+
   # networking.hostName = "nixos"; # Define your hostname.
 
   # Configure network connections interactively with nmcli or nmtui.
@@ -90,6 +96,8 @@
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.pi = {
     isNormalUser = true;
+    # Start Collie's user services at boot, including before the first login.
+    linger = true;
     description = "Pi user";
     # Allow sudo and access to networking, graphics, and audio devices.
     extraGroups = [

@@ -17,7 +17,7 @@ let
       "codex"
     ];
   };
-  orcaSettingsJson = builtins.toJSON orcaSettings;
+  updateOrcaSettings = import ../../packages/update-orca-settings.nix { inherit pkgs; };
 in
 
 {
@@ -29,23 +29,9 @@ in
   # Reapply managed Orca settings on every activation so mutable UI choices
   # cannot override the declarative agent catalog or default.
   home.activation.configureOrcaSettings = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    data_dir="$HOME/Library/Application Support/Orca/profiles/local-default"
-    data_file="$data_dir/orca-data.json"
-    run mkdir -p "$data_dir"
-
-    if [[ -f "$data_file" ]]; then
-      tmp_file="$(${lib.getExe' pkgs.coreutils "mktemp"} "$data_file.tmp.XXXXXX")"
-      ${lib.getExe pkgs.jq} \
-        --argjson managedSettings '${orcaSettingsJson}' \
-        '.settings = ((.settings // {}) + $managedSettings)' \
-        "$data_file" >"$tmp_file"
-      run mv "$tmp_file" "$data_file"
-    else
-      ${lib.getExe pkgs.jq} -n \
-        --argjson managedSettings '${orcaSettingsJson}' \
-        '{schemaVersion: 1, settings: $managedSettings}' \
-        >"$data_file"
-    fi
+    run ${lib.getExe updateOrcaSettings} \
+      "$HOME/Library/Application Support/Orca/profiles/local-default/orca-data.json" \
+      ${lib.escapeShellArg (builtins.toJSON orcaSettings)}
   '';
 
   # Clear completion state once when activating a generation. Deleting it from
