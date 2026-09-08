@@ -124,6 +124,8 @@ in
 
   users.users.${username} = {
     isNormalUser = true;
+    # Keep remote user services available independently of desktop logins.
+    linger = true;
     uid = 1000;
     description = "NixOS user";
     extraGroups = [
