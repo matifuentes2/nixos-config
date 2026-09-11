@@ -83,7 +83,7 @@ let
   collieWebHashes = {
     "aarch64-darwin" = "sha256-M1CNvbznQaE1/XVBWwi3WEua0QVOCAFJW2tWFA/OXMU=";
     "aarch64-linux" = "sha256-6j0QANkAitOc3e9mALm6I7BT2t/0jcggNXKapu0Mo8o=";
-    "x86_64-linux" = "sha256-SNZfy9ewVDKThGIfl4V0tu7YfjgXWKcq8I25BKQELQA=";
+    "x86_64-linux" = "sha256-BZGNfQKAl0JnK8fmxeBnMFg68w80adEys+4BMZygUzE=";
   };
   # Build Collie's static web application as a fixed-output derivation. Bun may
   # fetch only the dependencies pinned by the two upstream lockfiles, while the
