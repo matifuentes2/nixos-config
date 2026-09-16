@@ -10,8 +10,9 @@ let
   # catalog reproducible while leaving Pi and unrelated agents enabled.
   orcaSettings = {
     experimentalEphemeralVms = false;
-    defaultTuiAgent = "omp";
+    defaultTuiAgent = "pi";
     disabledTuiAgents = [
+      "omp"
       "claude"
       "claude-agent-teams"
       "codex"

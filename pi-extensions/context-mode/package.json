@@ -1,0 +1,11 @@
+{
+  "name": "context-mode-package",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "context-mode": "1.0.169"
+  },
+  "bundledDependencies": [
+    "context-mode"
+  ]
+}

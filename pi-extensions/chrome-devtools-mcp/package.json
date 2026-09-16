@@ -1,0 +1,11 @@
+{
+  "name": "chrome-devtools-mcp-package",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "chrome-devtools-mcp": "1.7.0"
+  },
+  "bundledDependencies": [
+    "chrome-devtools-mcp"
+  ]
+}

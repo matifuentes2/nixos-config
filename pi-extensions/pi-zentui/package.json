@@ -1,0 +1,11 @@
+{
+  "name": "pi-zentui-package",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "pi-zentui": "https://github.com/matifuentes2/pi-zentui/archive/81b6a28b8a812b3e57f6bf8739a840ab7071d259.tar.gz"
+  },
+  "bundledDependencies": [
+    "pi-zentui"
+  ]
+}

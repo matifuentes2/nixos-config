@@ -222,8 +222,8 @@ in
     '';
   };
 
-  # Pi loads this locally built package from the immutable Nix store. Its npm
-  # dependency graph is pinned by pi-extensions/package-lock.json.
+  # Pi loads a cheap registration manifest pointing to independently built
+  # packages, each pinned by pi-extensions/<name>/package-lock.json.
   home.file.".pi/agent/settings.json" = {
     force = true;
     text = builtins.toJSON {
@@ -242,7 +242,7 @@ in
         keepRecentTokens = 20000;
       };
       packages = [
-        "${piExtensions}/lib/node_modules/pi-extensions"
+        "${piExtensions}"
         "${piCodexGoalPackage}"
         "${piPrReviewGoalPackage}"
         "${piParallelGoPrHerdrPackage}"

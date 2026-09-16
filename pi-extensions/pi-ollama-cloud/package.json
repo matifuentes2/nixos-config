@@ -1,0 +1,13 @@
+{
+  "name": "pi-ollama-cloud-package",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "pi-ollama-cloud": "0.12.1",
+    "@sinclair/typebox": "0.34.52"
+  },
+  "bundledDependencies": [
+    "pi-ollama-cloud",
+    "@sinclair/typebox"
+  ]
+}
