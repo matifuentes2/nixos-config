@@ -1,0 +1,11 @@
+{
+  "name": "pi-mcp-adapter-package",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "pi-mcp-adapter": "2.21.2"
+  },
+  "bundledDependencies": [
+    "pi-mcp-adapter"
+  ]
+}

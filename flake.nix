@@ -25,10 +25,6 @@
       url = "github:homebrew/homebrew-cask";
       flake = false;
     };
-    omp = {
-      url = "github:can1357/oh-my-pi";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     herdr = {
       url = "github:herdrdev/herdr/v0.8.0";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -86,7 +82,6 @@
       nix-homebrew,
       homebrew-core,
       homebrew-cask,
-      omp,
       herdr,
       worktrunk,
       herdr-worktrunk,
@@ -152,8 +147,22 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          homeTools = import ./packages/home-tools.nix {
+            inherit (pkgs) lib;
+            inherit
+              pkgs
+              nixpkgs-unstable
+              herdr-collie
+              pi-codex-goal
+              pi-pr-review-goal
+              pi-parallel-go-pr-herdr
+              pi-execution-time
+              orca
+              ;
+          };
         in
         {
+          pi-extensions = homeTools.piExtensions;
           bootstrap-git = pkgs.git;
           ci-tools = pkgs.buildEnv {
             name = "nixos-config-ci-tools";
@@ -166,6 +175,9 @@
             ];
           };
         }
+        // nixpkgs.lib.mapAttrs' (
+          name: package: nixpkgs.lib.nameValuePair "pi-extension-${name}" package
+        ) homeTools.piExtensionPackages
         // nixpkgs.lib.optionalAttrs (system == amd64System) {
           inherit (disko.packages.${system}) disko disko-install;
         }
@@ -254,7 +266,6 @@
             home-manager.users.${darwinUsername} = import ./hosts/macbook/home.nix;
             home-manager.extraSpecialArgs = homeSpecialArgs // {
               username = darwinUsername;
-              inherit omp;
             };
           }
         ];

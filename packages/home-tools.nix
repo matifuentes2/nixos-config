@@ -225,69 +225,11 @@ let
     '';
   };
 
-  piExtensions = pkgs.buildNpmPackage {
-    pname = "pi-extensions";
-    version = "1.0.0";
-    src = ../pi-extensions;
-    npmDepsHash = "sha256-F92tzB80NDYUHbxxm6UOCEpye4WZnqNyjRTkICbA3l8=";
-    dontNpmBuild = true;
-    npmFlags = [ "--omit=peer" ];
-    nativeBuildInputs = [ pkgs.esbuild ];
+  extensionPackages = import ./pi-extensions.nix { inherit lib pkgs upstreamPi; };
+  piExtensions = extensionPackages.registration;
+  piExtensionPackages = extensionPackages.packages;
+  piExtensionNodeModules = extensionPackages.peers;
 
-    # Bundle large TypeScript extension graphs once during the Nix build so Pi
-    # does not transpile and resolve them on every startup. Keep Pi's own API
-    # packages external so every extension uses the instances owned by Pi.
-    postInstall = ''
-      extensions="$out/lib/node_modules/pi-extensions/node_modules"
-      upstream_node_modules="${upstreamPi}/lib/node_modules/pi-monorepo/node_modules"
-      common=(
-        --bundle
-        --platform=node
-        --format=esm
-        --target=node20
-        --minify-syntax
-        --minify-whitespace
-      )
-
-      esbuild "$extensions/pi-mcp-adapter/index.ts" \
-        "''${common[@]}" \
-        '--external:@earendil-works/*' \
-        --external:@napi-rs/keyring \
-        --external:open \
-        --outfile="$extensions/pi-mcp-adapter/index.bundle.mjs"
-
-      esbuild "$extensions/pi-vim/index.ts" \
-        "''${common[@]}" \
-        --packages=external \
-        --outfile="$extensions/pi-vim/index.bundle.mjs"
-
-      esbuild "$extensions/pi-zentui/extensions/zentui/index.ts" \
-        "''${common[@]}" \
-        --packages=external \
-        --outfile="$extensions/pi-zentui/index.bundle.mjs"
-
-      mkdir -p "$extensions/@earendil-works"
-      ln -s "$upstream_node_modules/@earendil-works/pi-agent-core" \
-        "$extensions/@earendil-works/pi-agent-core"
-      ln -s "$upstream_node_modules/@earendil-works/pi-ai" \
-        "$extensions/@earendil-works/pi-ai"
-      ln -s "${upstreamPi}/lib/node_modules/pi-monorepo" \
-        "$extensions/@earendil-works/pi-coding-agent"
-      ln -s "$upstream_node_modules/@earendil-works/pi-tui" \
-        "$extensions/@earendil-works/pi-tui"
-
-      # pi-web-access intentionally remains unbundled: bundling eagerly loads
-      # its optional extractor graph and was slower in startup benchmarks.
-      # pi-subagents also stays unbundled because its background runner resolves
-      # helper scripts relative to the original source-module locations.
-    '';
-  };
-
-  # Pi loads each package from its own immutable store path, so bare peer
-  # imports resolve only when that path exposes the shared extension runtime.
-  # Keep one dependency graph pinned by pi-extensions/package-lock.json and
-  # attach it to every separately sourced package.
-  piExtensionNodeModules = "${piExtensions}/lib/node_modules/pi-extensions/node_modules";
   mkPiExtensionPackage =
     name: src:
     pkgs.runCommand name { } ''
@@ -317,7 +259,7 @@ let
       export CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS=1
 
       exec ${lib.getExe pkgs.nodejs_22} \
-        ${piExtensions}/lib/node_modules/pi-extensions/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js \
+        ${piExtensionPackages.chrome-devtools-mcp}/${piExtensionPackages.chrome-devtools-mcp.packageRoot}/build/src/bin/chrome-devtools-mcp.js \
         --executable-path=${lib.escapeShellArg chromeExecutable} \
         --isolated \
         --no-performance-crux \
@@ -335,6 +277,7 @@ in
     pi
     piVersion
     piExtensions
+    piExtensionPackages
     piCodexGoalPackage
     piPrReviewGoalPackage
     piParallelGoPrHerdrPackage

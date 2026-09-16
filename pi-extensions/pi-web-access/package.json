@@ -1,0 +1,11 @@
+{
+  "name": "pi-web-access-package",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "pi-web-access": "0.18.0"
+  },
+  "bundledDependencies": [
+    "pi-web-access"
+  ]
+}
