@@ -22,6 +22,14 @@ let
 in
 
 {
+  # Chrome's supported per-user external-extension manifest requests the
+  # official Web Store extension. Chrome still requires user confirmation;
+  # do not bypass it or store an approval-bypass token in the Nix store.
+  home.file."Library/Application Support/Google/Chrome/External Extensions/mmlmfjhmonkocbjadbfplnigmagldckm.json".text =
+    builtins.toJSON {
+      external_update_url = "https://clients2.google.com/service/update2/crx";
+    };
+
   # Orca's Homebrew cask exposes its version-matched CLI at this path. Setting
   # the command explicitly lets the shared Orca skills avoid ambiguous command
   # discovery and always target the Stably Orca CLI.

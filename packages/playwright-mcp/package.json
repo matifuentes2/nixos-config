@@ -1,0 +1,8 @@
+{
+  "name": "nixos-config-playwright-mcp",
+  "version": "0.0.82",
+  "private": true,
+  "dependencies": {
+    "@playwright/mcp": "0.0.82"
+  }
+}

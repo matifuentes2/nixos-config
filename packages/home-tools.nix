@@ -245,12 +245,6 @@ let
   piParallelGoPrHerdrPackage = mkPiExtensionPackage "pi-parallel-go-pr-herdr" pi-parallel-go-pr-herdr;
   piExecutionTimePackage = mkPiExtensionPackage "pi-execution-time" pi-execution-time;
 
-  chromeExecutable =
-    if pkgs.stdenv.isDarwin then
-      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    else
-      lib.getExe pkgs.chromium;
-
   chromeDevtoolsMcp = pkgs.writeShellApplication {
     name = "chrome-devtools-mcp";
     runtimeInputs = lib.optionals pkgs.stdenv.isLinux [ pkgs.chromium ];
@@ -260,8 +254,10 @@ let
 
       exec ${lib.getExe pkgs.nodejs_22} \
         ${piExtensionPackages.chrome-devtools-mcp}/${piExtensionPackages.chrome-devtools-mcp.packageRoot}/build/src/bin/chrome-devtools-mcp.js \
-        --executable-path=${lib.escapeShellArg chromeExecutable} \
-        --isolated \
+        --autoConnect \
+        --channel=stable \
+        --experimentalPageIdRouting \
+        --redactNetworkHeaders \
         --no-performance-crux \
         "$@"
     '';
