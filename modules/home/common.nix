@@ -46,6 +46,8 @@ let
     piExecutionTimePackage
     ;
 
+  playwrightMcp = import ../../packages/playwright-mcp.nix { inherit lib pkgs; };
+
   collieConfigDir = "${config.home.homeDirectory}/.config/herdr/plugins/config/herdr.collie";
   # The encrypted dotenv is shared with the Raspberry Pi and therefore contains
   # that host's allowlisted MagicDNS name. Resolve this host's name at runtime
@@ -104,6 +106,7 @@ in
     worktrunk.packages.${pkgs.stdenv.hostPlatform.system}.default
     pi
     chromeDevtoolsMcp
+    playwrightMcp
     herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
     mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
@@ -235,6 +238,24 @@ in
       defaultProvider = "openai-codex";
       defaultModel = "gpt-6-astra";
       defaultThinkingLevel = "medium";
+      subagents.agentOverrides = {
+        scout = {
+          model = "openai-codex/gpt-5.6-luna";
+          thinking = "low";
+        };
+        worker = {
+          model = "openai-codex/gpt-5.6-luna";
+          thinking = "medium";
+        };
+        reviewer = {
+          model = "openai-codex/gpt-5.6-luna";
+          thinking = "medium";
+        };
+        oracle = {
+          model = "inherit";
+          thinking = "high";
+        };
+      };
       # Preserve the existing compaction token budget across model changes.
       compaction = {
         enabled = true;
@@ -269,12 +290,21 @@ in
     source = ../../pi-prompts/go-pr.md;
   };
 
+  # Append routing rules without replacing Pi's built-in prompt or the user's
+  # existing global AGENTS.md (which other extensions may maintain).
+  home.file.".pi/agent/APPEND_SYSTEM.md".source = ../../pi-prompts/browser-routing.md;
+
   # pi-mcp-adapter reads this configuration and starts each pinned server only
   # when one of its tools is first used.
   home.file.".pi/agent/mcp.json" = {
     force = true;
     text = builtins.toJSON {
       mcpServers = {
+        playwright = {
+          command = lib.getExe playwrightMcp;
+          args = [ "--extension" ];
+          lifecycle = "lazy";
+        };
         chrome-devtools = {
           command = lib.getExe chromeDevtoolsMcp;
           args = [ ];
