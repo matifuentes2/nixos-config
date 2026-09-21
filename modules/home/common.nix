@@ -236,24 +236,35 @@ in
       lastChangelogVersion = piVersion;
       theme = "dark";
       defaultProvider = "openai-codex";
-      defaultModel = "gpt-6-astra";
+      defaultModel = "gpt-5.6-sol";
       defaultThinkingLevel = "medium";
+      subagents.defaultModel = "openai-codex/gpt-5.6-luna";
       subagents.agentOverrides = {
         scout = {
           model = "openai-codex/gpt-5.6-luna";
           thinking = "low";
+          defaultContext = "fresh";
         };
         worker = {
           model = "openai-codex/gpt-5.6-luna";
           thinking = "medium";
+          defaultContext = "fresh";
         };
         reviewer = {
           model = "openai-codex/gpt-5.6-luna";
           thinking = "medium";
+          defaultContext = "fresh";
+        };
+        delegate = {
+          defaultContext = "fresh";
+        };
+        researcher = {
+          defaultContext = "fresh";
         };
         oracle = {
           model = "inherit";
           thinking = "high";
+          defaultContext = "fork";
         };
       };
       # Preserve the existing compaction token budget across model changes.
@@ -290,9 +301,12 @@ in
     source = ../../pi-prompts/go-pr.md;
   };
 
-  # Append routing rules without replacing Pi's built-in prompt or the user's
-  # existing global AGENTS.md (which other extensions may maintain).
-  home.file.".pi/agent/APPEND_SYSTEM.md".source = ../../pi-prompts/browser-routing.md;
+  # Append routing and delegation rules without replacing Pi's built-in prompt
+  # or the user's existing global AGENTS.md (which other extensions may maintain).
+  home.file.".pi/agent/APPEND_SYSTEM.md".text =
+    builtins.readFile ../../pi-prompts/browser-routing.md
+    + "\n"
+    + builtins.readFile ../../pi-prompts/delegation-policy.md;
 
   # pi-mcp-adapter reads this configuration and starts each pinned server only
   # when one of its tools is first used.
