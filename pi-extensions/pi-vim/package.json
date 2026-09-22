@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "pi-vim": "0.14.1"
+    "pi-vim": "0.14.2"
   },
   "bundledDependencies": [
     "pi-vim"

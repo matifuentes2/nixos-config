@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "pi-mcp-adapter": "2.21.2"
+    "pi-mcp-adapter": "2.36.0"
   },
   "bundledDependencies": [
     "pi-mcp-adapter"

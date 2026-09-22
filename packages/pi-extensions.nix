@@ -58,10 +58,10 @@ let
     };
 
   packages = lib.mapAttrs mkPackage {
-    chrome-devtools-mcp.npmDepsHash = "sha256-qnVowNtI4flKfeT3mtHwNT5qoH6h1Eg+gYFzjYFkq78=";
+    chrome-devtools-mcp.npmDepsHash = "sha256-vzwx25nM85hZZtcsApAu6uppdiT27ek3THkHwgTreOc=";
     context-mode.npmDepsHash = "sha256-asY1v6GNEqnZLr0JdUrsvfqbL++YbhmXyD3Im/QEAk8=";
     pi-mcp-adapter = {
-      npmDepsHash = "sha256-8jJOP0oOf1NJu6X4z+7mNn9OFPumNUJ/ZzMP0rzVqPw=";
+      npmDepsHash = "sha256-fh++khD/+BuEaW7kG8lEFHvErc8r+MDlU1h0C71OBQg=";
       bundle = "index.ts";
       external = [
         "--external:@earendil-works/*"
@@ -70,14 +70,14 @@ let
       ];
     };
     pi-ollama-cloud.npmDepsHash = "sha256-R7Kn0cgg+lUNSXGyXWPhfuBNf1g1Bs8wGyE2l2prNYc=";
-    pi-subagents.npmDepsHash = "sha256-XK8mP5YWjiaVC3qAMxK8MgtfrkSa/djY/d40mDrqVoU=";
+    pi-subagents.npmDepsHash = "sha256-Q3LZ/syvyuHjKaJUrRAofUvZdHvA2WZaJneym0SoG7k=";
     pi-vim = {
-      npmDepsHash = "sha256-RshhKPh16cXUldezIZUEDF+Hk4cwMDR7JAoWsShEKEc=";
+      npmDepsHash = "sha256-asv7nv8IXfL5dm7OuTP8Ru+ozfsbPh66FfJuZHKxEYc=";
       bundle = "index.ts";
     };
     # These remain unbundled: web-access lazily loads optional extractors, and
     # subagents resolves background helper scripts relative to its source files.
-    pi-web-access.npmDepsHash = "sha256-S92WIvKxTQ2pqdmPsWbRKP1LqwyQ0keJ44hp5ecS3JA=";
+    pi-web-access.npmDepsHash = "sha256-HF/eWTsIC2or94lPl3gIpO9/fvksM3iW+XiUadYOR+g=";
     pi-zentui = {
       npmDepsHash = "sha256-1aFUfLTj6HUcCkEt+1DKRJ4k3HbrssJ6Z8HIkVKR/o0=";
       bundle = "extensions/zentui/index.ts";
