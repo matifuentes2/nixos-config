@@ -53,7 +53,7 @@ let
       mainProgram = "mise";
     };
   };
-  piVersion = "0.84.4";
+  piVersion = "0.87.0";
   bunVersion = "1.4.0";
   bunSources = {
     "aarch64-darwin" = pkgs.fetchurl {
@@ -187,21 +187,44 @@ let
         owner = "earendil-works";
         repo = "pi";
         tag = "v${piVersion}";
-        hash = "sha256-7z8OXao1PzmBEepDkIqVqyfQBPHulBlKcGymDYsnMvc=";
+        hash = "sha256-7YkIA5IEs4U0qnoaO3IzlY+p/M7j30fSVelLeyoV+F8=";
       };
     in
-    unstable.pi-coding-agent.overrideAttrs {
+    unstable.pi-coding-agent.overrideAttrs (old: {
       version = piVersion;
       inherit src;
       npmDeps = pkgs.fetchNpmDeps {
         inherit src;
-        hash = "sha256-35GC3Q4Jf4URvqoEYHeM63x49tTmrth62//PvKm4I7Q=";
+        hash = "sha256-fbxwpQHnrUihO9MU72m331Uwt9dv0fQtEjdJ9hU8UxA=";
       };
       modelData = pkgs.fetchurl {
         url = "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-${piVersion}.tgz";
-        hash = "sha256-39PJKc7lpzhxmaCiTfwb4glvHqj1n/uChRmKDtAev5M=";
+        hash = "sha256-8q353oCdA192+NrfPRSHIOvu9GBqhIqzbug02JWugS8=";
       };
-    };
+
+      # Pi 0.87 added the chord and server workspaces. Build and retain them
+      # until nixos-unstable's package definition catches up with this release.
+      buildPhase = ''
+        runHook preBuild
+
+        npx tsgo -p packages/chord/tsconfig.build.json
+        npx tsgo -p packages/tui/tsconfig.build.json
+        npx tsgo -p packages/telemetry/tsconfig.build.json
+        npx tsgo -p packages/ai/tsconfig.build.json
+        npx tsgo -p packages/agent/tsconfig.build.json
+        npx tsgo -p packages/protocol/tsconfig.build.json
+        npx tsgo -p packages/client/tsconfig.build.json
+        npx tsgo -p packages/server/tsconfig.build.json
+        npm run build --workspace=packages/coding-agent
+
+        runHook postBuild
+      '';
+      postInstall = old.postInstall + ''
+        local nm="$out/lib/node_modules/pi-monorepo/node_modules"
+        cp -r packages/chord "$nm/@earendil-works/chord"
+        cp -r packages/server "$nm/@earendil-works/pi-server"
+      '';
+    });
 
   # Run the unmodified upstream CLI with its supported Bun runtime. This avoids
   # Node's large ESM startup cost without maintaining a Pi fork.

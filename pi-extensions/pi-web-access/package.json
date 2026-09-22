@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "pi-web-access": "0.18.0"
+    "pi-web-access": "0.30.0"
   },
   "bundledDependencies": [
     "pi-web-access"
