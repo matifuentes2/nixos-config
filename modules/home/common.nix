@@ -236,22 +236,22 @@ in
       lastChangelogVersion = piVersion;
       theme = "dark";
       defaultProvider = "openai-codex";
-      defaultModel = "gpt-5.6-sol";
+      defaultModel = "gpt-6-sol";
       defaultThinkingLevel = "medium";
-      subagents.defaultModel = "openai-codex/gpt-5.6-luna";
+      subagents.defaultModel = "openai-codex/gpt-6-luna";
       subagents.agentOverrides = {
         scout = {
-          model = "openai-codex/gpt-5.6-luna";
+          model = "openai-codex/gpt-6-luna";
           thinking = "low";
           defaultContext = "fresh";
         };
         worker = {
-          model = "openai-codex/gpt-5.6-luna";
+          model = "openai-codex/gpt-6-luna";
           thinking = "medium";
           defaultContext = "fresh";
         };
         reviewer = {
-          model = "openai-codex/gpt-5.6-luna";
+          model = "openai-codex/gpt-6-luna";
           thinking = "medium";
           defaultContext = "fresh";
         };
