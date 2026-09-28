@@ -37,8 +37,8 @@ repository and rebuilding the appropriate flake output.
 ## Raspberry Pi resource safety
 
 The Raspberry Pi is resource-constrained. Treat Nix evaluation and builds on
-that host as potentially disruptive, especially while the Orca server or other
-services are running.
+that host as potentially disruptive, especially while other services are
+running.
 
 - Do not run `nix flake check`, a full NixOS build, or another broad evaluation
   on the Raspberry Pi unless the user explicitly authorizes it. Prefer targeted

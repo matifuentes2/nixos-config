@@ -7,7 +7,6 @@
   pi-pr-review-goal,
   pi-parallel-go-pr-herdr,
   pi-execution-time,
-  orca,
 }:
 
 let
@@ -166,20 +165,6 @@ let
     ' "$out/herdr-plugin.toml" > "$out/herdr-plugin.toml.tmp"
     mv "$out/herdr-plugin.toml.tmp" "$out/herdr-plugin.toml"
   '';
-  orcaSkillNames = [
-    "orca-cli"
-    "orchestration"
-    "computer-use"
-    "orca-linear"
-    "orca-emulator"
-    "orca-emulator-android"
-  ];
-  orcaSkills = pkgs.runCommand "orca-agent-skills" { } ''
-    mkdir -p "$out"
-    ${lib.concatMapStringsSep "\n" (name: ''
-      cp -R ${orca}/skills/${name} "$out/${name}"
-    '') orcaSkillNames}
-  '';
   # Pin the current upstream release until nixos-unstable catches up.
   upstreamPi =
     let
@@ -292,7 +277,6 @@ in
     chromeDevtoolsMcp
     colliePlugin
     misePackage
-    orcaSkills
     pi
     piVersion
     piExtensions

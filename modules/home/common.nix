@@ -12,7 +12,6 @@
   pi-pr-review-goal,
   pi-parallel-go-pr-herdr,
   pi-execution-time,
-  orca,
   enableCollieService ? false,
   ...
 }:
@@ -28,7 +27,6 @@ let
       pi-pr-review-goal
       pi-parallel-go-pr-herdr
       pi-execution-time
-      orca
       ;
   };
   inherit (homeTools)
@@ -36,7 +34,6 @@ let
     chromeDevtoolsMcp
     colliePlugin
     misePackage
-    orcaSkills
     pi
     piVersion
     piExtensions
@@ -286,14 +283,6 @@ in
   # Install Pi agent skills declaratively from pinned or tracked sources.
   home.file.".pi/agent/skills/herdr/SKILL.md".source = "${herdr}/skills/herdr/SKILL.md";
   home.file.".pi/agent/skills/devenv-setup/SKILL.md".source = ../../pi-skills/devenv-setup/SKILL.md;
-
-  # ~/.agents/skills is discovered by both Pi and Orca. Installing the complete
-  # directories here lets Orca detect the skills and activate their setup UI,
-  # while preserving any references or assets shipped beside SKILL.md.
-  home.file.".agents/skills" = {
-    source = orcaSkills;
-    recursive = true;
-  };
 
   # Keep shared Pi prompt templates reproducible across every host.
   home.file.".pi/agent/prompts/go-pr.md" = {
