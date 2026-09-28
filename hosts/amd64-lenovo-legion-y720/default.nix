@@ -35,7 +35,6 @@ in
     ../../modules/system/linux-desktop.nix
     ./disko.nix
     ./hardware.nix
-    ./orca-server.nix
   ];
 
   networking = {

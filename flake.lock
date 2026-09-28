@@ -375,23 +375,6 @@
         "type": "github"
       }
     },
-    "orca": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1788397452,
-        "narHash": "sha256-TrtMtJpBDqREjqNnxfSHi7AMLEMOFgxGYhmZZvSAbjs=",
-        "owner": "stablyai",
-        "repo": "orca",
-        "rev": "aad4ae42ea5e555f25fdec679ebbcd18cc1e8911",
-        "type": "github"
-      },
-      "original": {
-        "owner": "stablyai",
-        "ref": "v1.4.196",
-        "repo": "orca",
-        "type": "github"
-      }
-    },
     "pi-codex-goal": {
       "flake": false,
       "locked": {
@@ -472,7 +455,6 @@
         "nixos-wsl": "nixos-wsl",
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-unstable": "nixpkgs-unstable",
-        "orca": "orca",
         "pi-codex-goal": "pi-codex-goal",
         "pi-execution-time": "pi-execution-time",
         "pi-parallel-go-pr-herdr": "pi-parallel-go-pr-herdr",

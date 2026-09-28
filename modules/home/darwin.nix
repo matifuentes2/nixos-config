@@ -5,22 +5,6 @@
   username,
   ...
 }:
-let
-  # Orca stores agent picker state in its mutable profile. Keep the macOS
-  # catalog reproducible while leaving Pi and unrelated agents enabled.
-  orcaSettings = {
-    experimentalEphemeralVms = false;
-    defaultTuiAgent = "pi";
-    disabledTuiAgents = [
-      "omp"
-      "claude"
-      "claude-agent-teams"
-      "codex"
-    ];
-  };
-  updateOrcaSettings = import ../../packages/update-orca-settings.nix { inherit pkgs; };
-in
-
 {
   # Chrome's supported per-user external-extension manifest requests the
   # official Web Store extension. Chrome still requires user confirmation;
@@ -29,19 +13,6 @@ in
     builtins.toJSON {
       external_update_url = "https://clients2.google.com/service/update2/crx";
     };
-
-  # Orca's Homebrew cask exposes its version-matched CLI at this path. Setting
-  # the command explicitly lets the shared Orca skills avoid ambiguous command
-  # discovery and always target the Stably Orca CLI.
-  home.sessionVariables.ORCA_CLI_COMMAND = "/opt/homebrew/bin/orca";
-
-  # Reapply managed Orca settings on every activation so mutable UI choices
-  # cannot override the declarative agent catalog or default.
-  home.activation.configureOrcaSettings = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    run ${lib.getExe updateOrcaSettings} \
-      "$HOME/Library/Application Support/Orca/profiles/local-default/orca-data.json" \
-      ${lib.escapeShellArg (builtins.toJSON orcaSettings)}
-  '';
 
   # Clear completion state once when activating a generation. Deleting it from
   # every interactive shell startup would disable zsh's completion cache and

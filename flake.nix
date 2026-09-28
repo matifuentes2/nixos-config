@@ -58,10 +58,6 @@
       url = "github:lukaspanni/pi-execution-time/81b18e039ddeac6d23cc1e6e176bdb158de19590";
       flake = false;
     };
-    orca = {
-      url = "github:stablyai/orca/v1.4.196";
-      flake = false;
-    };
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -91,7 +87,6 @@
       pi-pr-review-goal,
       pi-parallel-go-pr-herdr,
       pi-execution-time,
-      orca,
       sops-nix,
       home-manager,
       ...
@@ -119,7 +114,6 @@
           pi-pr-review-goal
           pi-parallel-go-pr-herdr
           pi-execution-time
-          orca
           ;
       };
 
@@ -157,7 +151,6 @@
               pi-pr-review-goal
               pi-parallel-go-pr-herdr
               pi-execution-time
-              orca
               ;
           };
         in

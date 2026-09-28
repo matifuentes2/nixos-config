@@ -19,8 +19,6 @@ Linux desktop and macOS-only Home Manager settings are kept in
 [`modules/home/linux.nix`](./modules/home/linux.nix) and
 [`modules/home/darwin.nix`](./modules/home/darwin.nix). Shared NixOS desktop
 services live in [`modules/system/linux-desktop.nix`](./modules/system/linux-desktop.nix).
-The Pi and Lenovo share [`modules/system/orca-server.nix`](./modules/system/orca-server.nix),
-with each host declaring its user and pairing settings.
 WSL2 intentionally skips
 the Hyprland-oriented Linux desktop module. Device configuration lives under
 [`hosts/`](./hosts/).
@@ -53,10 +51,8 @@ modules/
   system/
     common.nix
     ci-cd-local-worker.nix
-    orca-server.nix
 packages/
   home-tools.nix
-  update-orca-settings.nix
 hyprland/
 neovim/
 ```
@@ -162,15 +158,6 @@ The Pi and Lenovo enable user lingering so Collie's services can start before
 login and remain available after logout. Lenovo Home Manager activation seeds
 writable Hyprland monitor and workspace files only when absent, preserving
 later `nwg-displays` edits.
-
-Orca profile updates validate JSON before replacing the saved file. An invalid
-profile stops startup or activation with an error and leaves the original
-intact. After repairing that profile, restart the service or rerun activation.
-Run the updater's regression checks with Bash and jq available:
-
-```sh
-python3 tests/test-orca-settings.py
-```
 
 ## Validation and pinned dependencies
 

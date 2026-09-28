@@ -29,7 +29,7 @@ class ExtensionIsolation(unittest.TestCase):
                       inherit (pkgs) lib;
                       inherit (f.inputs) nixpkgs-unstable herdr-collie
                         pi-codex-goal pi-pr-review-goal pi-parallel-go-pr-herdr
-                        pi-execution-time orca;
+                        pi-execution-time;
                     };
                   in {
                     registration = tools.piExtensions.drvPath;

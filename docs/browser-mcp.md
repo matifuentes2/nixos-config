@@ -8,8 +8,8 @@ browsers or launch a separate automation profile.
 `pi-prompts/browser-routing.md` is installed as
 `~/.pi/agent/APPEND_SYSTEM.md`, so the preference applies automatically in new Pi
 sessions without replacing existing global `AGENTS.md` instructions. This is
-instruction-based routing, not access control. Explicit requests for Orca's
-embedded browser or native desktop control still use their respective tools.
+instruction-based routing, not access control. Native desktop control requires
+an appropriate dedicated tool.
 
 ## macOS setup
 
