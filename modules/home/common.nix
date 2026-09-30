@@ -233,7 +233,7 @@ in
       lastChangelogVersion = piVersion;
       theme = "dark";
       defaultProvider = "openai-codex";
-      defaultModel = "gpt-6-sol";
+      defaultModel = "gpt-6.1-sol";
       defaultThinkingLevel = "medium";
       subagents.defaultModel = "openai-codex/gpt-6-luna";
       subagents.agentOverrides = {
@@ -279,6 +279,11 @@ in
       ];
     };
   };
+
+  # Herdr's Pi lifecycle integration is required for authoritative status dots.
+  # Link the extension from the same pinned Herdr source as the installed binary.
+  home.file.".pi/agent/extensions/herdr-agent-state.ts".source =
+    "${herdr.outPath}/src/integration/assets/pi/herdr-agent-state.ts";
 
   # Install Pi agent skills declaratively from pinned or tracked sources.
   home.file.".pi/agent/skills/herdr/SKILL.md".source = "${herdr}/skills/herdr/SKILL.md";
