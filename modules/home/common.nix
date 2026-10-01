@@ -239,11 +239,11 @@ in
       subagents.agentOverrides = {
         scout = {
           model = "openai-codex/gpt-6-luna";
-          thinking = "low";
+          thinking = "high";
           defaultContext = "fresh";
         };
         worker = {
-          model = "openai-codex/gpt-6-luna";
+          model = "openai-codex/gpt-6.1-sol";
           thinking = "medium";
           defaultContext = "fresh";
         };
@@ -256,7 +256,17 @@ in
           defaultContext = "fresh";
         };
         researcher = {
+          model = "openai-codex/gpt-6.1-sol";
+          thinking = "medium";
           defaultContext = "fresh";
+        };
+        weighted-security-reviewer = {
+          model = "openai-codex/gpt-6.1-sol";
+          thinking = "medium";
+        };
+        evidence-auditor = {
+          model = "openai-codex/gpt-6.1-sol";
+          thinking = "medium";
         };
         oracle = {
           model = "inherit";
