@@ -108,6 +108,9 @@ in
     mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
 
+  # Include user-local executables such as the Claude Code native installer.
+  home.sessionPath = [ "$HOME/.local/bin" ];
+
   home.sessionVariables = {
     EDITOR = "nvim";
     VISUAL = "nvim";
