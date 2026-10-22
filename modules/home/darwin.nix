@@ -39,6 +39,9 @@
         "/etc/profiles/per-user/${username}/bin"
         "$HOME/.nix-profile/bin"
         "/run/current-system/sw/bin"
+        # Apply even when a parent terminal inherited Home Manager's
+        # session-variable guard from before the latest rebuild.
+        "$HOME/.local/bin"
         $path
       )
 
