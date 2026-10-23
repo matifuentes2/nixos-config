@@ -65,6 +65,22 @@ pinned by `flake.lock`. Cask downloads can still depend on artifacts retained
 by their upstream vendors, and some GUI applications update themselves after
 installation.
 
+If `brew` reports a formula DSL error such as `unknown keyword: :overwrite`,
+the pinned Homebrew distribution may be older than the formula metadata.
+Update Homebrew through Nix rather than `brew update`:
+
+```sh
+cd ~/nixos-config
+nix flake update nix-homebrew
+darwin-rebuild build --flake .#macbook
+sudo darwin-rebuild switch --flake .#macbook
+brew upgrade llmfit
+```
+
+Review and retain the `flake.lock` changes so the updated Homebrew version is
+reproducible. Updating `nix-homebrew` also updates its pinned `brew-src` input;
+there is no need to update unrelated flake inputs.
+
 ## Inspect before running
 
 The procedure downloads a complete archive before executing anything. Inspect
