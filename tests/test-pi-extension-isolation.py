@@ -33,6 +33,7 @@ class ExtensionIsolation(unittest.TestCase):
                     };
                   in {
                     registration = tools.piExtensions.drvPath;
+                    contextNative = tools.piExtensionPackages.context-mode.unpatchedPackage.drvPath;
                     packages = builtins.mapAttrs (_: p: p.drvPath) tools.piExtensionPackages;
                     consumers = map (p: p.drvPath) [ tools.chromeDevtoolsMcp
                       tools.piCodexGoalPackage tools.piPrReviewGoalPackage
@@ -73,6 +74,16 @@ class ExtensionIsolation(unittest.TestCase):
             print(f"Registration removal/addition: {len(baseline['packages'])} packages and "
                   f"{len(baseline['consumers'])} consumers unchanged.")
             print("Ollama source edit: only Ollama and its registration change.")
+
+            renderer = root / "pi-extensions/context-mode/live-tools.mjs"
+            renderer.write_text(renderer.read_text() + "\n// Isolation test renderer edit\n")
+            ui_changed = evaluate()
+            affected = [name for name in changed["packages"]
+                        if changed["packages"][name] != ui_changed["packages"][name]]
+            self.assertEqual(affected, ["context-mode"])
+            self.assertEqual(changed["contextNative"], ui_changed["contextNative"])
+            self.assertEqual(changed["consumers"], ui_changed["consumers"])
+            print("Context renderer edit: only its lightweight overlay changes; native build reused.")
 
     def test_lockfiles_match_manifests(self):
         for manifest_path in sorted((REPO / "pi-extensions").glob("*/package.json")):

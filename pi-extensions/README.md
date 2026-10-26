@@ -66,6 +66,37 @@ MCP uses Pi's built-in `builtin:mcp` extension and the shared module's
 Native MCP connects enabled servers in the background and exposes their tools
 through codemode by default; adapter-specific `lifecycle` settings do not apply.
 
+## Context-mode running-call visibility
+
+`context-mode` 1.0.169's Pi bridge hides all call arguments, including during
+execution. `context-mode/live-tools.patch` replaces that bridge's renderers and
+executor with the tracked `live-tools.mjs`, installed in a lightweight Nix
+copy-and-patch overlay. Its unpatched npm source includes only the manifest and
+lockfile, so UI-only edits reuse the native SQLite build. Real files are copied:
+symlinking the entry point would resolve imports back into the unpatched tree.
+The patch is deliberately version-specific: review it when updating upstream.
+
+Running calls show their language and submitted code (or file/batch arguments)
+immediately. Collapsed cards preview four lines; expanding shows all arguments
+and results. Long lines wrap, terminal control sequences are stripped, and a
+UI-only heartbeat shows elapsed time even for silent commands. Compressed
+model-facing results are unchanged. Batch commands are a submitted plan, **not**
+a claim about which subprocess is currently running. The MCP server does not
+send that progress. Cancellation stops heartbeat updates; upstream remote
+process cancellation semantics are unchanged.
+
+Validate the actual installed bridge with a silent mock MCP server (no model
+requests or network needed):
+
+```sh
+package=$(nix build --no-link --print-out-paths .#pi-extension-context-mode)
+node tests/context-mode-live-tools.mjs \
+  "$package/lib/node_modules/context-mode-package/node_modules/context-mode"
+```
+
+After rebuilding the host, use `/reload` in Pi or start a new Pi session to load
+the new renderers. Already running calls keep their original implementation.
+
 Finally rebuild the host to activate the new registry. This still requires Nix
 and Home Manager evaluation/activation; splitting packages does not eliminate
 those costs. The first migration from the old monolithic bundle builds each

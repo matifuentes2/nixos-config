@@ -1,0 +1,79 @@
+--- a/build/adapters/pi/mcp-bridge.js
++++ b/build/adapters/pi/mcp-bridge.js
+@@ -21,6 +21,7 @@
+  * No external dependencies — pure node:child_process + JSON line frames.
+  */
+ import { existsSync } from "node:fs";
++import { createContextModeCallRenderer, createContextModeResultRenderer, createContextModeExecutor } from "./live-tools.mjs";
+ import { join } from "node:path";
+ import { spawn, execSync } from "node:child_process";
+ import { detectRuntimes } from "../../runtime.js";
+@@ -269,43 +270,6 @@
+         index = end;
+     }
+     return output;
+-}
+-function createContextModeCallRenderer(toolName) {
+-    return (_args, theme, context) => {
+-        const text = context.lastComponent instanceof PiTextComponent
+-            ? context.lastComponent
+-            : new PiTextComponent();
+-        text.setText(theme.fg("toolTitle", theme.bold(toolName)));
+-        return text;
+-    };
+-}
+-function createContextModeResultRenderer(toolName) {
+-    return (result, { expanded, isPartial }, theme, context) => {
+-        const text = context.lastComponent instanceof PiTextComponent
+-            ? context.lastComponent
+-            : new PiTextComponent();
+-        if (isPartial) {
+-            text.setText(theme.fg("warning", "indexing/searching..."));
+-            return text;
+-        }
+-        const output = (result.content ?? [])
+-            .filter((c) => c?.type === "text" && typeof c.text === "string")
+-            .map((c) => c.text)
+-            .join("\n");
+-        if (expanded) {
+-            text.setText(theme.fg("toolOutput", output));
+-            return text;
+-        }
+-        const firstLine = output
+-            .split(/\r?\n/)
+-            .find((line) => line.trim().length > 0)
+-            ?.trim();
+-        const status = firstLine && firstLine.length <= 180
+-            ? firstLine
+-            : `${toolName} completed`;
+-        text.setText(theme.fg("toolOutput", status));
+-        return text;
+-    };
+ }
+ /**
+  * Minimal stdio JSON-RPC client targeting the context-mode MCP server.
+@@ -866,23 +830,7 @@
+             parameters: tool.inputSchema ?? { type: "object", properties: {} },
+             renderCall: createContextModeCallRenderer(tool.name),
+             renderResult: createContextModeResultRenderer(tool.name),
+-            async execute(_toolCallId, params) {
+-                const result = await client.callTool(tool.name, params ?? {});
+-                const text = (result.content ?? [])
+-                    .filter((c) => c?.type === "text" && typeof c.text === "string")
+-                    .map((c) => c.text)
+-                    .join("\n");
+-                if (result.isError) {
+-                    // Throw is the Pi contract for "tool failed". The text body
+-                    // becomes the error message visible to the LLM, so it sees
+-                    // the same diagnostic the MCP server emitted.
+-                    throw new Error(text || `${tool.name} returned an error`);
+-                }
+-                return {
+-                    content: [{ type: "text", text }],
+-                    details: {},
+-                };
+-            },
++            execute: createContextModeExecutor(tool.name, (name, params) => client.callTool(name, params)),
+         });
+         registered.push(tool.name);
+     }
