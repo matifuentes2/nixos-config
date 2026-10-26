@@ -50,10 +50,8 @@ try {
     require('node:assert/strict').equal(db.prepare('select 42 as answer').get().answer, 42);
     db.close();
   `], { stdio: "pipe" });
-  const mcpRoot = realpathSync(join(registry, "node_modules/pi-mcp-adapter"));
-  const { createRequire } = await import("node:module");
-  createRequire(join(mcpRoot, "package.json"))("@napi-rs/keyring");
-  console.log(`Loaded ${files.length} extensions; all resources and shared Pi APIs present; native SQLite and keyring passed.`);
+  assert(!names.includes("pi-mcp-adapter"), "Native MCP must not be replaced by pi-mcp-adapter");
+  console.log(`Loaded ${files.length} extensions; all resources and shared Pi APIs present; native SQLite passed.`);
 } finally {
   rmSync(temporary, { recursive: true, force: true });
 }
