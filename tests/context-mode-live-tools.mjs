@@ -10,8 +10,10 @@ import { createRequire } from "node:module";
 import { realpathSync, existsSync, readFileSync } from "node:fs";
 import { setTimeout as delay } from "node:timers/promises";
 
-const root = process.argv[2];
-assert(root, "Pass the built context-mode package root");
+const packagePath = process.argv[2];
+assert(packagePath, "Pass the built context-mode package root");
+// Resolve registry symlinks before looking up sibling Pi peers, as imports do.
+const root = realpathSync(packagePath);
 const { bootstrapMCPTools } = await import(pathToFileURL(join(root, "build/adapters/pi/mcp-bridge.js")));
 const { createContextModeExecutor } = await import(pathToFileURL(join(root, "build/adapters/pi/live-tools.mjs")));
 const theme = { fg: (_, text) => text, bold: text => text };
