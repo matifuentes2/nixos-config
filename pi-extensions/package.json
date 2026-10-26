@@ -5,7 +5,6 @@
   "pi": {
     "extensions": [
       "node_modules/context-mode/build/adapters/pi/extension.js",
-      "node_modules/pi-mcp-adapter/index.bundle.mjs",
       "node_modules/pi-ollama-cloud/index.ts",
       "node_modules/pi-subagents/index.js",
       "node_modules/pi-vim/index.bundle.mjs",
@@ -14,7 +13,6 @@
     ],
     "skills": [
       "node_modules/context-mode/skills",
-      "node_modules/pi-mcp-adapter/skills",
       "node_modules/pi-subagents/skills"
     ],
     "prompts": [

@@ -70,7 +70,8 @@ class ExtensionIsolation(unittest.TestCase):
                         if baseline["packages"][name] != changed["packages"][name]]
             self.assertEqual(affected, ["pi-ollama-cloud"])
             self.assertEqual(baseline["consumers"], changed["consumers"])
-            print("Registration removal/addition: 8 packages and 5 consumers unchanged.")
+            print(f"Registration removal/addition: {len(baseline['packages'])} packages and "
+                  f"{len(baseline['consumers'])} consumers unchanged.")
             print("Ollama source edit: only Ollama and its registration change.")
 
     def test_lockfiles_match_manifests(self):

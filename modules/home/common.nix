@@ -234,6 +234,8 @@ in
       # an update. Keep it aligned with the packaged version to suppress the
       # automatic startup changelog; /changelog remains available on demand.
       lastChangelogVersion = piVersion;
+      # Use Pi's native MCP support, not a third-party /mcp replacement.
+      extensions = [ "+builtin:mcp" ];
       theme = "dark";
       defaultProvider = "openai-codex";
       defaultModel = "gpt-6.1-sol";
@@ -315,8 +317,8 @@ in
     + "\n"
     + builtins.readFile ../../pi-prompts/delegation-policy.md;
 
-  # pi-mcp-adapter reads this configuration and starts each pinned server only
-  # when one of its tools is first used.
+  # Pi's native MCP extension reads these pinned servers. It connects enabled
+  # servers in the background; tools use native codemode exposure by default.
   home.file.".pi/agent/mcp.json" = {
     force = true;
     text = builtins.toJSON {
@@ -324,17 +326,14 @@ in
         playwright = {
           command = lib.getExe playwrightMcp;
           args = [ "--extension" ];
-          lifecycle = "lazy";
         };
         chrome-devtools = {
           command = lib.getExe chromeDevtoolsMcp;
           args = [ ];
-          lifecycle = "lazy";
         };
         nixos = {
           command = lib.getExe mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default;
           args = [ ];
-          lifecycle = "lazy";
         };
       };
     };

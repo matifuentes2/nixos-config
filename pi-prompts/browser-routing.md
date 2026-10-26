@@ -2,8 +2,8 @@
 
 - Prefer the `playwright` MCP server for ordinary browser work: navigation,
   searches within websites, forms, screenshots, accessibility/DOM inspection,
-  routine console/network checks, and UI testing. Discover its tools through
-  the MCP gateway before reaching for Chrome DevTools.
+  routine console/network checks, and UI testing. Discover its native MCP tools
+  through `codemode` or `tool_search` before reaching for Chrome DevTools.
 - Playwright uses the browser extension and the user's existing authenticated
   profile. Keep work within the tab group assigned to this client. Use a new
   task tab unless the user explicitly supplies an existing tab. Do not navigate,
