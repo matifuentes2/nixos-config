@@ -79,10 +79,13 @@ let
     };
   });
   collieVersion = "0.36.1";
+  # The web build is platform-independent once its service worker manifest is
+  # sorted, so every system is expected to produce the same output.
+  collieWebHash = "sha256-1HvKdonO5+9br+RlcQckoMGQGIzK7UcS9koOWC8GXAc=";
   collieWebHashes = {
-    "aarch64-darwin" = "sha256-M1CNvbznQaE1/XVBWwi3WEua0QVOCAFJW2tWFA/OXMU=";
-    "aarch64-linux" = "sha256-6j0QANkAitOc3e9mALm6I7BT2t/0jcggNXKapu0Mo8o=";
-    "x86_64-linux" = "sha256-BZGNfQKAl0JnK8fmxeBnMFg68w80adEys+4BMZygUzE=";
+    "aarch64-darwin" = collieWebHash;
+    "aarch64-linux" = collieWebHash;
+    "x86_64-linux" = collieWebHash;
   };
   # Build Collie's static web application as a fixed-output derivation. Bun may
   # fetch only the dependencies pinned by the two upstream lockfiles, while the
@@ -111,6 +114,22 @@ let
 
       bun install --frozen-lockfile
       (cd web && bun install --frozen-lockfile)
+
+      # Workbox lists precached files in directory order, which differs between
+      # filesystems and builds. Sort the service worker manifest so the output
+      # hash is reproducible.
+      patched=0
+      while IFS= read -r -d "" manifest; do
+        substituteInPlace "$manifest" \
+          --replace-fail \
+            '    const count = transformedManifest.length;' \
+            '    const entryKey = (entry) => (typeof entry === "string" ? entry : `''${entry.url} ''${entry.revision ?? ""}`);
+          transformedManifest = [...transformedManifest].sort((a, b) => (entryKey(a) < entryKey(b) ? -1 : entryKey(a) > entryKey(b) ? 1 : 0));
+          const count = transformedManifest.length;'
+        patched=$((patched + 1))
+      done < <(find web/node_modules -path '*/workbox-build/build/lib/transform-manifest.js' -print0)
+      [ "$patched" -gt 0 ] || { echo "workbox-build transform-manifest.js not found" >&2; exit 1; }
+
       (cd web && bun ./node_modules/vite/bin/vite.js build)
       runHook postBuild
     '';
