@@ -357,13 +357,14 @@ in
 
         -- System menus and utilities.
         d.bind("SUPER + ESCAPE", "System menu", "${lib.getExe powerMenu}")
-        d.bind("SUPER + K", "Show key bindings", "${lib.getExe keybindings}")
+        d.bind("SUPER + slash", "Show key bindings", "${lib.getExe keybindings}")
         d.bind("SUPER + CTRL + V", "Clipboard history", "${lib.getExe clipboardHistory}")
         d.bind("SUPER + CTRL + A", "Audio controls", "${pavucontrol}")
         d.bind("SUPER + CTRL + N", "Network connections", "${nmConnectionEditor}")
         d.bind("SUPER + CTRL + I", "Toggle locking on idle", "${lib.getExe toggleIdle}")
         d.bind("SUPER + CTRL + L", "Lock system", "${loginctl} lock-session")
         d.bind("SUPER + SHIFT + SPACE", "Toggle top bar", "${pkill} -SIGUSR1 waybar")
+        d.bind("SUPER + SHIFT + E", "Log out", hl.dsp.exit())
 
         -- Notifications.
         d.bind("SUPER + comma", "Dismiss last notification", "${makoctl} dismiss")
@@ -380,7 +381,7 @@ in
         -- Windows.
         d.bind("SUPER + W", "Close window", hl.dsp.window.close())
         d.bind("SUPER + Q", "Close window", hl.dsp.window.close())
-        d.bind("SUPER + J", "Toggle window split", hl.dsp.layout("togglesplit"))
+        d.bind("SUPER + CTRL + J", "Toggle window split", hl.dsp.layout("togglesplit"))
         d.bind("SUPER + P", "Pseudo window", hl.dsp.window.pseudo())
         d.bind("SUPER + T", "Toggle window floating/tiling", hl.dsp.window.float({ action = "toggle" }))
         d.bind("SUPER + F", "Full screen", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
@@ -391,6 +392,13 @@ in
           d.bind("SUPER + " .. key, "Focus window " .. name, hl.dsp.focus({ direction = short }))
           d.bind("SUPER + SHIFT + " .. key, "Swap window " .. name, hl.dsp.window.swap({ direction = short }))
           d.bind("SUPER + ALT + " .. key, "Move window into group " .. name, hl.dsp.window.move({ into_group = short }))
+        end
+
+        -- Vim-style focus and movement.
+        for _, dir in ipairs({ { "H", "left" }, { "J", "down" }, { "K", "up" }, { "L", "right" } }) do
+          local key, name = dir[1], dir[2]
+          d.bind("SUPER + " .. key, "Focus window " .. name, hl.dsp.focus({ direction = name }))
+          d.bind("SUPER + SHIFT + " .. key, "Move window " .. name, hl.dsp.window.move({ direction = name }))
         end
 
         d.bind("ALT + TAB", "Focus next window", hl.dsp.window.cycle_next())
