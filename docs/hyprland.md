@@ -53,7 +53,7 @@ are absent. Layouts saved by older versions in `monitors.conf` are not read;
 apply the layout again from `nwg-displays` to write the Lua files.
 
 The **Super** modifier is usually the Windows key on a standard keyboard. Press
-`Super+K` to search every binding below.
+`Super+/` to search every binding below.
 
 ## Applications
 
@@ -71,13 +71,14 @@ The **Super** modifier is usually the Windows key on a standard keyboard. Press
 | Keybind | Action |
 | --- | --- |
 | `Super+Escape` | Open the system menu: lock, suspend, log out, restart, or shut down |
-| `Super+K` | Show the keybindings |
+| `Super+/` | Show the keybindings |
 | `Super+Ctrl+V` | Pick an entry from the clipboard history |
 | `Super+Ctrl+A` | Open the PulseAudio volume control |
 | `Super+Ctrl+N` | Open the NetworkManager connection editor |
 | `Super+Ctrl+I` | Toggle locking when idle |
 | `Super+Ctrl+L` | Lock the session |
 | `Super+Shift+Space` | Toggle the top bar |
+| `Super+Shift+E` | Log out immediately without confirmation |
 
 ## Notifications
 
@@ -97,8 +98,9 @@ The **Super** modifier is usually the Windows key on a standard keyboard. Press
 | `Super+Alt+F` | Toggle full width |
 | `Super+T` | Toggle floating mode |
 | `Super+P` | Toggle pseudotiling for the focused window |
-| `Super+J` | Toggle the split direction |
-| `Super+Arrow keys` | Focus a window in the selected direction |
+| `Super+Ctrl+J` | Toggle the split direction |
+| `Super+H/J/K/L` or `Super+Arrow keys` | Focus a window in the selected direction |
+| `Super+Shift+H/J/K/L` | Move the focused window in the selected direction |
 | `Super+Shift+Arrow keys` | Swap the focused window in the selected direction |
 | `Alt+Tab` / `Alt+Shift+Tab` | Focus the next or previous window |
 | `Super+-` / `Super+=` | Widen or narrow the focused window |

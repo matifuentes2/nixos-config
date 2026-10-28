@@ -43,7 +43,6 @@ in
         layer = "overlay";
         font = "${font}:size=13";
         prompt = "\"  \"";
-        icons-enabled = false;
         lines = 10;
         width = 50;
         horizontal-pad = 20;
@@ -64,6 +63,13 @@ in
       border = {
         width = 2;
         radius = 0;
+      };
+      # Navigate results with Control+J/K as well. Control+K otherwise deletes
+      # to the end of the line.
+      key-bindings = {
+        next = "Down Control+n Control+j";
+        prev = "Up Control+p Control+k";
+        delete-line-forward = "none";
       };
     };
   };
