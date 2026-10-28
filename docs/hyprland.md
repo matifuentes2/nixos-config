@@ -24,10 +24,13 @@ generates `~/.config/hypr/hyprland.lua` and loads the files under
 The Lenovo Legion Y720 runs the Hyprland release pinned by the `hyprland`
 flake input, currently v0.57.0, through
 [`modules/system/hyprland-upstream.nix`](../modules/system/hyprland-upstream.nix).
-That module adds Hyprland's Cachix substituter and matches Mesa to Hyprland's
-nixpkgs revision. Cachix only publishes x86-64 binaries, so the Raspberry Pi
-keeps the Hyprland package from the system nixpkgs instead of compiling
-Hyprland locally.
+That module adds Hyprland's Cachix substituter. Cachix only publishes x86-64
+binaries, so the Raspberry Pi keeps the Hyprland package from the system
+nixpkgs instead of compiling Hyprland locally.
+
+Do not replace the system Mesa with the one from Hyprland's nixpkgs. When that
+revision uses a newer glibc than the system, programs built against the system
+nixpkgs cannot load its drivers, and SDDM's greeter exits to a black screen.
 
 The running system only trusts Hyprland's Cachix after a configuration that
 declares it has been activated. Pass the substituter explicitly for the first
