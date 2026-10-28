@@ -70,6 +70,9 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Track Hyprland releases directly; nixpkgs lags behind upstream. Its own
+    # nixpkgs is kept so the binaries match Hyprland's Cachix substituter.
+    hyprland.url = "github:hyprwm/Hyprland/v0.57.0";
   };
 
   outputs =
@@ -94,6 +97,7 @@
       pi-execution-time,
       sops-nix,
       home-manager,
+      hyprland,
       ...
     }:
     let
@@ -206,6 +210,7 @@
         system = amd64System;
         specialArgs = {
           username = amd64Username;
+          inherit hyprland;
         };
         modules = [
           disko.nixosModules.disko
