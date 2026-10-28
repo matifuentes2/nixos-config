@@ -32,7 +32,9 @@
       fpath=(''${^fpath}(N))
       autoload -U compinit && compinit
     '';
-    initContent = ''
+    initContent = lib.mkAfter ''
+      # Run after mise's shell integration so GUI apps importing the login-shell
+      # environment (such as Orca) find Nix-managed agents instead of mise shims.
       # Prefer declarative Nix profiles over any mutable Homebrew/npm shims.
       typeset -U path
       path=(

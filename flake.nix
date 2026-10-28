@@ -25,6 +25,10 @@
       url = "github:homebrew/homebrew-cask";
       flake = false;
     };
+    homebrew-orca = {
+      url = "github:stablyai/homebrew-orca";
+      flake = false;
+    };
     herdr = {
       url = "github:herdrdev/herdr/v0.9.1";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -78,6 +82,7 @@
       nix-homebrew,
       homebrew-core,
       homebrew-cask,
+      homebrew-orca,
       herdr,
       worktrunk,
       herdr-worktrunk,
@@ -246,6 +251,7 @@
           inherit
             homebrew-core
             homebrew-cask
+            homebrew-orca
             ;
         };
         modules = [

@@ -2,6 +2,7 @@
   config,
   homebrew-cask,
   homebrew-core,
+  homebrew-orca,
   lib,
   pkgs,
   username,
@@ -101,6 +102,7 @@
     taps = {
       "homebrew/homebrew-core" = homebrew-core;
       "homebrew/homebrew-cask" = homebrew-cask;
+      "stablyai/homebrew-orca" = homebrew-orca;
     };
     mutableTaps = false;
   };
@@ -127,6 +129,7 @@
       "kitty"
       "raycast"
       "rectangle"
+      "stablyai/orca/orca"
       "whatsapp"
     ];
   };
