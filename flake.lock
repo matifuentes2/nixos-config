@@ -232,6 +232,22 @@
         "type": "github"
       }
     },
+    "homebrew-orca": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1793160566,
+        "narHash": "sha256-zHAQJzOqME7gagG8vRbssU7XyAU0ZBHovOBmguYinWY=",
+        "owner": "stablyai",
+        "repo": "homebrew-orca",
+        "rev": "781a2348a2c6d41c92be5651b3011b2bca70215a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "stablyai",
+        "repo": "homebrew-orca",
+        "type": "github"
+      }
+    },
     "mcp-nixos": {
       "inputs": {
         "devshell": "devshell",
@@ -449,6 +465,7 @@
         "home-manager": "home-manager",
         "homebrew-cask": "homebrew-cask",
         "homebrew-core": "homebrew-core",
+        "homebrew-orca": "homebrew-orca",
         "mcp-nixos": "mcp-nixos",
         "nix-darwin": "nix-darwin",
         "nix-homebrew": "nix-homebrew",

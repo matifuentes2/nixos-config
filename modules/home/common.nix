@@ -96,6 +96,12 @@ in
     jq
     fzf
     lazygit
+    (
+      if stdenv.hostPlatform.isDarwin then
+        import ../../packages/codex-darwin.nix { inherit lib pkgs; }
+      else
+        codex
+    )
     bun
     uv
     devenv
@@ -253,7 +259,7 @@ in
           defaultContext = "fresh";
         };
         reviewer = {
-          model = "openai-codex/gpt-6-luna";
+          model = "openai-codex/gpt-6.1-sol";
           thinking = "medium";
           defaultContext = "fresh";
         };
