@@ -33,6 +33,7 @@ in
   imports = [
     ../../modules/system/common.nix
     ../../modules/system/linux-desktop.nix
+    ../../modules/system/hyprland-upstream.nix
     ./disko.nix
     ./hardware.nix
   ];

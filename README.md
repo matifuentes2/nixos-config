@@ -156,8 +156,10 @@ building the configuration alone does not run garbage collection.
 
 The Pi and Lenovo enable user lingering so Collie's services can start before
 login and remain available after logout. Lenovo Home Manager activation seeds
-writable Hyprland monitor and workspace files only when absent, preserving
-later `nwg-displays` edits.
+writable Hyprland monitor and workspace Lua files only when absent, preserving
+later `nwg-displays` edits. The Lenovo runs the upstream Hyprland release
+pinned by the `hyprland` flake input; the
+[Hyprland desktop guide](./docs/hyprland.md) explains its first switch.
 
 ## Validation and pinned dependencies
 

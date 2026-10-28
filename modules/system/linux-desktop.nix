@@ -17,6 +17,8 @@
   programs.thunar.enable = true;
   services.gvfs.enable = true;
   services.tumbler.enable = true;
+  # Let the SwayOSD brightness control reach the backlight.
+  services.udev.packages = [ pkgs.swayosd ];
 
   fonts.packages = with pkgs; [
     font-awesome
