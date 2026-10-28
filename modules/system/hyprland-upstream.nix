@@ -1,10 +1,7 @@
 { hyprland, pkgs, ... }:
 
 let
-  system = pkgs.stdenv.hostPlatform.system;
-  hyprlandPackages = hyprland.packages.${system};
-  # Hyprland is built against its own nixpkgs revision.
-  hyprlandPkgs = hyprland.inputs.nixpkgs.legacyPackages.${system};
+  hyprlandPackages = hyprland.packages.${pkgs.stdenv.hostPlatform.system};
 in
 {
   # Run the pinned upstream Hyprland release instead of the nixpkgs build.
@@ -20,9 +17,6 @@ in
     portalPackage = hyprlandPackages.xdg-desktop-portal-hyprland;
   };
 
-  # Match Mesa to Hyprland's nixpkgs to avoid mismatched graphics drivers.
-  hardware.graphics = {
-    package = hyprlandPkgs.mesa;
-    package32 = hyprlandPkgs.pkgsi686Linux.mesa;
-  };
+  # Keep the system Mesa. Hyprland's nixpkgs may use a newer glibc, and its
+  # Mesa then fails to load in system programs such as SDDM's Weston greeter.
 }
