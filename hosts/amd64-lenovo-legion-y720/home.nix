@@ -23,6 +23,7 @@
     pkgs.webcord
     pkgs.nwg-displays
     pkgs.rofi
+    (pkgs.callPackage ../../packages/t3-code.nix { })
     pkgs.tree
     pkgs.wlinhibit
   ];
