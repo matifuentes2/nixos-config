@@ -271,6 +271,7 @@
             home-manager.users.${darwinUsername} = import ./hosts/macbook/home.nix;
             home-manager.extraSpecialArgs = homeSpecialArgs // {
               username = darwinUsername;
+              enableCollie = false;
             };
           }
         ];

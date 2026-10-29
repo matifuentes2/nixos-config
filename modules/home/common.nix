@@ -156,26 +156,32 @@ in
   # Remove prior mutable registrations and services when this host opts out.
   # Keep user data, and let Collie's ownership-aware teardown remove only its
   # own Tailscale mapping (never reset unrelated Serve configuration).
-  home.activation.removeHerdrCollie = lib.mkIf (pkgs.stdenv.isLinux && !enableCollie) (
+  home.activation.removeHerdrCollie = lib.mkIf (!enableCollie) (
     lib.hm.dag.entryAfter [ "linkGeneration" ] ''
       export HERDR_PLUGIN_CONFIG_DIR=${lib.escapeShellArg collieConfigDir}
       export PATH=${
-        lib.makeBinPath [
-          pkgs.bun
-          pkgs.coreutils
-          pkgs.gnugrep
-          pkgs.gnused
-          pkgs.procps
-          pkgs.systemd
-          pkgs.tailscale
-        ]
+        lib.makeBinPath (
+          [
+            pkgs.bun
+            pkgs.coreutils
+            pkgs.gnugrep
+            pkgs.gnused
+            pkgs.procps
+            pkgs.tailscale
+          ]
+          ++ lib.optionals pkgs.stdenv.isLinux [ pkgs.systemd ]
+        )
       }:$PATH
-      run ${lib.getExe' pkgs.systemd "systemctl"} --user stop collie-tailscale-serve.service || true
+      ${lib.optionalString pkgs.stdenv.isLinux ''
+        run ${lib.getExe' pkgs.systemd "systemctl"} --user stop collie-tailscale-serve.service || true
+      ''}
       run ${lib.getExe pkgs.bash} ${herdr-collie}/scripts/collie-ctl.sh uninstall
-      run rm -f "$HOME/.config/systemd/user/collie-tailscale-serve.service" \
-        "$HOME/.config/systemd/user/default.target.wants/collie.service" \
-        "$HOME/.config/systemd/user/default.target.wants/collie-tailscale-serve.service"
-      run ${lib.getExe' pkgs.systemd "systemctl"} --user daemon-reload || true
+      ${lib.optionalString pkgs.stdenv.isLinux ''
+        run rm -f "$HOME/.config/systemd/user/collie-tailscale-serve.service" \
+          "$HOME/.config/systemd/user/default.target.wants/collie.service" \
+          "$HOME/.config/systemd/user/default.target.wants/collie-tailscale-serve.service"
+        run ${lib.getExe' pkgs.systemd "systemctl"} --user daemon-reload || true
+      ''}
 
       plugins="$(${
         lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluate Collie removal without building or switching either Linux host."""
+"""Evaluate Collie removal without building or switching any host."""
 import json
 import pathlib
 import subprocess
@@ -27,8 +27,13 @@ class CollieRemoval(unittest.TestCase):
           in {
             pi = inspect f.nixosConfigurations.nixos "pi";
             lenovo = inspect f.nixosConfigurations.amd64-lenovo-legion-y720 "matif";
-            macLinksCollie = builtins.hasAttr "linkHerdrCollie"
-              f.darwinConfigurations.macbook.config.home-manager.users.matif.home.activation;
+            mac = let h = f.darwinConfigurations.macbook.config.home-manager.users.matif; in {
+              services = builtins.attrNames h.launchd.agents;
+              secrets = [ ];
+              tmpfiles = [ ];
+              activation = builtins.attrNames h.home.activation;
+              cleanup = h.home.activation.removeHerdrCollie.data;
+            };
             wslLinksCollie = builtins.hasAttr "linkHerdrCollie"
               f.nixosConfigurations.wsl2.config.home-manager.users.matif.home.activation;
           }
@@ -37,9 +42,10 @@ class CollieRemoval(unittest.TestCase):
             ["nix", "eval", "--impure", "--json", "--expr", expression],
             cwd=REPO, text=True, timeout=180,
         ))
-        self.assertTrue(result["macLinksCollie"])
         self.assertTrue(result["wslLinksCollie"])
-        for host in ("pi", "lenovo"):
+        self.assertNotIn("systemctl", result["mac"]["cleanup"])
+        self.assertNotIn("/systemd/", result["mac"]["cleanup"])
+        for host in ("pi", "lenovo", "mac"):
             with self.subTest(host=host):
                 config = result[host]
                 for key in ("services", "secrets", "tmpfiles"):
