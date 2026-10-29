@@ -14,26 +14,6 @@
   # Let tools such as uv run upstream, dynamically linked Python builds.
   programs.nix-ld.enable = true;
 
-  # Collie's VAPID private key is encrypted in the repository. sops-nix
-  # decrypts its dotenv file for the Collie user service at activation time.
-  sops = {
-    defaultSopsFile = ../../secrets/collie.yaml;
-    age = {
-      keyFile = "/var/lib/sops-nix/key.txt";
-      sshKeyPaths = [ ];
-    };
-    secrets."collie-env" = {
-      owner = "pi";
-      group = "users";
-      mode = "0400";
-    };
-  };
-
-  systemd.tmpfiles.rules = [
-    "d /home/pi/.config/herdr/plugins/config/herdr.collie 0700 pi users -"
-    "L+ /home/pi/.config/herdr/plugins/config/herdr.collie/.env - - - - /run/secrets/collie-env"
-  ];
-
   # Use the extlinux boot loader. (NixOS wants to enable GRUB by default)
   boot.loader.grub.enable = false;
   # Enables the generation of /boot/extlinux/extlinux.conf
@@ -95,7 +75,7 @@
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.pi = {
     isNormalUser = true;
-    # Start Collie's user services at boot, including before the first login.
+    # Keep remote user services available independently of logins.
     linger = true;
     description = "Pi user";
     # Allow sudo and access to networking, graphics, and audio devices.

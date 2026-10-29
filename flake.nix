@@ -111,6 +111,7 @@
       amd64Username = "matif";
 
       homeSpecialArgs = {
+        enableCollie = true;
         enableCollieService = false;
         inherit
           herdr
@@ -200,7 +201,7 @@
             home-manager.useUserPackages = true;
             home-manager.users.pi = import ./hosts/raspberry-pi/home.nix;
             home-manager.extraSpecialArgs = homeSpecialArgs // {
-              enableCollieService = true;
+              enableCollie = false;
             };
           }
         ];
@@ -223,7 +224,7 @@
             home-manager.users.${amd64Username} = import ./hosts/amd64-lenovo-legion-y720/home.nix;
             home-manager.extraSpecialArgs = homeSpecialArgs // {
               username = amd64Username;
-              enableCollieService = true;
+              enableCollie = false;
             };
           }
         ];
