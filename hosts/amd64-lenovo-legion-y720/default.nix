@@ -36,6 +36,7 @@ in
     ../../modules/system/hyprland-upstream.nix
     ./disko.nix
     ./hardware.nix
+    ./coding-agents.nix
   ];
 
   networking = {
