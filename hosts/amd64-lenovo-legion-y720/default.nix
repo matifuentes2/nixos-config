@@ -52,6 +52,12 @@ in
   # Let tools such as uv run upstream dynamically linked binaries.
   programs.nix-ld.enable = true;
 
+  # Provide encrypted Secret Service storage for T3 Code/Electron. The pinned
+  # SDDM PAM stack includes login, whose keyring rules this service also enables.
+  # A password-based SDDM login unlocks the keyring; autologin cannot do so.
+  services.gnome.gnome-keyring.enable = true;
+  security.pam.services.sddm.enableGnomeKeyring = true;
+
   # Keep Steam and Lutris out of the default desktop. Opt in from a running system with:
   # sudo /run/current-system/specialisation/steam/bin/switch-to-configuration switch
   # The Steam specialisation is also available from the systemd-boot menu. Steam,

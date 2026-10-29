@@ -25,6 +25,7 @@
     pkgs.webcord
     pkgs.nwg-displays
     pkgs.rofi
+    pkgs.seahorse # Initialize/manage the password-protected login keyring.
     (pkgs.callPackage ../../packages/t3-code.nix { })
     pkgs.tree
     pkgs.wlinhibit
