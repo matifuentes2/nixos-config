@@ -175,9 +175,19 @@ in
       ${lib.optionalString pkgs.stdenv.isLinux ''
         run ${lib.getExe' pkgs.systemd "systemctl"} --user stop collie-tailscale-serve.service || true
       ''}
-      run ${lib.getExe pkgs.bash} ${herdr-collie}/scripts/collie-ctl.sh uninstall
+      run ${lib.getExe pkgs.bash} ${herdr-collie}/scripts/collie-ctl.sh stop
+      # A replaced or unavailable Serve handler must not block local removal.
+      # Preserve the ownership record for inspection/retry; never force removal.
+      if ! run ${lib.getExe pkgs.bash} ${herdr-collie}/scripts/collie-ctl.sh unserve; then
+        echo "Warning: preserved Tailscale Serve configuration and Collie's ownership record; continuing local Collie removal." >&2
+      fi
+      run rm -f "$HERDR_PLUGIN_CONFIG_DIR/collie.pid"
+      ${lib.optionalString pkgs.stdenv.isDarwin ''
+        run rm -f "$HOME/Library/LaunchAgents/herdr.collie.plist"
+      ''}
       ${lib.optionalString pkgs.stdenv.isLinux ''
-        run rm -f "$HOME/.config/systemd/user/collie-tailscale-serve.service" \
+        run rm -f "$HOME/.config/systemd/user/collie.service" \
+          "$HOME/.config/systemd/user/collie-tailscale-serve.service" \
           "$HOME/.config/systemd/user/default.target.wants/collie.service" \
           "$HOME/.config/systemd/user/default.target.wants/collie-tailscale-serve.service"
         run ${lib.getExe' pkgs.systemd "systemctl"} --user daemon-reload || true
