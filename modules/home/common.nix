@@ -193,14 +193,10 @@ in
         run ${lib.getExe' pkgs.systemd "systemctl"} --user daemon-reload || true
       ''}
 
-      plugins="$(${
-        lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
-      } plugin list --json --plugin herdr.collie)"
-      if ${lib.getExe pkgs.jq} -e '.result.plugins | length > 0' <<< "$plugins" >/dev/null; then
-        run ${
-          lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
-        } plugin unlink herdr.collie
-      fi
+      # Herdr's pinned CLI supports offline list/link, but not offline unlink.
+      run ${lib.getExe pkgs.python3} ${./remove-collie-plugin.py} \
+        ${lib.escapeShellArg "${config.xdg.configHome}/herdr"} \
+        ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default}
       if [[ -L "$HERDR_PLUGIN_CONFIG_DIR/.env" && "$(readlink "$HERDR_PLUGIN_CONFIG_DIR/.env")" == /run/secrets/collie-env ]]; then
         run rm "$HERDR_PLUGIN_CONFIG_DIR/.env"
       fi

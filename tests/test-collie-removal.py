@@ -5,6 +5,7 @@ import os
 import pathlib
 import re
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -57,7 +58,7 @@ class CollieRemoval(unittest.TestCase):
                 self.assertIn("removeHerdrCollie", config["activation"])
                 self.assertIn("collie-ctl.sh stop", config["cleanup"])
                 self.assertIn("collie-ctl.sh unserve", config["cleanup"])
-                self.assertIn("plugin unlink herdr.collie", config["cleanup"])
+                self.assertIn("remove-collie-plugin.py", config["cleanup"])
                 subprocess.run(["bash", "-n"], input=config["cleanup"], text=True, check=True)
                 self.check_replaced_mapping(config["cleanup"], host)
 
@@ -66,15 +67,6 @@ class CollieRemoval(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="collie-removal-test-") as temporary:
             root = pathlib.Path(temporary)
             log = root / "actions"
-            # Only these two tools are called outside Home Manager's run helper.
-            for name, body in {
-                "herdr": "printf '%s\\n' '{\"result\":{\"plugins\":[{}]}}'",
-                "jq": "exit 0",
-            }.items():
-                tool = root / name
-                tool.write_text("#!/bin/sh\n" + body + "\n")
-                tool.chmod(0o755)
-                cleanup = re.sub(r"/nix/store/[^/\s]+/bin/" + name, str(tool), cleanup)
             cleanup = re.sub(
                 r"export HERDR_PLUGIN_CONFIG_DIR=.*",
                 "export HERDR_PLUGIN_CONFIG_DIR=" + str(root / "config"), cleanup,
@@ -96,12 +88,56 @@ class CollieRemoval(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertIn("preserved Tailscale Serve", completed.stderr)
             actions = log.read_text()
-            self.assertIn("plugin unlink herdr.collie", actions)
+            self.assertIn("remove-collie-plugin.py", actions)
             if host == "mac":
                 self.assertIn("Library/LaunchAgents/herdr.collie.plist", actions)
             else:
                 self.assertIn("systemd/user/collie.service", actions)
             self.assertNotIn("serve reset", actions)
+
+
+class OfflineCollieRemoval(unittest.TestCase):
+    def test_offline_registry_migration(self):
+        with tempfile.TemporaryDirectory(prefix="collie-offline-test-") as temporary:
+            root = pathlib.Path(temporary)
+            herdr = root / "herdr"
+            herdr.write_text(
+                "#!/bin/sh\n"
+                "echo '{\"error\":{\"code\":\"server_not_running\"}}'\nexit 1\n"
+            )
+            herdr.chmod(0o755)
+            helper = REPO / "modules/home/remove-collie-plugin.py"
+            command = [sys.executable, str(helper), str(root), str(herdr)]
+            registry = root / "plugins.json"
+            # Missing registries are an idempotent no-op.
+            subprocess.run(command, check=True, capture_output=True)
+            self.assertFalse(registry.exists())
+            target = root / "registry-target.json"
+            registry.symlink_to(target.name)
+            other = {"plugin_id": "worktrunk", "enabled": True, "custom": ["preserve"]}
+            target.write_text(json.dumps([other, {"plugin_id": "herdr.collie"}]))
+            target.chmod(0o600)
+            subprocess.run(command, check=True, capture_output=True)
+            self.assertTrue(registry.is_symlink())
+            self.assertEqual(json.loads(target.read_text()), [other])
+            self.assertEqual(target.stat().st_mode & 0o777, 0o600)
+            unchanged = target.stat().st_mtime_ns
+            subprocess.run(command, check=True, capture_output=True)
+            self.assertEqual(target.stat().st_mtime_ns, unchanged)
+            # Malformed data must fail without overwriting anything.
+            target.write_text('{"unknown_schema": true}')
+            self.assertNotEqual(subprocess.run(command, capture_output=True).returncode, 0)
+            self.assertEqual(target.read_text(), '{"unknown_schema": true}')
+            # Other server errors must not silently trigger an offline mutation.
+            herdr.write_text("#!/bin/sh\necho '{\"error\":{\"code\":\"permission_denied\"}}'\nexit 1\n")
+            original = json.dumps([other, {"plugin_id": "herdr.collie"}])
+            target.write_text(original)
+            self.assertNotEqual(subprocess.run(command, capture_output=True).returncode, 0)
+            self.assertEqual(target.read_text(), original)
+            # With a live server, trust its unlink result; do not edit its registry.
+            herdr.write_text("#!/bin/sh\necho '{\"result\":{\"removed\":true}}'\nexit 0\n")
+            subprocess.run(command, check=True, capture_output=True)
+            self.assertEqual(target.read_text(), original)
 
 
 if __name__ == "__main__":
