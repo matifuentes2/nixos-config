@@ -442,6 +442,18 @@ in
     '';
   };
 
+  # Starship cannot track Bash vi mode; Readline redraws this on mode changes.
+  programs.readline = {
+    enable = true;
+    extraConfig = ''
+      $if Bash
+        set show-mode-in-prompt on
+        set vi-ins-mode-string "I "
+        set vi-cmd-mode-string "N "
+      $endif
+    '';
+  };
+
   # Ported from https://github.com/matifuentes2/dotfiles.
   programs.starship = {
     enable = true;
@@ -523,7 +535,13 @@ in
         format = "[[  $time ](fg:#a0a9cb bg:#1d2230)]($style)";
       };
 
-      character.vicmd_symbol = if pkgs.stdenv.isDarwin then " >" else "N >";
+      character = {
+        vicmd_symbol = "[N](bold green)";
+      }
+      // lib.optionalAttrs pkgs.stdenv.isDarwin {
+        success_symbol = "[I](bold green)";
+        error_symbol = "[I](bold red)";
+      };
     };
   };
 
