@@ -1,21 +1,30 @@
 { lib, pkgs }:
 
 let
-  version = "0.165.0";
+  version = "0.166.0";
   sources = {
+    aarch64-linux = {
+      target = "aarch64-unknown-linux-musl";
+      hash = "sha256-eCG3fdouYoP7H2PzFlF3onHaiDPoV89nPGyhyds7/MY=";
+    };
+    x86_64-linux = {
+      target = "x86_64-unknown-linux-musl";
+      hash = "sha256-HUSyi8SsmTfX01MiZLqmilB842SVag1Ou4VvMxze4lQ=";
+    };
     aarch64-darwin = {
       target = "aarch64-apple-darwin";
-      hash = "sha256-NNEjhNkPjgmwuauqvyoKwCpSCTsTFQSuryghB/VKRLI=";
+      hash = "sha256-VaRAy1eflwq+fHmrGB5UsOpMQZvpnzM7vYaO66ycIfA=";
     };
     x86_64-darwin = {
       target = "x86_64-apple-darwin";
-      hash = "sha256-eS7KsFlgBr2fKGQwsnkKpIf9QPyi81HKMTrYWZFyAiY=";
+      hash = "sha256-HLZWkCML5ZgsZUuiZV46O1lNzpxVt4Dni/3+/4Kdetk=";
     };
   };
   source = sources.${pkgs.stdenv.hostPlatform.system};
 in
 # Pin the complete upstream package rather than nixpkgs' older Codex release.
-# Preserve its layout and signed binaries, including bundled helper resources.
+# Preserve its layout and signed Darwin binaries, including helper resources.
+# Linux uses the statically linked musl release to avoid an FHS loader dependency.
 pkgs.stdenvNoCC.mkDerivation {
   pname = "codex";
   inherit version;
@@ -26,10 +35,19 @@ pkgs.stdenvNoCC.mkDerivation {
   sourceRoot = ".";
   dontBuild = true;
   dontFixup = true;
+  nativeBuildInputs = lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.makeWrapper ];
   installPhase = ''
     runHook preInstall
     mkdir -p "$out"
     cp -R bin codex-package.json codex-path codex-resources "$out/"
+    ${lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
+      wrapProgram "$out/bin/codex" --prefix PATH : ${
+        lib.makeBinPath [
+          pkgs.ripgrep
+          pkgs.bubblewrap
+        ]
+      }
+    ''}
     runHook postInstall
   '';
   meta = {
@@ -38,6 +56,8 @@ pkgs.stdenvNoCC.mkDerivation {
     license = lib.licenses.asl20;
     mainProgram = "codex";
     platforms = [
+      "aarch64-linux"
+      "x86_64-linux"
       "aarch64-darwin"
       "x86_64-darwin"
     ];

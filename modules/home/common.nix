@@ -96,12 +96,8 @@ in
     jq
     fzf
     lazygit
-    (
-      if stdenv.hostPlatform.isDarwin then
-        import ../../packages/codex-darwin.nix { inherit lib pkgs; }
-      else
-        codex
-    )
+    claude-code
+    (import ../../packages/codex.nix { inherit lib pkgs; })
     bun
     uv
     devenv
@@ -114,7 +110,7 @@ in
     mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
 
-  # Include user-local executables such as the Claude Code native installer.
+  # Include user-local executables alongside declaratively installed packages.
   home.sessionPath = [ "$HOME/.local/bin" ];
 
   home.sessionVariables = {
@@ -229,6 +225,15 @@ in
       command = "worktrunk.remove"
       description = "Worktree: remove"
     '';
+  };
+
+  # Start Claude Code without permission prompts; only use in trusted environments.
+  home.file.".claude/settings.json" = {
+    force = true;
+    text = builtins.toJSON {
+      theme = "dark";
+      permissions.defaultMode = "bypassPermissions";
+    };
   };
 
   # Pi loads a cheap registration manifest pointing to independently built
