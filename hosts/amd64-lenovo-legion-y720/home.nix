@@ -18,11 +18,15 @@
   # Keep this at the version used when Home Manager was first configured.
   home.stateVersion = "26.11";
 
+  # Codex is already provided by modules/home/common.nix.
   home.packages = [
+    pkgs.claude-code
     pkgs.awww
     pkgs.webcord
     pkgs.nwg-displays
     pkgs.rofi
+    pkgs.seahorse # Initialize/manage the password-protected login keyring.
+    (pkgs.callPackage ../../packages/t3-code.nix { })
     pkgs.tree
     pkgs.wlinhibit
   ];

@@ -12,6 +12,7 @@
   pi-pr-review-goal,
   pi-parallel-go-pr-herdr,
   pi-execution-time,
+  enableCollie ? true,
   enableCollieService ? false,
   ...
 }:
@@ -128,23 +129,76 @@ in
 
   # Link the pinned plugin with its web UI already built in the Nix store. This
   # avoids runtime package installation and keeps activation network-independent.
-  home.activation.linkHerdrCollie = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
-      plugin link ${colliePlugin} --enabled
+  home.activation.linkHerdrCollie = lib.mkIf enableCollie (
+    lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
+        plugin link ${colliePlugin} --enabled
 
-    ${lib.optionalString pkgs.stdenv.isDarwin ''
-      # launchd remains managed by Collie's supported control script on macOS.
-      # Linux uses the declarative Home Manager units below instead.
-      if [[ -S "$HOME/.config/herdr/herdr.sock" ]]; then
-        if ! run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
-          plugin action invoke restart --plugin herdr.collie; then
-          echo "Could not restart the live Collie bridge; the plugin remains linked"
+      ${lib.optionalString pkgs.stdenv.isDarwin ''
+        # launchd remains managed by Collie's supported control script on macOS.
+        # Linux uses the declarative Home Manager units below instead.
+        if [[ -S "$HOME/.config/herdr/herdr.sock" ]]; then
+          if ! run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
+            plugin action invoke restart --plugin herdr.collie; then
+            echo "Could not restart the live Collie bridge; the plugin remains linked"
+          fi
+        else
+          echo "Herdr is not running; skipping the Collie bridge restart"
         fi
-      else
-        echo "Herdr is not running; skipping the Collie bridge restart"
+      ''}
+    ''
+  );
+
+  # Remove prior mutable registrations and services when this host opts out.
+  # Keep user data, and let Collie's ownership-aware teardown remove only its
+  # own Tailscale mapping (never reset unrelated Serve configuration).
+  home.activation.removeHerdrCollie = lib.mkIf (!enableCollie) (
+    lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+      export HERDR_PLUGIN_CONFIG_DIR=${lib.escapeShellArg collieConfigDir}
+      export PATH=${
+        lib.makeBinPath (
+          [
+            pkgs.bun
+            pkgs.coreutils
+            pkgs.gnugrep
+            pkgs.gnused
+            pkgs.procps
+            pkgs.tailscale
+          ]
+          ++ lib.optionals pkgs.stdenv.isLinux [ pkgs.systemd ]
+        )
+      }:$PATH
+      ${lib.optionalString pkgs.stdenv.isLinux ''
+        run ${lib.getExe' pkgs.systemd "systemctl"} --user stop collie-tailscale-serve.service || true
+      ''}
+      run ${lib.getExe pkgs.bash} ${herdr-collie}/scripts/collie-ctl.sh stop
+      # A replaced or unavailable Serve handler must not block local removal.
+      # Preserve the ownership record for inspection/retry; never force removal.
+      if ! run ${lib.getExe pkgs.bash} ${herdr-collie}/scripts/collie-ctl.sh unserve; then
+        echo "Warning: preserved Tailscale Serve configuration and Collie's ownership record; continuing local Collie removal." >&2
       fi
-    ''}
-  '';
+      run rm -f "$HERDR_PLUGIN_CONFIG_DIR/collie.pid"
+      ${lib.optionalString pkgs.stdenv.isDarwin ''
+        run rm -f "$HOME/Library/LaunchAgents/herdr.collie.plist"
+      ''}
+      ${lib.optionalString pkgs.stdenv.isLinux ''
+        run rm -f "$HOME/.config/systemd/user/collie.service" \
+          "$HOME/.config/systemd/user/collie-tailscale-serve.service" \
+          "$HOME/.config/systemd/user/default.target.wants/collie.service" \
+          "$HOME/.config/systemd/user/default.target.wants/collie-tailscale-serve.service"
+        run ${lib.getExe' pkgs.systemd "systemctl"} --user daemon-reload || true
+      ''}
+
+      # Herdr's pinned CLI supports offline list/link, but not offline unlink.
+      run ${lib.getExe pkgs.python3} ${./remove-collie-plugin.py} \
+        ${lib.escapeShellArg "${config.xdg.configHome}/herdr"} \
+        ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default}
+      if [[ -L "$HERDR_PLUGIN_CONFIG_DIR/.env" && "$(readlink "$HERDR_PLUGIN_CONFIG_DIR/.env")" == /run/secrets/collie-env ]]; then
+        run rm "$HERDR_PLUGIN_CONFIG_DIR/.env"
+      fi
+      unset HERDR_PLUGIN_CONFIG_DIR
+    ''
+  );
 
   # Replace Collie's generated mutable Linux unit with Home Manager-owned units.
   # The companion oneshot declaratively maintains the tailnet-only HTTPS proxy.
