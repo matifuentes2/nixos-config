@@ -1,6 +1,9 @@
 { lib, pkgs, ... }:
 
 {
+  # Claude Code is proprietary; allow just this package on shared hosts.
+  nixpkgs.config.allowUnfreePredicate = pkg: lib.getName pkg == "claude-code";
+
   nix.settings.experimental-features = [
     "nix-command"
     "flakes"
