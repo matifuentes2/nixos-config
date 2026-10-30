@@ -24,7 +24,7 @@ let
 in
 # Pin the complete upstream package rather than nixpkgs' older Codex release.
 # Preserve its layout and signed Darwin binaries, including helper resources.
-# Linux uses the statically linked musl release to avoid an FHS loader dependency.
+# Linux core binaries are static; patch the bundled dynamic voice runtime.
 pkgs.stdenvNoCC.mkDerivation {
   pname = "codex";
   inherit version;
@@ -34,8 +34,13 @@ pkgs.stdenvNoCC.mkDerivation {
   };
   sourceRoot = ".";
   dontBuild = true;
-  dontFixup = true;
-  nativeBuildInputs = lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.makeWrapper ];
+  dontFixup = pkgs.stdenv.hostPlatform.isDarwin;
+  dontStrip = true;
+  nativeBuildInputs = lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+    pkgs.autoPatchelfHook
+    pkgs.makeWrapper
+  ];
+  buildInputs = lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.alsa-lib ];
   installPhase = ''
     runHook preInstall
     mkdir -p "$out"
@@ -54,6 +59,7 @@ pkgs.stdenvNoCC.mkDerivation {
     description = "OpenAI coding agent (upstream release)";
     homepage = "https://github.com/openai/codex";
     license = lib.licenses.asl20;
+    sourceProvenance = [ lib.sourceTypes.binaryNativeCode ];
     mainProgram = "codex";
     platforms = [
       "aarch64-linux"
