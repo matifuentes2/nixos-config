@@ -60,4 +60,5 @@
   '';
 
   home.shellAliases.rebuild = "sudo nixos-rebuild switch --flake /etc/nixos#amd64-lenovo-legion-y720";
+  home.shellAliases.rebuild-gaming = "sudo nixos-rebuild switch --flake /etc/nixos#amd64-lenovo-legion-y720 --specialisation steam";
 }
