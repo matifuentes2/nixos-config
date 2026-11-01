@@ -26,6 +26,9 @@ appimageTools.wrapType2 {
     sha256 = "a8cd5398b6dae924bcec09ece1781c03cbfd73298675476f26fc1c072d3c629b";
   };
 
+  # The bundled .NET runtime loads ICU dynamically inside the FHS environment.
+  extraPkgs = pkgs: [ pkgs.icu ];
+
   extraInstallCommands = ''
     install -Dm444 ${desktopItem}/share/applications/${pname}.desktop \
       $out/share/applications/${pname}.desktop
