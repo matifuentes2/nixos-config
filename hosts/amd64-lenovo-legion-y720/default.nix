@@ -28,6 +28,18 @@ let
         --add-flags "--force-grab-cursor -f -- $out/bin/.lutris-nvidia"
     '';
   };
+
+  quiverNvidia = pkgs.symlinkJoin {
+    name = "quiver-launcher-nvidia";
+    paths = [ (pkgs.callPackage ../../packages/quiver-launcher.nix { }) ];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      wrapProgram "$out/bin/quiver-launcher" \
+        ${lib.concatStringsSep " \\\n        " (
+          lib.mapAttrsToList (name: value: "--set ${name} ${lib.escapeShellArg value}") nvidiaOffloadEnv
+        )}
+    '';
+  };
 in
 {
   imports = [
@@ -58,10 +70,10 @@ in
   services.gnome.gnome-keyring.enable = true;
   security.pam.services.sddm.enableGnomeKeyring = true;
 
-  # Keep Steam and Lutris out of the default desktop. Opt in from a running system with:
+  # Keep gaming launchers out of the default desktop. Opt in from a running system with:
   # sudo /run/current-system/specialisation/steam/bin/switch-to-configuration switch
   # The Steam specialisation is also available from the systemd-boot menu. Steam,
-  # Lutris, and the games they launch inherit PRIME offload variables for the NVIDIA GPU.
+  # Lutris, Quiver, and their games inherit PRIME offload variables for the NVIDIA GPU.
   specialisation.steam.configuration = {
     programs = {
       gamescope = {
@@ -76,7 +88,10 @@ in
       };
     };
 
-    environment.systemPackages = [ lutrisNvidia ];
+    environment.systemPackages = [
+      lutrisNvidia
+      quiverNvidia
+    ];
   };
 
   # The GTX 1060 Mobile is a Pascal GPU and therefore uses NVIDIA's closed
