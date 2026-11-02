@@ -14,6 +14,7 @@
   home.stateVersion = "26.11";
 
   home.packages = [
+    (pkgs.callPackage ../../packages/t3-code.nix { })
     pkgs.tree
   ];
 

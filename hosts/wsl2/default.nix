@@ -17,6 +17,9 @@
   # Support dynamically linked tools such as the VS Code Remote server.
   programs.nix-ld.enable = true;
 
+  # The T3 Code wrapper uses libsecret for encrypted credential storage.
+  services.gnome.gnome-keyring.enable = true;
+
   # System administration tools belong to the host; user-facing tools are
   # shared through Home Manager.
   environment.systemPackages = with pkgs; [
