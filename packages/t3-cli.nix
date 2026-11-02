@@ -1,0 +1,45 @@
+{
+  lib,
+  stdenvNoCC,
+  fetchurl,
+  makeWrapper,
+}:
+
+# Headless T3 Code server and CLI (`t3`), from the upstream standalone release.
+# The executable embeds its JavaScript payload, so it is installed unmodified:
+# patchelf would corrupt the appended payload. It and its native Node add-ons
+# (node-pty, keyring, ffi) run through nix-ld, which the host must enable.
+stdenvNoCC.mkDerivation rec {
+  pname = "t3-cli";
+  version = "0.1.6";
+
+  src = fetchurl {
+    url = "https://github.com/pingdotgg/t3code/releases/download/v${version}/t3-${version}-linux-x64.tar.gz";
+    # Matches the release's published SHA256SUMS.
+    sha256 = "7cf31da90dee41f524dd5b679ebb6d404637ca5d9dc6fd8bc019511d57bb77e6";
+  };
+
+  nativeBuildInputs = [ makeWrapper ];
+
+  dontConfigure = true;
+  dontBuild = true;
+  # Keep the binary and prebuilt add-ons byte-for-byte as released.
+  dontFixup = true;
+
+  installPhase = ''
+    runHook preInstall
+    mkdir -p $out/libexec/t3 $out/bin
+    cp -r . $out/libexec/t3
+    makeWrapper $out/libexec/t3/t3 $out/bin/t3
+    runHook postInstall
+  '';
+
+  meta = {
+    description = "Headless server and CLI for T3 Code";
+    homepage = "https://github.com/pingdotgg/t3code";
+    license = lib.licenses.mit;
+    mainProgram = "t3";
+    platforms = [ "x86_64-linux" ];
+    sourceProvenance = [ lib.sourceTypes.binaryNativeCode ];
+  };
+}

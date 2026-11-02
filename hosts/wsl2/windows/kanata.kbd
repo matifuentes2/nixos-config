@@ -1,0 +1,79 @@
+;; Kanata keymap for the Windows host underneath WSL2. It ports the tap/hold
+;; rules from hosts/macbook/karabiner/karabiner.json and adds a Space-held
+;; Windows key for the GlazeWM bindings in glazewm.nix.
+;;
+;; Validate with:  kanata --check --cfg kanata.kbd
+;; Use the Windows build: other builds skip Windows-only defcfg options. The
+;; options here follow the Kanata release WinGet installs (1.12.x), not the
+;; docs on its main branch.
+
+(defcfg
+  ;; Pass every key not listed in defsrc through unchanged.
+  process-unmapped-keys yes
+  ;; GlazeWM's own keyboard hook consumes the keys of its bindings (the 1 in
+  ;; Space+1, sent as Win+1), so Windows never sees them pressed. Kanata 1.12
+  ;; then logs "Unexpected keycode is pressed in kanata but not in Windows"
+  ;; and clears that key's state. The check always runs in 1.12 and only
+  ;; clears the consumed key, not the held Space, so the message is expected.
+  ;; The tray build would also raise a system notification for each of those
+  ;; logs. Keep them in the log only.
+  notify-error no
+)
+
+(defsrc
+  esc
+  tab
+  caps
+  spc
+)
+
+(defvar
+  tap-timeout 200
+  hold-timeout 200
+  ;; Space is pressed constantly while typing, so it only turns into a
+  ;; modifier after a longer, deliberate hold.
+  space-hold-timeout 300
+)
+
+(defalias
+  ;; Caps Lock: tap for Escape, hold for Control.
+  ;; Shift+Caps (left) is Page Down; Shift+Caps (right) opens Task View, the
+  ;; Windows counterpart to Mission Control.
+  cap (tap-hold-press $tap-timeout $hold-timeout esc lctl)
+  caps (fork
+    (fork @cap (unshift pgdn) (lsft))
+    (unmod lmet tab)
+    (rsft))
+
+  ;; Escape: tap for Escape, hold for Hyper. Windows reserves
+  ;; Ctrl+Alt+Shift+Win for Office, so Hyper here is Ctrl+Alt+Shift.
+  esc (tap-hold-press $tap-timeout $hold-timeout esc
+    (multi lctl lalt lsft (layer-while-held hyper)))
+
+  ;; Space: tap for Space, hold for the Windows key (GlazeWM's modifier).
+  ;; The hold activates after the timeout, or earlier once another key is
+  ;; pressed and released, so typing rolls (Space released first) stay Space.
+  ;; Releasing a lone Win opens the Start menu, so the hold also taps Ctrl to
+  ;; mark Win as used in a combination (AutoHotkey's classic "menu mask").
+  ;; Not F24: on this machine Win+F24 briefly dims the screen. Not VK 0xE8:
+  ;; Kanata reserves it internally for numpad Enter.
+  spc (tap-hold-release $tap-timeout $space-hold-timeout spc
+    (multi lmet (macro lctl)))
+
+  ;; Hyper+Tab sends Shift+F1, the tmux prefix used on the Mac.
+  hyper-tab (unmod (lctl lalt) f1)
+)
+
+(deflayer base
+  @esc
+  tab
+  @caps
+  @spc
+)
+
+(deflayer hyper
+  _
+  @hyper-tab
+  _
+  _
+)
