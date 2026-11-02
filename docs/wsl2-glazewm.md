@@ -76,10 +76,10 @@ tracked files, not the deployed copies: those are overwritten on each rebuild.
 | `Right Shift+Caps Lock` | Task View (`Win+Tab`) | |
 | `Esc` | `Esc` | Hyper (`Ctrl+Alt+Shift`) |
 | `Hyper+Tab` | `Shift+F1` (tmux prefix) | |
-| `Space` | `Space` | `Win` (after 300 ms, or once another key is pressed and released) |
+| `Space` | `Space` | `Win` (once another key is pressed and released, or after 200 ms; always `Space` within 150 ms of another key) |
 
 Hyper omits `Win` because Windows reserves `Ctrl+Alt+Shift+Win` for Office.
-Holding `Space` alone never opens the Start menu: Kanata also taps `Ctrl` so
+Holding `Space` alone never opens the Start menu: on release, Kanata taps `Ctrl` so
 Windows treats `Win` as part of a shortcut. Kanata's standard build cannot
 remap keys in windows running as administrator unless Kanata itself runs
 elevated.
