@@ -408,6 +408,7 @@ in
   programs.mise = {
     enable = true;
     package = misePackage;
+    globalConfig.settings.all_compile = false;
     enableBashIntegration = true;
     enableZshIntegration = true;
   };
