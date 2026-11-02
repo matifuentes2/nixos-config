@@ -43,25 +43,29 @@ tracked files, not the deployed copies: those are overwritten on each rebuild.
 3. Start GlazeWM from the Start menu. Enable its start-on-login option from the
    tray icon if you decide to keep it.
 
-4. Start Kanata with the deployed keymap, and optionally add it to the Startup
-   folder so it runs at login. The WinGet package ships several builds and no
-   command alias; use the tray build with the default keyboard hook
+4. Add a Startup-folder shortcut that runs Kanata with the deployed keymap at
+   login, and launch it now through that shortcut (no console window). The
+   WinGet package ships several builds and no command alias; use the tray
+   build with the default keyboard hook
    (`kanata_windows_gui_winIOv2_x64.exe`, no Interception driver needed):
 
    ```powershell
    $kanata = (Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\jtroo.kanata_gui_*\kanata_windows_gui_winIOv2_x64.exe").FullName
    $config = "$env:APPDATA\kanata\kanata.kbd"
-   Start-Process $kanata -ArgumentList "--cfg `"$config`""
+   if (-not $kanata) { throw "Kanata not found; install jtroo.kanata_gui first" }
 
-   # Optional: start at login.
+   # Run all of this in one PowerShell window: the shortcut needs $kanata
+   # and $config from the lines above.
    $startup = [Environment]::GetFolderPath('Startup')
    $link = (New-Object -ComObject WScript.Shell).CreateShortcut("$startup\Kanata.lnk")
    $link.TargetPath = $kanata
    $link.Arguments = "--cfg `"$config`""
    $link.Save()
+   Start-Process "$startup\Kanata.lnk"   # same launch as at login, no console
    ```
 
-   After a rebuild changes the keymap, reload it from Kanata's tray icon.
+   To stop autostarting, delete `Kanata.lnk` from the Startup folder. After a
+   rebuild changes the keymap, reload it from Kanata's tray icon.
 
 ## Keyboard remapping
 
