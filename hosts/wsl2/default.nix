@@ -3,6 +3,7 @@
 {
   imports = [
     ../../modules/system/common.nix
+    ../../modules/system/claude-code.nix
   ];
 
   networking.hostName = "wsl2";
