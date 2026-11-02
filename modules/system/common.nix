@@ -4,6 +4,10 @@
   # Claude Code is proprietary; allow just this package on shared hosts.
   nixpkgs.config.allowUnfreePredicate = pkg: lib.getName pkg == "claude-code";
 
+  # Pin every NixOS host to Chile's mainland time zone instead of relying on
+  # imperative timedatectl changes or WSL/hardware defaults.
+  time.timeZone = lib.mkIf pkgs.stdenv.isLinux "America/Santiago";
+
   nix.settings.experimental-features = [
     "nix-command"
     "flakes"
