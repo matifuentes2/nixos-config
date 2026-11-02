@@ -11,8 +11,8 @@
       };
       claude-code = prev.claude-code.override {
         manifest = {
-          version = "2.1.312";
-          platforms.linux-x64.checksum = "4f4178ce41d83e23341ebfbaecdbcf8ea6bf7baea0690025abe49eeec3a5d01d";
+          version = "2.1.316";
+          platforms.linux-x64.checksum = "fd13c70000fec3f2116dfbcbb6121210b4a29328bf0e46210a59dd594a67d824";
         };
       };
     })
