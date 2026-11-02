@@ -53,10 +53,12 @@
   ;; Space: tap for Space, hold for the Windows key (GlazeWM's modifier).
   ;; The hold activates after the timeout, or earlier once another key is
   ;; pressed and released, so typing rolls (Space released first) stay Space.
-  ;; Releasing a lone Win opens the Start menu, so the hold also taps F24, which
-  ;; Windows ignores, to mark Win as used in a combination.
+  ;; Releasing a lone Win opens the Start menu, so the hold also taps Ctrl to
+  ;; mark Win as used in a combination (AutoHotkey's classic "menu mask").
+  ;; Not F24: on this machine Win+F24 briefly dims the screen. Not VK 0xE8:
+  ;; Kanata reserves it internally for numpad Enter.
   spc (tap-hold-release $tap-timeout $space-hold-timeout spc
-    (multi lmet (macro f24)))
+    (multi lmet (macro lctl)))
 
   ;; Hyper+Tab sends Shift+F1, the tmux prefix used on the Mac.
   hyper-tab (unmod (lctl lalt) f1)

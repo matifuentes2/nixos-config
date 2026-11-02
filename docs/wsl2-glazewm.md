@@ -79,10 +79,10 @@ tracked files, not the deployed copies: those are overwritten on each rebuild.
 | `Space` | `Space` | `Win` (after 300 ms, or once another key is pressed and released) |
 
 Hyper omits `Win` because Windows reserves `Ctrl+Alt+Shift+Win` for Office.
-Holding `Space` alone never opens the Start menu: Kanata also taps the unused
-`F24` key so Windows treats `Win` as part of a shortcut. Kanata's standard
-build cannot remap keys in windows running as administrator unless Kanata
-itself runs elevated.
+Holding `Space` alone never opens the Start menu: Kanata also taps `Ctrl` so
+Windows treats `Win` as part of a shortcut. Kanata's standard build cannot
+remap keys in windows running as administrator unless Kanata itself runs
+elevated.
 
 ## GlazeWM key bindings
 
