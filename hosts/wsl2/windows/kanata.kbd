@@ -47,11 +47,13 @@
   esc (tap-hold-press $tap-timeout $hold-timeout esc
     (multi lctl lalt lsft (layer-while-held hyper)))
 
-  ;; Space: tap for Space, hold with another key for the Windows key (GlazeWM's
-  ;; modifier). The Windows key activates only once another key is pressed and
-  ;; released, so typing rolls stay Space, and a lone long hold still types
-  ;; Space instead of opening the Start menu.
-  spc (tap-hold-release-timeout $tap-timeout $space-hold-timeout spc lmet spc)
+  ;; Space: tap for Space, hold for the Windows key (GlazeWM's modifier).
+  ;; The hold activates after the timeout, or earlier once another key is
+  ;; pressed and released, so typing rolls (Space released first) stay Space.
+  ;; Releasing a lone Win opens the Start menu, so the hold also taps F24, which
+  ;; Windows ignores, to mark Win as used in a combination.
+  spc (tap-hold-release $tap-timeout $space-hold-timeout spc
+    (multi lmet (macro f24)))
 
   ;; Hyper+Tab sends Shift+F1, the tmux prefix used on the Mac.
   hyper-tab (unmod (lctl lalt) f1)
