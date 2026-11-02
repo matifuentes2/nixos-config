@@ -44,10 +44,12 @@ tracked files, not the deployed copies: those are overwritten on each rebuild.
    tray icon if you decide to keep it.
 
 4. Start Kanata with the deployed keymap, and optionally add it to the Startup
-   folder so it runs at login:
+   folder so it runs at login. The WinGet package ships several builds and no
+   command alias; use the tray build with the default keyboard hook
+   (`kanata_windows_gui_winIOv2_x64.exe`, no Interception driver needed):
 
    ```powershell
-   $kanata = "$env:LOCALAPPDATA\Microsoft\WinGet\Links\kanata_gui.exe"
+   $kanata = (Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\jtroo.kanata_gui_*\kanata_windows_gui_winIOv2_x64.exe").FullName
    $config = "$env:APPDATA\kanata\kanata.kbd"
    Start-Process $kanata -ArgumentList "--cfg `"$config`""
 
