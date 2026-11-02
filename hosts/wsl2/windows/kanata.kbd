@@ -7,6 +7,11 @@
 (defcfg
   ;; Pass every key not listed in defsrc through unchanged.
   process-unmapped-keys yes
+  ;; GlazeWM's own keyboard hook consumes the keys of its bindings (for
+  ;; example the 1 in Win+1), so Windows never sees them pressed. The default
+  ;; sync then logs "pressed in kanata but not in Windows" and clears Kanata's
+  ;; state mid-chord, dropping the held Space-as-Win. Disable that sync.
+  windows-sync-keystates none
 )
 
 (defsrc
