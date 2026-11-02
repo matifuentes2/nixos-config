@@ -30,9 +30,20 @@
 (defvar
   tap-timeout 200
   hold-timeout 200
-  ;; Space is pressed constantly while typing, so it only turns into a
-  ;; modifier after a longer, deliberate hold.
-  space-hold-timeout 300
+  ;; Space is pressed constantly while typing. A Space pressed within
+  ;; space-prior-idle of another key resolves as Space at once, which keeps
+  ;; the short hold timeout from turning typing pauses into Win.
+  space-hold-timeout 200
+  space-prior-idle 150
+)
+
+(defvirtualkeys
+  ;; Win for a Space held past its timeout (see the spc alias).
+  space-win lmet
+  ;; Tap Ctrl, then release Win. Not F24 as the mask: on this machine Win+F24
+  ;; briefly dims the screen. Not VK 0xE8: Kanata reserves it internally for
+  ;; numpad Enter.
+  space-win-release (macro lctl (on-press release-vkey space-win))
 )
 
 (defalias
@@ -51,14 +62,20 @@
     (multi lctl lalt lsft (layer-while-held hyper)))
 
   ;; Space: tap for Space, hold for the Windows key (GlazeWM's modifier).
-  ;; The hold activates after the timeout, or earlier once another key is
-  ;; pressed and released, so typing rolls (Space released first) stay Space.
-  ;; Releasing a lone Win opens the Start menu, so the hold also taps Ctrl to
-  ;; mark Win as used in a combination (AutoHotkey's classic "menu mask").
-  ;; Not F24: on this machine Win+F24 briefly dims the screen. Not VK 0xE8:
-  ;; Kanata reserves it internally for numpad Enter.
-  spc (tap-hold-release $tap-timeout $space-hold-timeout spc
-    (multi lmet (macro lctl)))
+  ;; The hold activates once another key is pressed and released, so typing
+  ;; rolls (Space released first) stay Space. That hold is plain Win: the
+  ;; other key already keeps Win from opening the Start menu on release.
+  ;; Held past the timeout instead, Space presses Win through a virtual key,
+  ;; and releasing Space taps Ctrl before releasing Win so a lone Win does not
+  ;; open the Start menu (AutoHotkey's classic "menu mask"). The mask must
+  ;; wait for the release: Kanata replays queued keys one per tick, so a Ctrl
+  ;; tap sent when the hold activates overlaps the replayed key and turns
+  ;; Win+Q into Win+Ctrl+Q.
+  spc (tap-hold-release-timeout $tap-timeout $space-hold-timeout spc lmet
+    (multi
+      (on-press press-vkey space-win)
+      (on-release tap-vkey space-win-release))
+    (require-prior-idle $space-prior-idle))
 
   ;; Hyper+Tab sends Shift+F1, the tmux prefix used on the Mac.
   hyper-tab (unmod (lctl lalt) f1)
