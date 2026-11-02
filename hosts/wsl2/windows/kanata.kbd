@@ -2,7 +2,10 @@
 ;; rules from hosts/macbook/karabiner/karabiner.json and adds a Space-held
 ;; Windows key for the GlazeWM bindings in glazewm.nix.
 ;;
-;; Validate on any machine with:  kanata --check --cfg kanata.kbd
+;; Validate with:  kanata --check --cfg kanata.kbd
+;; Use the Windows build: other builds skip Windows-only defcfg options. The
+;; options here follow the Kanata release WinGet installs (1.12.x), not the
+;; docs on its main branch.
 
 (defcfg
   ;; Pass every key not listed in defsrc through unchanged.
@@ -11,7 +14,7 @@
   ;; example the 1 in Win+1), so Windows never sees them pressed. The default
   ;; sync then logs "pressed in kanata but not in Windows" and clears Kanata's
   ;; state mid-chord, dropping the held Space-as-Win. Disable that sync.
-  windows-sync-keystates none
+  windows-sync-keystates no
 )
 
 (defsrc
