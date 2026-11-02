@@ -133,6 +133,21 @@ home-manager --version
 NixOS-WSL permits the default wheel user to use `sudo` without a password unless
 the configuration is changed to require one.
 
+## 5. Optional: tiling and key remapping on Windows
+
+The activation above has already written a Hyprland-style GlazeWM
+configuration and a Kanata keymap into the Windows profile. To use them,
+install GlazeWM, Zebar, Kanata, and the native T3 Code app from PowerShell on
+Windows with the tracked WinGet configuration:
+
+```powershell
+winget configure -f \\wsl$\NixOS\home\matif\nixos-config\hosts\wsl2\windows\configuration.winget
+```
+
+See [`wsl2-glazewm.md`](./wsl2-glazewm.md) for key bindings, Kanata startup, and
+limitations, and [`t3-code-wsl2.md`](./t3-code-wsl2.md) to pair the T3 Code app
+with the WSL2 server.
+
 ## Subsequent updates
 
 Pull reviewed changes, perform a non-switching build, and then activate them:

@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=https://aka.ms/configuration-dsc-schema/0.2
+#
+# Windows-side applications for the WSL2 host. Nix cannot install Windows
+# software, so apply this from PowerShell (see docs/wsl2-glazewm.md):
+#
+#   winget configure -f \\wsl$\NixOS\home\<user>\nixos-config\hosts\wsl2\windows\configuration.winget
+#
+# The GlazeWM (hosts/wsl2/windows/glazewm.nix) and Kanata (kanata.kbd)
+# configurations are copied into the Windows profile on every WSL2 Home
+# Manager activation.
+properties:
+  configurationVersion: 0.2.0
+  resources:
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: glazewm
+      directives:
+        description: Install the GlazeWM tiling window manager
+        allowPrerelease: false
+      settings:
+        id: glzr-io.glazewm
+        source: winget
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: zebar
+      directives:
+        description: Install the Zebar status bar launched by GlazeWM
+        allowPrerelease: false
+      settings:
+        id: glzr-io.zebar
+        source: winget
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: kanata
+      directives:
+        description: Install the Kanata keyboard remapper (tray build)
+        allowPrerelease: false
+      settings:
+        id: jtroo.kanata_gui
+        source: winget
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: t3code
+      directives:
+        description: Install the native T3 Code app, the UI for the WSL2 t3 server
+        allowPrerelease: false
+      settings:
+        id: T3Tools.T3Code
+        source: winget

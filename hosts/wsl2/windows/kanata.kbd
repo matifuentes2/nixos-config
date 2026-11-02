@@ -1,0 +1,64 @@
+;; Kanata keymap for the Windows host underneath WSL2. It ports the tap/hold
+;; rules from hosts/macbook/karabiner/karabiner.json and adds a Space-held
+;; Windows key for the GlazeWM bindings in glazewm.nix.
+;;
+;; Validate on any machine with:  kanata --check --cfg kanata.kbd
+
+(defcfg
+  ;; Pass every key not listed in defsrc through unchanged.
+  process-unmapped-keys yes
+)
+
+(defsrc
+  esc
+  tab
+  caps
+  spc
+)
+
+(defvar
+  tap-timeout 200
+  hold-timeout 200
+  ;; Space is pressed constantly while typing, so it only turns into a
+  ;; modifier after a longer, deliberate hold.
+  space-hold-timeout 300
+)
+
+(defalias
+  ;; Caps Lock: tap for Escape, hold for Control.
+  ;; Shift+Caps (left) is Page Down; Shift+Caps (right) opens Task View, the
+  ;; Windows counterpart to Mission Control.
+  cap (tap-hold-press $tap-timeout $hold-timeout esc lctl)
+  caps (fork
+    (fork @cap (unshift pgdn) (lsft))
+    (unmod lmet tab)
+    (rsft))
+
+  ;; Escape: tap for Escape, hold for Hyper. Windows reserves
+  ;; Ctrl+Alt+Shift+Win for Office, so Hyper here is Ctrl+Alt+Shift.
+  esc (tap-hold-press $tap-timeout $hold-timeout esc
+    (multi lctl lalt lsft (layer-while-held hyper)))
+
+  ;; Space: tap for Space, hold with another key for the Windows key (GlazeWM's
+  ;; modifier). The Windows key activates only once another key is pressed and
+  ;; released, so typing rolls stay Space, and a lone long hold still types
+  ;; Space instead of opening the Start menu.
+  spc (tap-hold-release-timeout $tap-timeout $space-hold-timeout spc lmet spc)
+
+  ;; Hyper+Tab sends Shift+F1, the tmux prefix used on the Mac.
+  hyper-tab (unmod (lctl lalt) f1)
+)
+
+(deflayer base
+  @esc
+  tab
+  @caps
+  @spc
+)
+
+(deflayer hyper
+  _
+  @hyper-tab
+  _
+  _
+)
