@@ -15,6 +15,9 @@
   ;; then logs "Unexpected keycode is pressed in kanata but not in Windows"
   ;; and clears that key's state. The check always runs in 1.12 and only
   ;; clears the consumed key, not the held Space, so the message is expected.
+  ;; The tray build would also raise a system notification for each of those
+  ;; logs. Keep them in the log only.
+  notify-error no
 )
 
 (defsrc
