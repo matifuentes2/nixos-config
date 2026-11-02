@@ -39,8 +39,7 @@
   # Configure network connections interactively with nmcli or nmtui.
   networking.networkmanager.enable = true;
 
-  # Set your time zone.
-  # time.timeZone = "Europe/Amsterdam";
+  # The time zone is pinned for all NixOS hosts in modules/system/common.nix.
 
   # Configure network proxy if necessary
   # networking.proxy.default = "http://user:password@proxy:port/";
