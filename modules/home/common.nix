@@ -4,7 +4,6 @@
   pkgs,
   nixpkgs-unstable,
   herdr,
-  worktrunk,
   herdr-worktrunk,
   herdr-collie,
   mcp-nixos,
@@ -18,6 +17,8 @@
 }:
 
 let
+  herdrPackage = pkgs.callPackage ../../packages/herdr.nix { };
+  worktrunkPackage = pkgs.callPackage ../../packages/worktrunk.nix { };
   homeTools = import ../../packages/home-tools.nix {
     inherit
       lib
@@ -103,11 +104,11 @@ in
     uv
     devenv
     android-tools
-    worktrunk.packages.${pkgs.stdenv.hostPlatform.system}.default
+    worktrunkPackage
     pi
     chromeDevtoolsMcp
     playwrightMcp
-    herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
+    herdrPackage
     mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
 
@@ -123,7 +124,7 @@ in
   # source on every Home Manager activation. This is idempotent and avoids a
   # network-backed `herdr plugin install`.
   home.activation.linkHerdrWorktrunk = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
+    run ${lib.getExe herdrPackage} \
       plugin link ${herdr-worktrunk} --enabled
   '';
 
@@ -131,14 +132,14 @@ in
   # avoids runtime package installation and keeps activation network-independent.
   home.activation.linkHerdrCollie = lib.mkIf enableCollie (
     lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
+      run ${lib.getExe herdrPackage} \
         plugin link ${colliePlugin} --enabled
 
       ${lib.optionalString pkgs.stdenv.isDarwin ''
         # launchd remains managed by Collie's supported control script on macOS.
         # Linux uses the declarative Home Manager units below instead.
         if [[ -S "$HOME/.config/herdr/herdr.sock" ]]; then
-          if ! run ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default} \
+          if ! run ${lib.getExe herdrPackage} \
             plugin action invoke restart --plugin herdr.collie; then
             echo "Could not restart the live Collie bridge; the plugin remains linked"
           fi
@@ -192,7 +193,7 @@ in
       # Herdr's pinned CLI supports offline list/link, but not offline unlink.
       run ${lib.getExe pkgs.python3} ${./remove-collie-plugin.py} \
         ${lib.escapeShellArg "${config.xdg.configHome}/herdr"} \
-        ${lib.getExe herdr.packages.${pkgs.stdenv.hostPlatform.system}.default}
+        ${lib.getExe herdrPackage}
       if [[ -L "$HERDR_PLUGIN_CONFIG_DIR/.env" && "$(readlink "$HERDR_PLUGIN_CONFIG_DIR/.env")" == /run/secrets/collie-env ]]; then
         run rm "$HERDR_PLUGIN_CONFIG_DIR/.env"
       fi

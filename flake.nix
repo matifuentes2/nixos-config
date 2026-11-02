@@ -31,11 +31,8 @@
     };
     herdr = {
       url = "github:herdrdev/herdr/v0.9.1";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    worktrunk = {
-      url = "github:max-sixty/worktrunk/v0.72.0";
-      inputs.nixpkgs.follows = "nixpkgs";
+      # Source assets only; the executable comes from a pinned release binary.
+      flake = false;
     };
     herdr-worktrunk = {
       url = "github:devashish2203/herdr-worktrunk";
@@ -87,7 +84,6 @@
       homebrew-cask,
       homebrew-orca,
       herdr,
-      worktrunk,
       herdr-worktrunk,
       herdr-collie,
       mcp-nixos,
@@ -115,7 +111,6 @@
         enableCollieService = false;
         inherit
           herdr
-          worktrunk
           herdr-worktrunk
           herdr-collie
           mcp-nixos
@@ -167,6 +162,8 @@
         {
           pi-extensions = homeTools.piExtensions;
           bootstrap-git = pkgs.git;
+          herdr = pkgs.callPackage ./packages/herdr.nix { };
+          worktrunk = pkgs.callPackage ./packages/worktrunk.nix { };
           ci-tools = pkgs.buildEnv {
             name = "nixos-config-ci-tools";
             paths = [
