@@ -7,6 +7,9 @@
 
   networking.hostName = "wsl2";
 
+  # T3 Code Desktop is reachable through the Windows-to-WSL port forward.
+  networking.firewall.allowedTCPPorts = [ 3773 ];
+
   # NixOS-WSL supplies the Windows kernel, boot integration, the default user,
   # and Windows executable interoperability.
   wsl = {
