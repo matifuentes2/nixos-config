@@ -8,6 +8,8 @@ in
     ../../hyprland
   ];
 
+  home.file.".XCompose".source = ./XCompose;
+
   home.packages = [
     pkgs.satty
     pkgs.nmgui
