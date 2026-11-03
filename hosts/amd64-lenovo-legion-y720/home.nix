@@ -6,6 +6,10 @@
   ...
 }:
 
+let
+  laptopMonitor = "eDP-1";
+  externalMonitor = "HDMI-A-1";
+in
 {
   imports = [
     ../../modules/home/common.nix
@@ -58,7 +62,23 @@
         require(name)
       end
     end
+
+    -- Pin workspaces 1-5 to the external HDMI display and 7-9 to the laptop panel.
+    -- Without HDMI, Hyprland cannot resolve that rule and opens 1-5 on the laptop.
+    -- Hotplugging moves 1-5 to HDMI and back; unplugging moves everything to eDP-1.
+    for ws = 1, 5 do
+      hl.workspace_rule({ workspace = tostring(ws), monitor = "${externalMonitor}", default = ws == 1 })
+    end
+    for ws = 7, 9 do
+      hl.workspace_rule({ workspace = tostring(ws), monitor = "${laptopMonitor}" })
+    end
   '';
+
+  # Show the pinned 1-5 only on the external bar. The laptop bar lists the
+  # workspaces that exist there, so it never offers buttons for the other screen.
+  programs.waybar.settings.mainBar."hyprland/workspaces".persistent-workspaces = lib.mkForce {
+    ${externalMonitor} = map toString (lib.range 1 5);
+  };
 
   home.shellAliases.rebuild = "sudo nixos-rebuild switch --flake ${config.home.homeDirectory}/dev/nixos-config#amd64-lenovo-legion-y720";
   home.shellAliases.rebuild-gaming = "sudo nixos-rebuild switch --flake ${config.home.homeDirectory}/dev/nixos-config#amd64-lenovo-legion-y720 --specialisation steam";
