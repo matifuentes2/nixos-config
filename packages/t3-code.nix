@@ -8,7 +8,7 @@
 
 let
   pname = "t3-code";
-  version = "0.1.5";
+  version = "0.1.6";
   desktopItem = makeDesktopItem {
     name = pname;
     desktopName = "T3 Code";
@@ -24,7 +24,7 @@ appimageTools.wrapType2 {
 
   src = fetchurl {
     url = "https://github.com/pingdotgg/t3code/releases/download/v${version}/T3-Code-${version}-x86_64.AppImage";
-    sha256 = "933ff9dc4c650a75aa4087c98f2ae6c6540c233f0e2feb32ebff950b09be849d";
+    sha256 = "09e2507208c779309b396be846aea1d945144bd780606899c2f481c96ddf34d0";
   };
 
   nativeBuildInputs = [ makeWrapper ];
