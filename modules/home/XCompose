@@ -1,0 +1,13 @@
+# Keep the standard Compose sequences, then override E + vowel for accents.
+include "%L"
+
+<Multi_key> <e> <a> : "á" U00E1
+<Multi_key> <e> <e> : "é" U00E9
+<Multi_key> <e> <i> : "í" U00ED
+<Multi_key> <e> <o> : "ó" U00F3
+<Multi_key> <e> <u> : "ú" U00FA
+<Multi_key> <e> <A> : "Á" U00C1
+<Multi_key> <e> <E> : "É" U00C9
+<Multi_key> <e> <I> : "Í" U00CD
+<Multi_key> <e> <O> : "Ó" U00D3
+<Multi_key> <e> <U> : "Ú" U00DA

@@ -9,6 +9,8 @@ in
     ./cua-driver.nix
   ];
 
+  home.file.".XCompose".source = ./XCompose;
+
   home.packages = [
     pkgs.satty
     pkgs.nmgui

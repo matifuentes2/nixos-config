@@ -57,11 +57,16 @@ The **Super** modifier is usually the Windows key on a standard keyboard. Press
 
 ## Compose key
 
-Left Alt is the Compose key on the US keyboard layout. Press and release
-Left Alt, then `'`, then a vowel to type á, é, í, ó, or ú. Use a capital vowel
-for Á, É, Í, Ó, or Ú. Left Alt, then `~`, then `n` produces ñ.
+Right Alt is the Compose key on the US keyboard layout. Press and release
+Right Alt, then `e`, then a vowel to type á, é, í, ó, or ú. Use a capital vowel
+for Á, É, Í, Ó, or Ú. Right Alt, then `~`, then `n` produces ñ.
 
-Use Right Alt for shortcuts that require Alt, including the bindings below.
+Home Manager installs the custom `e` + vowel sequences in `~/.XCompose`,
+alongside the standard locale sequences. These override existing Compose
+sequences with the same keys. Restart applications or log out and back in
+after rebuilding so they load the updated Compose table.
+
+Use Left Alt for shortcuts that require Alt, including the bindings below.
 
 ## Applications
 
