@@ -75,6 +75,9 @@ sudo nixos-rebuild switch --flake /etc/nixos#nixos
 Hyprland is configured under [`hyprland/`](./hyprland/) and starts from SDDM.
 See the [Hyprland desktop guide](./docs/hyprland.md) for its keybindings.
 
+Pi has desktop computer use through Cua Driver on the Raspberry Pi, the Lenovo,
+and the Mac; see the [Cua Driver guide](./docs/cua-driver.md).
+
 ## Lenovo Legion Y720
 
 The `amd64-lenovo-legion-y720` output installs the physical x86-64 laptop with

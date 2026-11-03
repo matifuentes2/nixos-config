@@ -6,6 +6,7 @@ in
 {
   imports = [
     ../../hyprland
+    ./cua-driver.nix
   ];
 
   home.file.".XCompose".source = ./XCompose;

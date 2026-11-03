@@ -33,7 +33,9 @@ try {
   const { loadMcpConfig } = await import(pathToFileURL(join(pi, "dist/extensions/mcp/config.js")));
   const loaded = loadMcpConfig({ agentDir: temporary, cwd: temporary, projectTrusted: false });
   assert.deepEqual(loaded.errors, []);
-  assert.deepEqual(loaded.servers.map(server => server.name).sort(), ["chrome-devtools", "nixos", "playwright"]);
+  // Desktop hosts (Linux desktops, macOS) add Cua Driver; WSL2 does not.
+  const names = loaded.servers.map(server => server.name).filter(name => name !== "cua-driver").sort();
+  assert.deepEqual(names, ["chrome-devtools", "nixos", "playwright"]);
   for (const server of Object.values(JSON.parse(readFileSync(mcpPath, "utf8")).mcpServers)) {
     assert(!("lifecycle" in server), "Remove adapter-only lifecycle settings");
   }
@@ -42,7 +44,7 @@ try {
   assert.deepEqual(native.errors, []);
   assert.equal(native.extensions.length, 1);
   assert.equal(readFileSync(settingsPath, "utf8"), settingsText);
-  console.log("Native MCP enabled and loads; no adapter registered; all three server configurations parse without errors.");
+  console.log("Native MCP enabled and loads; no adapter registered; all server configurations parse without errors.");
 } finally {
   rmSync(temporary, { recursive: true, force: true });
 }

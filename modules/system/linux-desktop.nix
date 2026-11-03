@@ -17,6 +17,9 @@
   programs.thunar.enable = true;
   services.gvfs.enable = true;
   services.tumbler.enable = true;
+  # Expose the accessibility (AT-SPI) bus that Cua Driver uses to read and
+  # operate application controls for Pi's computer use.
+  services.gnome.at-spi2-core.enable = true;
   # Let the SwayOSD brightness control reach the backlight.
   services.udev.packages = [ pkgs.swayosd ];
 

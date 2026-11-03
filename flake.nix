@@ -164,6 +164,7 @@
           bootstrap-git = pkgs.git;
           herdr = pkgs.callPackage ./packages/herdr.nix { };
           worktrunk = pkgs.callPackage ./packages/worktrunk.nix { };
+          cua-driver = pkgs.callPackage ./packages/cua-driver.nix { };
           ci-tools = pkgs.buildEnv {
             name = "nixos-config-ci-tools";
             paths = [
