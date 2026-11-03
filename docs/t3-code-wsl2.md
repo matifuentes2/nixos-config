@@ -26,7 +26,9 @@ on the same port with the same `~/.t3` data, and the two must not run at once.
    ```
 
 2. Install the Windows app with the WinGet configuration (see
-   [`wsl2-glazewm.md`](./wsl2-glazewm.md)) or `winget install T3Tools.T3Code`.
+   [`wsl2-glazewm.md`](./wsl2-glazewm.md)). The configuration pins the app
+   version to match `packages/t3-cli.nix`; to upgrade, bump both and reapply
+   the configuration after rebuilding WSL2.
 
 3. Mint a pairing link in WSL and add it to the Windows app under
    **Add environment**. Windows reaches the server through WSL's localhost
