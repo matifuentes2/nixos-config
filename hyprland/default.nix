@@ -303,6 +303,7 @@ in
         hl.config({
           input = {
             kb_layout = "us",
+            kb_file = "${./us-left-alt-compose.xkb}",
             follow_mouse = 1,
             sensitivity = 0,
             repeat_rate = 40,
