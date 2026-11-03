@@ -34,7 +34,7 @@ in
     };
   };
 
-  # Keep Fuzzel for the clipboard, window switcher, and system menus.
+  # Keep Fuzzel for the clipboard and system menus.
   programs.fuzzel = {
     enable = true;
     settings = {

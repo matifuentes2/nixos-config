@@ -7,6 +7,8 @@ let
   launcher = lib.getExe pkgs.fuzzel;
   pavucontrol = lib.getExe pkgs.pavucontrol;
   nmConnectionEditor = lib.getExe' pkgs.networkmanagerapplet "nm-connection-editor";
+  networkManager = lib.getExe pkgs.nmgui;
+  bluetoothManager = lib.getExe pkgs.overskride;
   wpctl = lib.getExe' pkgs.wireplumber "wpctl";
 
   # Omarchy's centre indicators appear only while a non-default mode is on.
@@ -60,6 +62,7 @@ in
         "bluetooth"
         "network"
         "pulseaudio"
+        "custom/easyeffects"
         "cpu"
         "battery"
       ];
@@ -141,12 +144,13 @@ in
       };
 
       bluetooth = {
-        format = "";
+        format = "󰂯";
         format-off = "󰂲";
         format-disabled = "󰂲";
         format-connected = "󰂱";
         format-no-controller = "";
         tooltip-format = "Devices connected: {num_connections}";
+        on-click = bluetoothManager;
       };
 
       network = {
@@ -161,11 +165,12 @@ in
         format-wifi = "{icon}";
         format-ethernet = "󰀂";
         format-disconnected = "󰤮";
-        tooltip-format-wifi = "{essid} ({frequency} GHz)";
-        tooltip-format-ethernet = "Connected";
-        tooltip-format-disconnected = "Disconnected";
+        tooltip-format-wifi = "{essid} · {signalStrength}%\nClick to manage Wi-Fi\nRight-click for connection profiles";
+        tooltip-format-ethernet = "Ethernet connected\nClick to manage Wi-Fi\nRight-click for connection profiles";
+        tooltip-format-disconnected = "Disconnected\nClick to connect to Wi-Fi\nRight-click for connection profiles";
         interval = 3;
-        on-click = nmConnectionEditor;
+        on-click = networkManager;
+        on-click-right = nmConnectionEditor;
       };
 
       pulseaudio = {
@@ -184,6 +189,12 @@ in
         scroll-step = 5;
         on-click = pavucontrol;
         on-click-right = "${wpctl} set-mute @DEFAULT_AUDIO_SINK@ toggle";
+      };
+
+      "custom/easyeffects" = {
+        format = "󰺢"; # Nerd Font waveform.
+        tooltip-format = "Open EasyEffects";
+        on-click = lib.getExe pkgs.easyeffects;
       };
 
       cpu = {
@@ -272,6 +283,7 @@ in
       #cpu,
       #battery,
       #pulseaudio,
+      #custom-easyeffects,
       #custom-nixos {
         min-width: 12px;
         margin: 0 7.5px;

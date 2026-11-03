@@ -10,7 +10,8 @@ let
   grimblast = lib.getExe pkgs.grimblast;
   hyprpicker = lib.getExe pkgs.hyprpicker;
   pavucontrol = lib.getExe pkgs.pavucontrol;
-  nmConnectionEditor = lib.getExe' pkgs.networkmanagerapplet "nm-connection-editor";
+  networkManager = lib.getExe pkgs.nmgui;
+  bluetoothManager = lib.getExe pkgs.overskride;
   swayosdClient = lib.getExe' pkgs.swayosd "swayosd-client";
   playerctl = lib.getExe pkgs.playerctl;
   makoctl = lib.getExe' pkgs.mako "makoctl";
@@ -39,20 +40,8 @@ let
   # use the hyprctl on PATH rather than pinning the nixpkgs build.
   windowSwitcher = pkgs.writeShellApplication {
     name = "hypr-window-switcher";
-    runtimeInputs = [
-      pkgs.fuzzel
-      pkgs.jq
-    ];
     text = ''
-      address="$(
-        hyprctl clients -j \
-          | jq -r '.[] | [.address, .workspace.name, .class, .title] | @tsv' \
-          | fuzzel --dmenu --match-mode=fuzzy --prompt='Window> ' \
-              --with-nth='{2}  {3}: {4}' --accept-nth=1 --only-match
-      )" || exit 0
-
-      [ -n "$address" ] || exit 0
-      exec hyprctl dispatch "hl.dsp.focus({ window = \"address:$address\" })"
+      exec ${launcher} --provider windows --placeholder 'Search open windows…'
     '';
   };
 
@@ -349,7 +338,7 @@ in
 
         -- Small utility windows float centered at a consistent size.
         d.window(
-          "(org.pulseaudio.pavucontrol|nm-connection-editor|.blueman-manager-wrapped|xdg-desktop-portal-gtk|imv|mpv|btop)",
+          "(org.pulseaudio.pavucontrol|com.network.manager|io.github.kaii_lb.Overskride|nm-connection-editor|.blueman-manager-wrapped|xdg-desktop-portal-gtk|imv|mpv|btop)",
           { tag = "+floating-window" }
         )
         d.window({
@@ -378,7 +367,8 @@ in
         d.bind("SUPER + slash", "Show key bindings", "${lib.getExe keybindings}")
         d.bind("SUPER + CTRL + V", "Clipboard history", "${lib.getExe clipboardHistory}")
         d.bind("SUPER + CTRL + A", "Audio controls", "${pavucontrol}")
-        d.bind("SUPER + CTRL + N", "Network connections", "${nmConnectionEditor}")
+        d.bind("SUPER + CTRL + N", "Manage Wi-Fi", "${networkManager}")
+        d.bind("SUPER + CTRL + B", "Manage Bluetooth", "${bluetoothManager}")
         d.bind("SUPER + CTRL + I", "Toggle locking on idle", "${lib.getExe toggleIdle}")
         d.bind("SUPER + CTRL + L", "Lock system", "${loginctl} lock-session")
         d.bind("SUPER + SHIFT + SPACE", "Toggle top bar", "${pkill} -SIGUSR1 waybar")
