@@ -27,13 +27,14 @@ in
       name = font;
       size = 11;
     };
+    # Configure both kitty.conf and Home Manager's shell startup scripts.
+    # Bash otherwise overwrites KITTY_SHELL_INTEGRATION and restores prompt
+    # marks, which split Readline's I/N redraws when editing or resizing panes.
+    shellIntegration.mode = "no-prompt-mark";
     settings = {
       window_padding_width = 14;
       confirm_os_window_close = 0;
       enable_audio_bell = false;
-      # Readline prints I/N before Kitty's prompt marks on every redraw.
-      # Those marks move the cursor to a fresh line, splitting command input.
-      shell_integration = "enabled no-prompt-mark";
     };
   };
 
