@@ -60,11 +60,19 @@ The **Super** modifier is usually the Windows key on a standard keyboard. Press
 | Keybind | Action |
 | --- | --- |
 | `Super+Return` | Open the Kitty terminal |
-| `Super+Space` | Open the Fuzzel application launcher |
+| `Super+Space` | Open the Walker application launcher |
 | `Super+Alt+Space` | Switch to an open window |
 | `Super+Shift+B` | Open Firefox |
 | `Super+Shift+F` | Open the Thunar file manager |
 | `Super+Shift+T` | Open btop |
+
+Walker and its Elephant provider service start with the graphical session.
+Fuzzel still powers the clipboard picker, window switcher, and system menus.
+EasyEffects also starts with the session; open it from Walker to configure
+microphone processing and output effects.
+
+Atuin provides shell history search on `Ctrl+R` in Bash and Zsh across all
+hosts. Arrow-key navigation is preserved, and automatic history sync is disabled.
 
 ## Menus and utilities
 
@@ -144,6 +152,10 @@ silenced.
 | `Shift+Print` | Select an area, copy it, and save it |
 | `Ctrl+Print` | Copy and save the current display |
 | `Super+Print` | Pick a color from the screen |
+| `Super+Shift+Print` | Select an area and annotate it in Satty |
+
+In Satty, copy the annotated image to the clipboard before closing the editor.
+The temporary source screenshot is removed when the editor exits.
 
 ## Media keys
 

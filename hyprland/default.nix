@@ -4,7 +4,7 @@ let
   palette = import ./palette.nix;
 
   terminal = lib.getExe pkgs.kitty;
-  launcher = lib.getExe pkgs.fuzzel;
+  launcher = lib.getExe pkgs.walker;
   fileManager = lib.getExe pkgs.thunar;
   lock = lib.getExe pkgs.hyprlock;
   grimblast = lib.getExe pkgs.grimblast;
@@ -16,6 +16,24 @@ let
   makoctl = lib.getExe' pkgs.mako "makoctl";
   loginctl = lib.getExe' pkgs.systemd "loginctl";
   pkill = lib.getExe' pkgs.procps "pkill";
+
+  annotateScreenshot = pkgs.writeShellApplication {
+    name = "hypr-annotate-screenshot";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.grimblast
+      pkgs.satty
+      pkgs.wl-clipboard
+    ];
+    text = ''
+      screenshot="$(mktemp --suffix=.png)"
+      trap 'rm -f "$screenshot"' EXIT
+      grimblast save area "$screenshot"
+      # Cancelling region selection must not open an empty image.
+      [ -s "$screenshot" ] || exit 0
+      satty --filename "$screenshot" --copy-command wl-copy
+    '';
+  };
 
   # Hyprland's own CLI must match the running compositor, so these scripts
   # use the hyprctl on PATH rather than pinning the nixpkgs build.
@@ -377,6 +395,7 @@ in
         d.bind("SHIFT + PRINT", "Screenshot area to file", "${grimblast} --notify copysave area")
         d.bind("CTRL + PRINT", "Screenshot display to file", "${grimblast} --notify copysave output")
         d.bind("SUPER + PRINT", "Color picker", "${pkill} hyprpicker || ${hyprpicker} -a")
+        d.bind("SUPER + SHIFT + PRINT", "Annotate screenshot", "${lib.getExe annotateScreenshot}")
 
         -- Windows.
         d.bind("SUPER + W", "Close window", hl.dsp.window.close())

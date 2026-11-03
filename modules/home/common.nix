@@ -420,6 +420,15 @@ in
     nix-direnv.enable = true;
   };
 
+  programs.atuin = {
+    enable = true;
+    enableBashIntegration = true;
+    enableZshIntegration = true;
+    # Keep arrow-key navigation and history local by default.
+    flags = [ "--disable-up-arrow" ];
+    settings.auto_sync = false;
+  };
+
   programs.zoxide = {
     enable = true;
     enableBashIntegration = true;
