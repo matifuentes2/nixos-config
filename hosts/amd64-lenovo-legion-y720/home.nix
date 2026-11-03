@@ -62,6 +62,7 @@
 
   home.shellAliases.rebuild = "sudo nixos-rebuild switch --flake ${config.home.homeDirectory}/dev/nixos-config#amd64-lenovo-legion-y720";
   home.shellAliases.rebuild-gaming = "sudo nixos-rebuild switch --flake ${config.home.homeDirectory}/dev/nixos-config#amd64-lenovo-legion-y720 --specialisation steam";
+  home.shellAliases.refresh-apps = "${lib.getExe' pkgs.systemd "systemctl"} --user restart elephant.service";
 
   # Keep the Wayland session awake and suppress logind's lid handling until Ctrl+C.
   home.shellAliases.keep-awake = "${lib.getExe' pkgs.systemd "systemd-inhibit"} --what=sleep:handle-lid-switch --mode=block --who=keep-awake --why='Keep awake until interrupted' ${lib.getExe' pkgs.wlinhibit "wlinhibit"} ${lib.getExe' pkgs.coreutils "sleep"} infinity";
