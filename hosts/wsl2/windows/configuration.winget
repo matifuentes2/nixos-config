@@ -43,3 +43,6 @@ properties:
       settings:
         id: T3Tools.T3Code
         source: winget
+        # Pinned so reapplying this configuration upgrades an existing
+        # install. Keep in step with packages/t3-cli.nix (the WSL2 server).
+        version: 0.1.6
