@@ -31,6 +31,9 @@ in
       window_padding_width = 14;
       confirm_os_window_close = 0;
       enable_audio_bell = false;
+      # Readline prints I/N before Kitty's prompt marks on every redraw.
+      # Those marks move the cursor to a fresh line, splitting command input.
+      shell_integration = "enabled no-prompt-mark";
     };
   };
 
