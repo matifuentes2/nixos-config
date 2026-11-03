@@ -67,7 +67,9 @@ The **Super** modifier is usually the Windows key on a standard keyboard. Press
 | `Super+Shift+T` | Open btop |
 
 Walker and its Elephant provider service start with the graphical session.
-Fuzzel still powers the clipboard picker, window switcher, and system menus.
+Walker and Elephant power the application launcher and fuzzy window switcher,
+including application icons and window titles. Both use the shared Tokyo Night
+theme. Fuzzel still powers the clipboard picker and system menus.
 EasyEffects also starts with the session; open it from Walker to configure
 microphone processing and output effects.
 
@@ -82,11 +84,18 @@ hosts. Arrow-key navigation is preserved, and automatic history sync is disabled
 | `Super+/` | Show the keybindings |
 | `Super+Ctrl+V` | Pick an entry from the clipboard history |
 | `Super+Ctrl+A` | Open the PulseAudio volume control |
-| `Super+Ctrl+N` | Open the NetworkManager connection editor |
+| `Super+Ctrl+N` | Manage Wi-Fi networks with NM GUI |
+| `Super+Ctrl+B` | Manage Bluetooth devices with Overskride |
 | `Super+Ctrl+I` | Toggle locking when idle |
 | `Super+Ctrl+L` | Lock the session |
 | `Super+Shift+Space` | Toggle the top bar |
 | `Super+Shift+E` | Log out immediately without confirmation |
+
+Click the Wi-Fi icon in the top bar to browse networks, connect, disconnect, or
+forget a network in NM GUI. Right-click it to open the advanced NetworkManager
+connection editor (including VPN and enterprise connection profiles).
+Click the Bluetooth icon to scan, pair, connect, or disconnect devices in
+Overskride. Both control windows open floating and centered.
 
 ## Notifications
 
