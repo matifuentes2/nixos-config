@@ -5,6 +5,10 @@
   ...
 }:
 {
+  imports = [
+    ./cua-driver.nix
+  ];
+
   # Chrome's supported per-user external-extension manifest requests the
   # official Web Store extension. Chrome still requires user confirmation;
   # do not bypass it or store an approval-bypass token in the Nix store.

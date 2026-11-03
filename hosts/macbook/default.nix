@@ -9,6 +9,9 @@
   ...
 }:
 
+let
+  cuaDriver = pkgs.callPackage ../../packages/cua-driver.nix { };
+in
 {
   imports = [
     ../../modules/system/common.nix
@@ -91,6 +94,32 @@
       [[ -d "$node_prefix" ]] || continue
       cleanup_legacy_pi_prefix "$node_prefix"
     done
+
+    # Cua Driver (Pi computer use) only trusts its daemon and Accessibility/
+    # Screen Recording grants at /Applications/CuaDriver.app. No Homebrew cask
+    # exists, so install the pinned, Developer ID-signed bundle from the store
+    # with the same steps as upstream's installer. Grants survive updates
+    # because they are bound to the signing identity, not the version.
+    cua_app=/Applications/CuaDriver.app
+    cua_source=${cuaDriver}/libexec/cua-driver/CuaDriver.app
+    cua_installed="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" \
+      "$cua_app/Contents/Info.plist" 2>/dev/null || true)"
+    if [[ "$cua_installed" != "${cuaDriver.version}" ]] \
+      || ! /usr/bin/codesign --verify --deep --strict "$cua_app" 2>/dev/null; then
+      >&2 echo "installing CuaDriver.app ${cuaDriver.version}..."
+      /usr/bin/pkill -f "$cua_app/Contents/MacOS/cua-driver" 2>/dev/null || true
+      /bin/rm -rf "$cua_app.nix-new"
+      /usr/bin/ditto "$cua_source" "$cua_app.nix-new"
+      if /usr/bin/codesign --verify --deep --strict "$cua_app.nix-new"; then
+        /bin/rm -rf "$cua_app"
+        /bin/mv "$cua_app.nix-new" "$cua_app"
+        /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister \
+          -f "$cua_app" || true
+      else
+        /bin/rm -rf "$cua_app.nix-new"
+        >&2 echo "error: CuaDriver.app failed signature verification; keeping the existing copy"
+      fi
+    fi
   '';
 
   # nix-homebrew installs the pinned Homebrew distribution. nix-darwin then

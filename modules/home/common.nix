@@ -89,6 +89,7 @@ in
 {
   imports = [
     ../../neovim
+    ./pi-mcp.nix
   ];
 
   # Packages installed only for this user.
@@ -383,25 +384,20 @@ in
     + "\n"
     + builtins.readFile ../../pi-prompts/delegation-policy.md;
 
-  # Pi's native MCP extension reads these pinned servers. It connects enabled
-  # servers in the background; tools use native codemode exposure by default.
-  home.file.".pi/agent/mcp.json" = {
-    force = true;
-    text = builtins.toJSON {
-      mcpServers = {
-        playwright = {
-          command = lib.getExe playwrightMcp;
-          args = [ "--extension" ];
-        };
-        chrome-devtools = {
-          command = lib.getExe chromeDevtoolsMcp;
-          args = [ ];
-        };
-        nixos = {
-          command = lib.getExe mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default;
-          args = [ ];
-        };
-      };
+  # MCP servers shared by every host; ./pi-mcp.nix writes ~/.pi/agent/mcp.json.
+  # Desktop-only servers (Cua Driver) are added by ./cua-driver.nix.
+  pi.mcpServers = {
+    playwright = {
+      command = lib.getExe playwrightMcp;
+      args = [ "--extension" ];
+    };
+    chrome-devtools = {
+      command = lib.getExe chromeDevtoolsMcp;
+      args = [ ];
+    };
+    nixos = {
+      command = lib.getExe mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default;
+      args = [ ];
     };
   };
 
