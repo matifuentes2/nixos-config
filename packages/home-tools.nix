@@ -236,6 +236,8 @@ let
     name = "pi";
     runtimeInputs = [
       pkgs.fd
+      # pi-subagents launches background runners with Node even when Pi uses Bun.
+      pkgs.nodejs
       pkgs.ripgrep
     ];
     text = ''
