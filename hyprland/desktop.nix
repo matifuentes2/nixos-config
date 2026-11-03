@@ -34,7 +34,7 @@ in
     };
   };
 
-  # Fuzzel stands in for Omarchy's Walker launcher with the same look.
+  # Keep Fuzzel for the clipboard, window switcher, and system menus.
   programs.fuzzel = {
     enable = true;
     settings = {
