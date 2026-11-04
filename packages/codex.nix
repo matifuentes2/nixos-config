@@ -40,7 +40,11 @@ pkgs.stdenvNoCC.mkDerivation {
     pkgs.autoPatchelfHook
     pkgs.makeWrapper
   ];
-  buildInputs = lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.alsa-lib ];
+  # The aarch64 archive's bundled ripgrep links dynamically against libgcc_s.
+  buildInputs = lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+    pkgs.alsa-lib
+    pkgs.stdenv.cc.cc.lib
+  ];
   installPhase = ''
     runHook preInstall
     mkdir -p "$out"
