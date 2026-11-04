@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check pinned Lenovo PAM and exercise T3 wrapping without a Linux builder."""
+"""Check T3 desktop integration and wrapping without a Linux builder."""
 import json
 import os
 from pathlib import Path
@@ -37,8 +37,8 @@ class T3SecureStorage(unittest.TestCase):
         ''')
         for key in ("enabled", "sddmEnabled", "sddmKeyring", "loginKeyring"):
             self.assertTrue(result[key], key)
-        self.assertFalse(result["piKeyring"])
-        self.assertFalse(result["wslKeyring"])
+        self.assertTrue(result["piKeyring"])
+        self.assertTrue(result["wslKeyring"])
         self.assertIn("gnome-keyring", result["dbusPackages"])
         self.assertIn("seahorse", result["homePackages"])
         # Pinned SDDM uses the login stack, not the default per-service rules.
@@ -50,6 +50,36 @@ class T3SecureStorage(unittest.TestCase):
             self.assertTrue(lines, facility)
             if facility == "session":
                 self.assertIn("auto_start", lines[0])
+
+    def test_pi_desktop_and_release_architectures(self):
+        result = nix_json("eval", "--impure", "--json", "--expr", '''
+          let
+            f = builtins.getFlake (toString ./.);
+            c = f.nixosConfigurations.nixos.config;
+            package = system:
+              let p = f.inputs.nixpkgs.legacyPackages.${system}.callPackage
+                    ./packages/t3-code.nix { };
+              in { inherit (p.src) url outputHash; };
+          in {
+            arm = package "aarch64-linux";
+            x64 = package "x86_64-linux";
+            homePackages = map (p: p.pname or p.name) c.home-manager.users.pi.home.packages;
+            loginKeyring = c.security.pam.services.login.enableGnomeKeyring;
+            sddmKeyring = c.security.pam.services.sddm.enableGnomeKeyring;
+            dbusPackages = map (p: p.pname or p.name) c.services.dbus.packages;
+          }
+        ''')
+        self.assertTrue(result["arm"]["url"].endswith("-arm64.AppImage"))
+        self.assertTrue(result["x64"]["url"].endswith("-x86_64.AppImage"))
+        self.assertEqual(result["arm"]["outputHash"],
+                         "sha256-REW+/6z5baO+LIHCgCIgIOOyYjV54zZLEPROhL/R48I=")
+        self.assertEqual(result["x64"]["outputHash"],
+                         "sha256-+q7kCU3KEnYFeEChpFprLQDXQYr79XNfdadQO3dOY9E=")
+        self.assertIn("t3-code", result["homePackages"])
+        self.assertIn("seahorse", result["homePackages"])
+        self.assertIn("gnome-keyring", result["dbusPackages"])
+        self.assertTrue(result["loginKeyring"])
+        self.assertTrue(result["sddmKeyring"])
 
     def test_real_install_commands_with_mock_fhs_launcher(self):
         # Use the actual package expression and makeWrapper hook. Only the

@@ -91,6 +91,10 @@
 
   programs.firefox.enable = true;
 
+  # T3 Code uses libsecret; unlock the encrypted login keyring through PAM.
+  services.gnome.gnome-keyring.enable = true;
+  security.pam.services.sddm.enableGnomeKeyring = true;
+
   # Packages installed in the system profile. Cross-platform user packages
   # belong in modules/home/common.nix instead.
   environment.systemPackages = with pkgs; [

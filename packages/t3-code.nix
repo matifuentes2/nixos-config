@@ -4,11 +4,23 @@
   fetchurl,
   makeDesktopItem,
   makeWrapper,
+  stdenv,
 }:
 
 let
   pname = "t3-code";
   version = "0.1.7";
+  release =
+    if stdenv.hostPlatform.isAarch64 then
+      {
+        arch = "arm64";
+        hash = "sha256-REW+/6z5baO+LIHCgCIgIOOyYjV54zZLEPROhL/R48I=";
+      }
+    else
+      {
+        arch = "x86_64";
+        hash = "sha256-+q7kCU3KEnYFeEChpFprLQDXQYr79XNfdadQO3dOY9E=";
+      };
   desktopItem = makeDesktopItem {
     name = pname;
     desktopName = "T3 Code";
@@ -23,8 +35,8 @@ appimageTools.wrapType2 {
   inherit pname version;
 
   src = fetchurl {
-    url = "https://github.com/pingdotgg/t3code/releases/download/v${version}/T3-Code-${version}-x86_64.AppImage";
-    sha256 = "faaee4094dca1276057840a1a45a6b2d00d7418afbf5735f75a7503b774e63d1";
+    url = "https://github.com/pingdotgg/t3code/releases/download/v${version}/T3-Code-${version}-${release.arch}.AppImage";
+    hash = release.hash;
   };
 
   nativeBuildInputs = [ makeWrapper ];
@@ -44,6 +56,9 @@ appimageTools.wrapType2 {
     homepage = "https://github.com/pingdotgg/t3code";
     license = lib.licenses.mit;
     mainProgram = pname;
-    platforms = [ "x86_64-linux" ];
+    platforms = [
+      "x86_64-linux"
+      "aarch64-linux"
+    ];
   };
 }
