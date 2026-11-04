@@ -1,4 +1,4 @@
-// Local Pi adapter fix for context-mode 1.0.169. Installed by Nix, not npm.
+// Local Pi adapter fix for context-mode 2.0.0. Installed by Nix, not npm.
 import { stripVTControlCharacters } from "node:util";
 import { Text } from "@earendil-works/pi-tui";
 
@@ -78,9 +78,8 @@ export function createContextModeExecutor(toolName, callTool) {
         timer.unref?.();
         signal?.addEventListener("abort", stop, { once: true });
       }
-      // Preserve the upstream bridge's cancellation/timeout semantics. Stopping
-      // a heartbeat does NOT claim that a remote subprocess has been killed.
-      const result = await callTool(toolName, params ?? {});
+      // Forward cancellation to the direct handler; the heartbeat is UI only.
+      const result = await callTool(toolName, params ?? {}, signal);
       const text = (result.content ?? []).filter(c => c?.type === "text" && typeof c.text === "string")
         .map(c => c.text).join("\n");
       if (result.isError) throw new Error(text || `${toolName} returned an error`);

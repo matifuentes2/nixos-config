@@ -40,12 +40,9 @@ try {
   assert.deepEqual(loaded.errors, []);
   assert.equal(loaded.extensions.length, files.length);
 
-  // Native dependencies must survive npm packing and isolation, not just import
-  // successfully through Pi's TS loader. Use Node for better-sqlite3's ABI.
-  const contextRoot = realpathSync(join(registry, "node_modules/context-mode"));
+  // Context-mode 2 uses Node built-in SQLite instead of a native npm addon.
   execFileSync(process.env.PI_TEST_NODE || "node", ["--input-type=commonjs", "-e", `
-    const requireFromPackage = require('node:module').createRequire(${JSON.stringify(join(contextRoot, "package.json"))});
-    const Database = requireFromPackage('better-sqlite3');
+    const { DatabaseSync: Database } = require('node:sqlite');
     const db = new Database(':memory:');
     require('node:assert/strict').equal(db.prepare('select 42 as answer').get().answer, 42);
     db.close();

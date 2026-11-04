@@ -754,17 +754,17 @@
     "pi-execution-time": {
       "flake": false,
       "locked": {
-        "lastModified": 1782973552,
-        "narHash": "sha256-1u/esRQQlDiPKYiXhNoesrX0EJ4P5MyZw2el3bVTWrk=",
+        "lastModified": 1793517710,
+        "narHash": "sha256-KAT/rMeMYHZjc11Zu+9rZN79LSyavJEBuhlsG75Gqoc=",
         "owner": "lukaspanni",
         "repo": "pi-execution-time",
-        "rev": "81b18e039ddeac6d23cc1e6e176bdb158de19590",
+        "rev": "eec587204b678f740f44c0cd77d12f156a136bb6",
         "type": "github"
       },
       "original": {
         "owner": "lukaspanni",
         "repo": "pi-execution-time",
-        "rev": "81b18e039ddeac6d23cc1e6e176bdb158de19590",
+        "rev": "eec587204b678f740f44c0cd77d12f156a136bb6",
         "type": "github"
       }
     },

@@ -56,7 +56,7 @@
       flake = false;
     };
     pi-execution-time = {
-      url = "github:lukaspanni/pi-execution-time/81b18e039ddeac6d23cc1e6e176bdb158de19590";
+      url = "github:lukaspanni/pi-execution-time/eec587204b678f740f44c0cd77d12f156a136bb6";
       flake = false;
     };
     sops-nix = {
