@@ -11,8 +11,13 @@
     ./hardware-configuration.nix
   ];
 
-  # Let tools such as uv run upstream, dynamically linked Python builds.
+  # Let uv and T3's standalone Node executable/add-ons run unmodified.
+  # Patching T3's ELF would corrupt its appended JavaScript payload.
   programs.nix-ld.enable = true;
+  programs.nix-ld.libraries = [
+    pkgs.libsecret
+    pkgs.libffi
+  ];
 
   # Use the extlinux boot loader. (NixOS wants to enable GRUB by default)
   boot.loader.grub.enable = false;
