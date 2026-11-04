@@ -1,6 +1,8 @@
 { lib, pkgs, ... }:
 
 {
+  imports = [ ./claude-code.nix ];
+
   # Claude Code is proprietary; allow just this package on shared hosts.
   nixpkgs.config.allowUnfreePredicate = pkg: lib.getName pkg == "claude-code";
 
