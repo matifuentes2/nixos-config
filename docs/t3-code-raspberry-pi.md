@@ -3,8 +3,8 @@
 The Pi's Home Manager configuration installs the native ARM64 T3 Code desktop
 release, pinned to version 0.1.7 with a fixed content hash in
 [`packages/t3-code.nix`](../packages/t3-code.nix). The Lenovo continues to use
-the same version's x86-64 release. This does not install the WSL2 headless
-server or expose any new listening ports.
+the same version's x86-64 release. The Pi also installs the pinned ARM64
+standalone CLI (`t3`) and the isolated `t3-headless` wrapper described below.
 
 ## Apply and launch
 
@@ -25,6 +25,52 @@ keyring's PAM integration takes effect. Launch **T3 Code** from the application
 launcher or run `t3-code` in a terminal. Codex and Claude Code are already
 provided by the shared Home Manager configuration.
 
+## Headless use (no desktop login required)
+
+The declarative `t3-server` systemd user service starts at boot using the Pi's
+existing user lingering. It listens only on `127.0.0.1:3774`, opens no firewall
+ports, and runs agents from the user's declarative profile. It does not need
+Hyprland, a browser, or Electron running on the Pi.
+
+Its state is isolated in `~/.local/share/t3-headless` using `T3CODE_HOME`, so it
+can run alongside the desktop app's default `~/.t3` state and port. Always use
+`t3-headless` for server administration/pairing, not bare `t3`, which defaults
+to the desktop's data directory. The two environments have separate sessions,
+settings, and credentials.
+
+After rebuilding, check on the Pi:
+
+```sh
+systemctl --user status t3-server
+journalctl --user -u t3-server -n 50
+ss -ltnp 'sport = :3774'
+t3-headless pair
+```
+
+On your client computer, keep this SSH tunnel running (replace `pi` with your
+SSH alias or `pi@HOST` if necessary):
+
+```sh
+ssh -N -L 3774:127.0.0.1:3774 pi
+```
+
+Use the pairing link/token from `t3-headless pair` with the client endpoint
+`http://127.0.0.1:3774`, in a browser or the desktop client's **Add environment**
+flow. If the pairing link advertises a different host, change only its
+host/port to `127.0.0.1:3774`; retain its token/path. Pairing links are private
+credentials: do not paste them into issues or commit them. Keep client/server
+versions compatible (the server is pinned to 0.1.7).
+
+To stop/restart the server, use `systemctl --user stop t3-server` or
+`systemctl --user restart t3-server`. Do not also run `t3-headless serve`
+while the service is active. Do not use `t3 service install`, npm global
+installation, or self-update: the package and service are managed by Nix.
+
+Agent authentication remains private user state. Authenticate Codex/Claude on
+the Pi as needed. A password-protected Secret Service keyring may need manual
+unlocking when used without a password-based graphical login; the headless
+service does not bypass or weaken that protection.
+
 ## Encrypted credential storage
 
 The package adds `--password-store=gnome-libsecret` for both terminal and desktop
@@ -39,7 +85,9 @@ remain private, mutable user state and are not committed to this repository.
 
 ## Validation
 
-On a capable machine, `python3 tests/test-t3-secure-storage.py` checks the Pi's
+On a capable machine, `python3 tests/test-t3-headless.py` checks ARM64/x86-64
+CLI pins, service isolation/listen arguments, agent PATH, lingering, nix-ld
+libraries, and unchanged WSL service settings. `python3 tests/test-t3-secure-storage.py` checks the Pi's
 declarative package selection, both release URLs and hashes, keyring integration,
 and the real wrapper's argument forwarding using a mocked FHS launcher. Actual
 ARM64 application startup and graphics must be verified on the Pi after rebuilding.
