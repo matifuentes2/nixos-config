@@ -738,11 +738,11 @@
     "pi-codex-goal": {
       "flake": false,
       "locked": {
-        "lastModified": 1783437318,
-        "narHash": "sha256-wygI+PRe6cE9yHdkKAVvJGeNgRYIL9BPOY2N8WDmsQo=",
+        "lastModified": 1793804826,
+        "narHash": "sha256-vMpAEbF7hvm8iwv60+jV89iIItf1a6TfpasgyqsaGz8=",
         "owner": "matifuentes2",
         "repo": "pi-codex-goal",
-        "rev": "119fb6c4527c0fabbed42cf7aae50fbf55a7db74",
+        "rev": "78436ec9998e0f2751d64868cd86abc9a63a3a45",
         "type": "github"
       },
       "original": {

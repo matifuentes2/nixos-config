@@ -128,6 +128,24 @@
         "aarch64-darwin"
         "x86_64-linux"
       ];
+
+      homeToolsFor =
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        import ./packages/home-tools.nix {
+          inherit (pkgs) lib;
+          inherit
+            pkgs
+            nixpkgs-unstable
+            herdr-collie
+            pi-codex-goal
+            pi-pr-review-goal
+            pi-parallel-go-pr-herdr
+            pi-execution-time
+            ;
+        };
     in
     {
       # Importing this module is inert until its explicit enable option is set.
@@ -147,21 +165,11 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          homeTools = import ./packages/home-tools.nix {
-            inherit (pkgs) lib;
-            inherit
-              pkgs
-              nixpkgs-unstable
-              herdr-collie
-              pi-codex-goal
-              pi-pr-review-goal
-              pi-parallel-go-pr-herdr
-              pi-execution-time
-              ;
-          };
+          homeTools = homeToolsFor system;
         in
         {
           pi-extensions = homeTools.piExtensions;
+          pi-extension-pi-codex-goal = homeTools.piCodexGoalPackage;
           bootstrap-git = pkgs.git;
           herdr = pkgs.callPackage ./packages/herdr.nix { };
           worktrunk = pkgs.callPackage ./packages/worktrunk.nix { };
@@ -211,9 +219,25 @@
           bootstrap = app;
         };
 
-      checks.${amd64System}.ci-cd-local-worker-module = import ./tests/ci-cd-local-worker-module.nix {
-        inherit nixpkgs sops-nix;
-      };
+      checks = nixpkgs.lib.genAttrs bootstrapSystems (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+          homeTools = homeToolsFor system;
+        in
+        {
+          pi-goal-lifecycle = pkgs.runCommand "pi-goal-lifecycle" { } ''
+            ${nixpkgs.lib.getExe homeTools.bun} ${./tests/pi-goal-lifecycle-smoke.mjs} \
+              ${homeTools.piCodexGoalPackage}
+            touch "$out"
+          '';
+        }
+        // nixpkgs.lib.optionalAttrs (system == amd64System) {
+          ci-cd-local-worker-module = import ./tests/ci-cd-local-worker-module.nix {
+            inherit nixpkgs sops-nix;
+          };
+        }
+      );
 
       nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
         system = "aarch64-linux";
