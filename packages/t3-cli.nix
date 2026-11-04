@@ -11,12 +11,12 @@
 # (node-pty, keyring, ffi) run through nix-ld, which the host must enable.
 stdenvNoCC.mkDerivation rec {
   pname = "t3-cli";
-  version = "0.1.6";
+  version = "0.1.7";
 
   src = fetchurl {
     url = "https://github.com/pingdotgg/t3code/releases/download/v${version}/t3-${version}-linux-x64.tar.gz";
     # Matches the release's published SHA256SUMS.
-    sha256 = "7cf31da90dee41f524dd5b679ebb6d404637ca5d9dc6fd8bc019511d57bb77e6";
+    sha256 = "c089892bf7922e2e73c6f44a5d1ea125c99f70e378c18361cbbed2fba1920e6c";
   };
 
   nativeBuildInputs = [ makeWrapper ];
