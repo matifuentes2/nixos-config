@@ -17,7 +17,11 @@
     "GSK_RENDERER=ngl"
   ];
 
-  home.packages = [ pkgs.tree ];
+  home.packages = [
+    pkgs.tree
+    pkgs.seahorse # Initialize/manage T3 Code's password-protected login keyring.
+    (pkgs.callPackage ../../packages/t3-code.nix { })
+  ];
 
   home.shellAliases.rebuild = "sudo nixos-rebuild switch --flake /etc/nixos#nixos";
 }
