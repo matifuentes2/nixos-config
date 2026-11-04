@@ -1,8 +1,6 @@
 { ... }:
 
 {
-  imports = [ ../../modules/system/claude-code.nix ];
-
   # Keep system consumers on the same pinned Codex release as Home Manager.
   nixpkgs.overlays = [
     (final: prev: {
