@@ -61,7 +61,7 @@ let
   nativePackages = lib.mapAttrs mkPackage {
     chrome-devtools-mcp.npmDepsHash = "sha256-/AdABlMiXTO8oQKmnfRYxZfGNgII5b6noJiDqKvH5/w=";
     context-mode = {
-      npmDepsHash = "sha256-asY1v6GNEqnZLr0JdUrsvfqbL++YbhmXyD3Im/QEAk8=";
+      npmDepsHash = "sha256-87YNIRX3TUYMemA/LdTB35LvjKO8UfepAHS02LAyPGU=";
       # Keep UI-only edits out of npm's source hash/native SQLite rebuild.
       source = builtins.path {
         path = ../pi-extensions/context-mode;
@@ -76,14 +76,14 @@ let
       };
     };
     pi-ollama-cloud.npmDepsHash = "sha256-SqlCiuG3me6qSq5U/aXaz58OM1j2kpxEATe6oc31lDA=";
-    pi-subagents.npmDepsHash = "sha256-8bpZrdenFk56VHRQ80CFdo/3R7kGeHA0laWKN3oxzj0=";
+    pi-subagents.npmDepsHash = "sha256-WsI/vZKPJIOd9Sv5qteid7uu3X4LQDsWsvBu8WzXfhs=";
     pi-vim = {
       npmDepsHash = "sha256-asv7nv8IXfL5dm7OuTP8Ru+ozfsbPh66FfJuZHKxEYc=";
       bundle = "index.ts";
     };
     # These remain unbundled: web-access lazily loads optional extractors, and
     # subagents resolves background helper scripts relative to its source files.
-    pi-web-access.npmDepsHash = "sha256-jmjDRr15LZjXr8uGTPe/+qqJ5N9AOg1GOtxZsSnFATo=";
+    pi-web-access.npmDepsHash = "sha256-cwk8NAwpoikxKCotNOeXj8Xyak+RPY23JU42ydvnBpE=";
     pi-zentui = {
       npmDepsHash = "sha256-1aFUfLTj6HUcCkEt+1DKRJ4k3HbrssJ6Z8HIkVKR/o0=";
       bundle = "extensions/zentui/index.ts";
@@ -104,9 +104,9 @@ let
           # the unpatched package. Native dependencies are reused, not recompiled.
           cp -a ${nativePackages.context-mode}/. "$out/"
           modules="$out/lib/node_modules/context-mode-package/node_modules"
-          chmod -R u+w "$modules/context-mode/build/adapters/pi"
+          chmod -R u+w "$modules/context-mode/pi"
           patch -d "$modules/context-mode" -p1 < ${../pi-extensions/context-mode/live-tools.patch}
-          cp ${../pi-extensions/context-mode/live-tools.mjs} "$modules/context-mode/build/adapters/pi/live-tools.mjs"
+          cp ${../pi-extensions/context-mode/live-tools.mjs} "$modules/context-mode/pi/live-tools.mjs"
         '';
   };
 

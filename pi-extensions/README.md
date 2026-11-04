@@ -90,25 +90,17 @@ does not update this configuration.
 
 ## Context-mode running-call visibility
 
-`context-mode` 1.0.169's Pi bridge hides all call arguments, including during
-execution. `context-mode/live-tools.patch` replaces that bridge's renderers and
-executor with the tracked `live-tools.mjs`, installed in a lightweight Nix
-copy-and-patch overlay. Its unpatched npm source includes only the manifest and
-lockfile, so UI-only edits reuse the native SQLite build. Real files are copied:
-symlinking the entry point would resolve imports back into the unpatched tree.
-The patch is deliberately version-specific: review it when updating upstream.
+`context-mode` 2.0.0 bundles its Pi adapter in `pi/index.js` and uses Node’s built-in SQLite. The tracked patch adds the local renderers and elapsed-time wrapper to its direct tool handlers. Cancellation is forwarded to the upstream handler. The npm source contains only the manifest and lockfile, so UI edits reuse the package build. Review the version-specific patch on every upstream update.
 
 Running calls show their language and submitted code (or file/batch arguments)
 immediately. Collapsed cards preview four lines; expanding shows all arguments
 and results. Long lines wrap, terminal control sequences are stripped, and a
 UI-only heartbeat shows elapsed time even for silent commands. Compressed
 model-facing results are unchanged. Batch commands are a submitted plan, **not**
-a claim about which subprocess is currently running. The MCP server does not
-send that progress. Cancellation stops heartbeat updates; upstream remote
-process cancellation semantics are unchanged.
+a claim about which subprocess is currently running. Cancellation stops heartbeat updates and reaches the upstream handler.
 
-Validate the actual installed bridge with a silent mock MCP server (no model
-requests or network needed):
+Validate the installed UI helpers with silent mock handlers (no model requests
+or network needed):
 
 ```sh
 package=$(nix build --no-link --print-out-paths .#pi-extension-context-mode)

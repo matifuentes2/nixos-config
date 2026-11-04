@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "context-mode": "1.0.169"
+    "context-mode": "2.0.0"
   },
   "bundledDependencies": [
     "context-mode"

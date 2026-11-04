@@ -1,5 +1,5 @@
 // node tests/context-mode-live-tools.mjs <built-context-mode-root>
-// Exercises the installed bridge (including its renderers), without model calls.
+// Exercises the installed renderers and executor, without model calls.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
@@ -14,36 +14,34 @@ const packagePath = process.argv[2];
 assert(packagePath, "Pass the built context-mode package root");
 // Resolve registry symlinks before looking up sibling Pi peers, as imports do.
 const root = realpathSync(packagePath);
-const { bootstrapMCPTools } = await import(pathToFileURL(join(root, "build/adapters/pi/mcp-bridge.js")));
-const { createContextModeExecutor } = await import(pathToFileURL(join(root, "build/adapters/pi/live-tools.mjs")));
+
+const { createContextModeExecutor, createContextModeCallRenderer, createContextModeResultRenderer } = await import(pathToFileURL(join(root, "pi/live-tools.mjs")));
 const theme = { fg: (_, text) => text, bold: text => text };
 const context = (expanded = false) => ({ expanded, state: {}, isError: false });
 const rendered = component => component.render(80).join("\n");
 
 const directory = await mkdtemp(join(tmpdir(), "ctx-live-test-"));
-const server = join(directory, "server.mjs");
-await writeFile(server, `
-import { createInterface } from 'node:readline';
-createInterface({ input: process.stdin }).on('line', async line => {
-  const msg = JSON.parse(line);
-  if (!('id' in msg)) return;
-  let result = {};
-  if (msg.method === 'initialize') result = { protocolVersion: '2024-11-05', capabilities: {}, serverInfo: { name: 'fixture', version: '1' } };
-  if (msg.method === 'tools/list') result = { tools: ['ctx_execute', 'ctx_execute_file', 'ctx_batch_execute'].map(name => ({ name, inputSchema: { type: 'object', properties: {} } })) };
-  if (msg.method === 'tools/call') {
-    await new Promise(resolve => setTimeout(resolve, msg.params.arguments.delay ?? 1200));
-    result = { content: [{ type: 'text', text: 'compressed result' }], isError: !!msg.params.arguments.fail };
-  }
-  process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result }) + '\\n');
-});
-`);
 const tools = new Map();
-let handle;
+
 try {
-  handle = await bootstrapMCPTools({ registerTool: tool => tools.set(tool.name, tool) }, server, {
-    _resolveJsRuntime: () => process.execPath,
-    env: { ...process.env, CONTEXT_MODE_BRIDGE_DEPTH: "0" },
-  });
+  for (const name of ['ctx_execute', 'ctx_execute_file', 'ctx_batch_execute']) {
+    tools.set(name, {
+      name, renderCall: createContextModeCallRenderer(name), renderResult: createContextModeResultRenderer(name),
+      execute: createContextModeExecutor(name, async (_name, args) => {
+        await delay(args.delay ?? 1200);
+        return { content: [{ type: 'text', text: 'compressed result' }], isError: !!args.fail };
+      }),
+    });
+  }
+  const installed = await import(pathToFileURL(join(root, "pi/index.js")));
+  const registered = new Map(), events = new Map();
+  installed.default({ registerTool: tool => registered.set(tool.name, tool), on: (name, handler) => events.set(name, handler) });
+  await events.get("before_agent_start")({ systemPrompt: "" }, { cwd: directory });
+  assert(registered.has("ctx_execute"), "Installed adapter registers direct tools");
+  for (const tool of registered.values()) {
+    assert.equal(typeof tool.renderCall, "function");
+    assert.equal(typeof tool.renderResult, "function");
+  }
   const tool = tools.get("ctx_execute");
   await test("real Pi transcript row expands arguments while execution is pending", async () => {
     const require = createRequire(join(root, "package.json"));
@@ -163,6 +161,6 @@ try {
     assert.deepEqual(await tool.execute("headless", { delay: 1 }), { content: [{ type: "text", text: "compressed result" }], details: {} });
   });
 } finally {
-  handle?.shutdown();
+
   await rm(directory, { recursive: true, force: true });
 }
