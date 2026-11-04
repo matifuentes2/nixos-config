@@ -52,7 +52,7 @@ let
       mainProgram = "mise";
     };
   };
-  piVersion = "1.4.0";
+  piVersion = "1.5.0";
   bunVersion = "1.4.0";
   bunSources = {
     "aarch64-darwin" = pkgs.fetchurl {
@@ -191,7 +191,7 @@ let
         owner = "earendil-works";
         repo = "pi";
         tag = "v${piVersion}";
-        hash = "sha256-N9NOpiiZTbOMDMV+CxvJAgtLjJJ1/8NJBGS0cFHkhsc=";
+        hash = "sha256-eH3RuypmXeayuZ9lEag6KW3m2LSM4bDc4ogyHxjZMNI=";
       };
     in
     unstable.pi-coding-agent.overrideAttrs (_old: {
@@ -199,11 +199,11 @@ let
       inherit src;
       npmDeps = pkgs.fetchNpmDeps {
         inherit src;
-        hash = "sha256-aBzVz78IxZQlzPYC72Ufa2YFtkow6nZR24YBYZrv9W0=";
+        hash = "sha256-koVd02HEhEAOkcvIuUg4X1A6P6P0B+wJp4DJLwkH62w=";
       };
       modelData = pkgs.fetchurl {
         url = "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-${piVersion}.tgz";
-        hash = "sha256-tA4rqLtvwzKQj4uW6DfcLR/ftF65zTgvWu0RFGKYHjw=";
+        hash = "sha256-4yD+e9K5J3grqaN9NW/lg38aqWpGQyYQ4bO5zLdI6lw=";
       };
 
       # Pi 1.x reorganized its workspaces and CLI bundle. Build offline using
@@ -215,7 +215,7 @@ let
       '';
       postInstall = ''
         local nm="$out/lib/node_modules/pi-monorepo/node_modules"
-        for ws in telemetry chord tui codemode mcp ai durable env agent; do
+        for ws in telemetry schema chord tui codemode mcp ai durable env agent; do
           pkg=$(node -p "require('./packages/' + '$ws' + '/package.json').name")
           rm -f "$nm/$pkg"
           cp -r "packages/$ws" "$nm/$pkg"
