@@ -5,9 +5,10 @@
   ...
 }:
 
-# Cua Driver gives Pi computer use: it inspects and operates native desktop
-# applications through accessibility APIs, screenshots, and input. Import this
-# only on hosts with a desktop session (Linux desktops and macOS), not WSL2.
+# Cua Driver gives Pi and Claude Code computer use: it inspects and operates
+# native desktop applications through accessibility APIs, screenshots, and input.
+# Import this only on hosts with a desktop session (Linux desktops and macOS),
+# not WSL2.
 let
   cuaDriver = pkgs.callPackage ../../packages/cua-driver.nix { };
   isLinux = pkgs.stdenv.hostPlatform.isLinux;
@@ -34,8 +35,14 @@ in
   };
 
   # Upstream's agent guidance (tool choice, element tokens, verification),
-  # pinned to the same release as the binary.
+  # pinned to the same release as the binary. Claude Code uses the skill and
+  # CLI directly; it does not need an MCP registration.
   home.file.".pi/agent/skills/cua-driver" = {
+    source = "${cuaDriver}/share/cua-driver/skill";
+    recursive = true;
+  };
+
+  home.file.".claude/skills/cua-driver" = {
     source = "${cuaDriver}/share/cua-driver/skill";
     recursive = true;
   };
