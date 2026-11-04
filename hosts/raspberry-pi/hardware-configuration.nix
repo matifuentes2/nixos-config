@@ -17,6 +17,11 @@
   boot.initrd.availableKernelModules = [
     "xhci_pci"
     "usbhid"
+    # The root filesystem lives on a USB SSD. The Pi 4's USB controller sits
+    # behind the Broadcom PCIe bridge, so stage 1 needs all of these to find it.
+    "pcie_brcmstb"
+    "usb_storage"
+    "uas"
   ];
   boot.initrd.kernelModules = [ ];
   boot.kernelModules = [ ];
