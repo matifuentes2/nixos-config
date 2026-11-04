@@ -66,6 +66,28 @@ MCP uses Pi's built-in `builtin:mcp` extension and the shared module's
 Native MCP connects enabled servers in the background and exposes their tools
 through codemode by default; adapter-specific `lifecycle` settings do not apply.
 
+## Goal lifecycle compatibility
+
+`nix flake check` runs `pi-goal-lifecycle` against the pinned goal package's
+compiled `dist` entry point. It exercises legacy user starts, Pi 1.5 user and
+custom-message starts, an automatically generated continuation, pause/resume
+without replacing the goal or resetting usage, suppression of continuations
+while paused, and token-budget enforcement. It uses temporary session state and
+stubbed model/message delivery; it makes no model requests and needs no secrets.
+
+Run only this check on a capable machine:
+
+```sh
+nix build --no-link .#checks.aarch64-darwin.pi-goal-lifecycle
+# On x86-64 Linux, replace aarch64-darwin with x86_64-linux.
+```
+
+The goal package is also available as `.#pi-extension-pi-codex-goal`. Its Git
+input includes prebuilt JavaScript, which Nix copies without rebuilding. When
+updating that fork, commit both source changes and rebuilt `dist` files, then
+update `flake.lock` to the validated revision. Patching a mutable Pi install
+does not update this configuration.
+
 ## Context-mode running-call visibility
 
 `context-mode` 1.0.169's Pi bridge hides all call arguments, including during
