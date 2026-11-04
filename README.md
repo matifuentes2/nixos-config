@@ -65,8 +65,14 @@ host's `default.nix` or an imported platform-specific module.
 ## Raspberry Pi
 
 For a new Raspberry Pi 4, follow the
-[fresh-installation guide](./docs/fresh-install.md). Rebuild an existing host
-with:
+[fresh-installation guide](./docs/fresh-install.md); after flashing the stock
+NixOS SD image it comes down to one command on the Pi:
+
+```sh
+sudo nix --extra-experimental-features 'nix-command flakes' run github:matifuentes2/nixos-config
+```
+
+Rebuild an existing host with:
 
 ```sh
 sudo nixos-rebuild switch --flake /etc/nixos#nixos
@@ -137,10 +143,8 @@ from the stock Terminal without separately installing Nix, Git, the Xcode
 Command Line Tools, Homebrew, or nix-darwin. Follow the
 [fresh macOS installation guide](./docs/macos-fresh-install.md).
 
-The documented procedure downloads a checksum-verified immutable release and
-requires the bootstrap script to fetch and activate that release's full Git
-commit. Nix, Git, Homebrew, its taps, Home Manager, and nix-darwin are obtained
-from versioned or flake-locked sources.
+The bootstrap script clones `main`; Nix, Git, Homebrew, its taps, Home
+Manager, and nix-darwin are obtained from versioned or flake-locked sources.
 
 After installation, rebuild with:
 
@@ -206,11 +210,8 @@ Run the public-repository safety checks with:
 nix shell .#ci-tools -c bash scripts/check-public-repo.sh
 ```
 
-See the [public repository and bootstrap security policy](./docs/public-repository-security.md)
-for the release procedure, trust boundaries, automated checks, and secret
-rotation requirements. The current immutable release metadata lives in
-[`bootstrap-release.env`](./bootstrap-release.env); tracked scripts validate
-that metadata, audit GitHub controls, and create the next release reproducibly.
+See the [public repository security policy](./docs/public-repository-security.md)
+for trust boundaries, automated checks, and secret rotation requirements.
 
 Neovim is configured under [`neovim/`](./neovim/); its plugins, parsers,
 language servers, formatters, and debug adapters are supplied by Nix rather

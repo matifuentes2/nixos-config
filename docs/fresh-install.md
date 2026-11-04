@@ -77,92 +77,41 @@ Wi-Fi:
 sudo nmtui
 ```
 
-## 4. Run the bootstrap script
+## 4. Run the bootstrap
 
 The encrypted system secrets require the age identity stored in Bitwarden.
 Before starting, make sure the private identity is the complete contents of a
 secure note named `NixOS SOPS age identity` and that you have the account's
 master password and Authenticator app available.
 
-The following commands download the reviewed, immutable `bootstrap-v1.1.0`
-release, verify its SHA-256 checksum, and run its bootstrap script:
+On the Pi's console, type this single command:
 
 ```sh
-(
-set -eu
-repository="matifuentes2/nixos-config"
-release="bootstrap-v1.1.0"
-revision="d282ffa79e8ea8d555863db2fccdc9c180d3744f"
-archive="nixos-config-$release.tar.gz"
-archive_sha256="a64a5829822477e570ad7da829e2e0b9cce8e36fb0dd8d8c86e3483dfa96e746"
-
-bootstrap_directory=$(mktemp -d)
-trap 'rm -rf "$bootstrap_directory"' EXIT
-curl --proto '=https' --tlsv1.2 -fsSL \
-  "https://github.com/$repository/releases/download/$release/$archive" \
-  -o "$bootstrap_directory/$archive"
-actual_sha256=$(sha256sum "$bootstrap_directory/$archive" | awk '{ print $1 }')
-[ "$actual_sha256" = "$archive_sha256" ]
-tar -xzf "$bootstrap_directory/$archive" -C "$bootstrap_directory"
-source_directory="$bootstrap_directory/nixos-config-$revision"
-[ -x "$source_directory/scripts/bootstrap.sh" ]
-
-sudo env \
-  NIXOS_CONFIG_REVISION="$revision" \
-  NIXOS_CONFIG_SOURCE_DIRECTORY="$source_directory" \
-  bash "$source_directory/scripts/bootstrap.sh"
-)
+sudo nix --extra-experimental-features 'nix-command flakes' run github:matifuentes2/nixos-config
 ```
 
-The release tag, assets, commit, and checksum are protected by GitHub's
-immutable-release setting and a tag ruleset that prevents updates or deletion.
+Nix downloads the current `main` branch and runs its bootstrap app. The app
+brings its own Git, Bitwarden CLI, and age, so nothing else needs installing
+first. It:
 
-The script uses the flake-pinned Bitwarden CLI to log in interactively with
-Authenticator method `0`, retrieve the secure note, verify that its public
-recipient matches `.sops.yaml`, and install it as root-only
-`/var/lib/sops-nix/key.txt`. This explicitly selects an Authenticator app code;
-the CLI does not use the account's passkey. Its temporary Bitwarden state and
-downloaded note are removed before the script exits. A rerun uses an
-already-installed matching identity without logging in again.
+1. refuses to run unless this is a Raspberry Pi 4 booted from the official
+   NixOS SD image;
+2. clones the repository at the same commit that was just run;
+3. logs in to Bitwarden in the terminal (Authenticator method `0`), retrieves
+   the secure note, checks it against the recipient in `.sops.yaml`, and
+   installs it as root-only `/var/lib/sops-nix/key.txt` (skipped on a rerun if
+   a matching identity is already installed);
+4. moves any existing `/etc/nixos` to `/etc/nixos.backup-*`, places the
+   checkout at `/etc/nixos`, and runs `nixos-rebuild switch`; and
+5. asks for a local login and `sudo` password for user `pi`.
 
-To use a differently named secure note, replace the final `sudo env` command
-inside the installation block with:
+The first rebuild downloads and builds a lot; expect it to take a while.
 
-```sh
-sudo env \
-  NIXOS_CONFIG_REVISION="$revision" \
-  NIXOS_CONFIG_SOURCE_DIRECTORY="$source_directory" \
-  BITWARDEN_ITEM_NAME="My NixOS age identity" \
-  bash "$source_directory/scripts/bootstrap.sh"
-```
-
-The script deliberately stops unless it detects all of the following:
-
-- an ARM64 system;
-- a Raspberry Pi 4;
-- the root filesystem UUID used by the official NixOS SD image; and
-- a full, immutable configuration commit.
-
-It then:
-
-1. obtains Git from the archive's locked nixpkgs input if Git is unavailable;
-2. fetches and cryptographically verifies the selected commit in a temporary
-   worktree;
-3. retrieves and validates the SOPS age identity when it is not already
-   installed;
-4. runs `nix flake check`;
-5. places the checkout at `/etc/nixos` and applies `/etc/nixos#nixos` with
-   `nixos-rebuild switch`; and
-6. asks for a local login and `sudo` password for user `pi`.
-
-Any configuration originally at `/etc/nixos` is retained in a timestamped
-`/etc/nixos.backup-*` directory.
-
-The procedure downloads the complete source before executing it. To inspect it
-before the final `sudo` command, use:
+To use a differently named secure note, prefix the command with the variable:
 
 ```sh
-less "$source_directory/scripts/bootstrap.sh"
+sudo BITWARDEN_ITEM_NAME="My NixOS age identity" \
+  nix --extra-experimental-features 'nix-command flakes' run github:matifuentes2/nixos-config
 ```
 
 ## 5. Reboot and connect
@@ -211,6 +160,5 @@ Before switching larger changes, perform a non-switching build:
 sudo nixos-rebuild build --flake /etc/nixos#nixos
 ```
 
-Do not rerun an older bootstrap revision as an update: it deliberately installs
-that exact revision and may replace a newer checkout after retaining it as a
-backup.
+Do not rerun the bootstrap as an update: it replaces `/etc/nixos` with a fresh
+clone (keeping the old one as a backup). Use the commands above instead.
