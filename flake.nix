@@ -74,6 +74,7 @@
 
   outputs =
     {
+      self,
       nixpkgs,
       nixpkgs-unstable,
       nix-darwin,
@@ -139,9 +140,9 @@
         ];
       };
 
-      # Bootstrap Git comes from this flake's locked nixpkgs input, avoiding a
-      # mutable registry or branch reference on fresh systems. CI tools are
-      # exposed for the repository's validation workflow.
+      # Bootstrap Git comes from this flake's locked nixpkgs input so a fresh
+      # Mac without the Xcode Command Line Tools can clone the repository. CI
+      # tools are exposed for the repository's validation workflow.
       packages = nixpkgs.lib.genAttrs bootstrapSystems (
         system:
         let
@@ -183,6 +184,32 @@
           inherit (disko.packages.${system}) disko disko-install;
         }
       );
+
+      # Fresh Raspberry Pi install, from the stock NixOS SD image:
+      #   sudo nix --extra-experimental-features 'nix-command flakes' run github:matifuentes2/nixos-config
+      apps.aarch64-linux =
+        let
+          pkgs = nixpkgs.legacyPackages.aarch64-linux;
+          bootstrap = pkgs.writeShellApplication {
+            name = "nixos-config-bootstrap";
+            runtimeInputs = [
+              pkgs.git
+              pkgs.bitwarden-cli
+              pkgs.age
+            ];
+            runtimeEnv.NIXOS_CONFIG_REVISION = self.rev or "";
+            text = builtins.readFile ./scripts/bootstrap.sh;
+          };
+          app = {
+            type = "app";
+            program = "${bootstrap}/bin/nixos-config-bootstrap";
+            meta.description = "Bootstrap the Raspberry Pi 4 from the stock NixOS SD image";
+          };
+        in
+        {
+          default = app;
+          bootstrap = app;
+        };
 
       checks.${amd64System}.ci-cd-local-worker-module = import ./tests/ci-cd-local-worker-module.nix {
         inherit nixpkgs sops-nix;

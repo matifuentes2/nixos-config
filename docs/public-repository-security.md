@@ -6,50 +6,23 @@ from `main`.
 
 ## Bootstrap trust model
 
-The two bootstrap-backed installation guides pin an immutable release, its
-full Git commit ID, and the SHA-256 checksum of its attached source archive.
-The bootstrap script then fetches and verifies the same Git commit before
-activation. This prevents a branch update or asset replacement between
-reviewing the release and activating the configuration.
+This repository has a single maintainer, so fresh installs simply run the
+current `main` branch over HTTPS from GitHub:
 
-`bootstrap-release.env` is the single tracked record of the current release,
-full commit, deterministic archive name, and SHA-256 checksum. CI runs
-`scripts/check-bootstrap-release.sh` to ensure both bootstrap-backed
-installation guides contain the same values. The WSL2 guide installs the
-upstream NixOS-WSL image and is not part of this bootstrap-release mechanism.
+- the Raspberry Pi runs the flake app with
+  `nix run github:matifuentes2/nixos-config`, which clones the same commit it
+  was built from; and
+- the Mac runs `scripts/bootstrap-macos.sh` from `main`, which clones `main`.
 
-To publish a new bootstrap release:
-
-1. merge the candidate through a pull request and wait for the required check
-   on `main` to pass;
-2. from a clean, synchronized `main`, run
-   `scripts/audit-github-settings.sh`;
-3. run `scripts/create-bootstrap-release.sh bootstrap-vMAJOR.MINOR.PATCH`;
-4. let the script verify the successful workflow, create the deterministic
-   archive, publish the draft as an immutable release, and update
-   `bootstrap-release.env` plus both installation guides; and
-5. move those generated documentation changes to a branch, validate them, and
-   merge them through another pull request.
-
-The release script deliberately refuses an existing version, non-`main`
-revision, dirty checkout, failed workflow, or GitHub control audit. If anything
-fails after publication, the release remains immutable; use the printed commit
-and checksum to finish the manifest update rather than editing the release.
+Trust therefore rests on GitHub, the maintainer's GitHub account, and the
+protected `main` branch (pull requests plus the required validation check).
+There are no release tags or archive checksums to maintain. Everything the
+bootstrap builds is still pinned by `flake.lock`.
 
 The validation workflow follows GitHub's
 [secure-use guidance](https://docs.github.com/en/actions/reference/security/secure-use)
 by granting read-only repository permissions and pinning actions to full commit
-SHAs. GitHub's
-[immutable-release guidance](https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/supply-chain-security/immutable-releases)
-describes the repository setting used for reviewed release tags and assets.
-
-The repository currently enables immutable releases and protects
-`bootstrap-v*` tags against updates and deletion. A commit ID and checksum
-prevent accidental movement and time-of-check/time-of-use races. They do not
-protect a new visitor if GitHub and the maintainer account are already
-compromised. A higher-assurance release should additionally sign a manifest
-containing the commit and archive checksum with a key stored outside GitHub,
-and distribute the verification key through an independent trusted channel.
+SHAs.
 
 ## Public cryptographic material
 
@@ -73,7 +46,7 @@ old ciphertext and any secret it protected remain compromised.
 
 ## Required checks
 
-Before merging or publishing a release, run:
+Before merging, run:
 
 ```sh
 nix flake check
@@ -83,11 +56,10 @@ nix build --no-link .#darwinConfigurations.macbook.system
 nix shell .#ci-tools -c actionlint
 nix shell .#ci-tools -c sh -c 'git ls-files -z "*.nix" | xargs -0 nixfmt --check'
 nix shell .#ci-tools -c shellcheck scripts/*.sh
-bash scripts/check-bootstrap-release.sh
 nix shell .#ci-tools -c bash scripts/check-public-repo.sh
 ```
 
-Before publishing a bootstrap release, additionally run:
+After changing GitHub repository controls, additionally run:
 
 ```sh
 scripts/audit-github-settings.sh
