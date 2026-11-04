@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ lib, pkgs, ... }:
 
 let
   palette = import ../../hyprland/palette.nix;
@@ -15,7 +15,11 @@ in
     pkgs.satty
     pkgs.nmgui
     pkgs.overskride
+    pkgs.wlinhibit
   ];
+
+  # Keep the Wayland session awake and suppress logind's lid handling until Ctrl+C.
+  home.shellAliases.keep-awake = "${lib.getExe' pkgs.systemd "systemd-inhibit"} --what=sleep:handle-lid-switch --mode=block --who=keep-awake --why='Keep awake until interrupted' ${lib.getExe' pkgs.wlinhibit "wlinhibit"} ${lib.getExe' pkgs.coreutils "sleep"} infinity";
 
   # Start the PipeWire effects processor with the graphical session.
   services.easyeffects.enable = true;
