@@ -159,6 +159,7 @@ in
       "raycast"
       "rectangle"
       "stablyai/orca/orca"
+      "t3-code"
       "whatsapp"
     ];
   };
