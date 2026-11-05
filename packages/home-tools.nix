@@ -267,8 +267,8 @@ let
       ln -s ${piExtensionNodeModules} "$out/node_modules"
     '';
 
-  # pi-pr-review-goal verifies pi-codex-goal through the command's source path.
   # Descriptive output names preserve package provenance in Pi's registry.
+  # PR-review compatibility is established by the completion-policy host API.
   piCodexGoalPackage = mkPiExtensionPackage "pi-codex-goal" pi-codex-goal;
   piPrReviewGoalPackage = mkPiExtensionPackage "pi-pr-review-goal" pi-pr-review-goal;
   piParallelGoPrHerdrPackage = mkPiExtensionPackage "pi-parallel-go-pr-herdr" pi-parallel-go-pr-herdr;

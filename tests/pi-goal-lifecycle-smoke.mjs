@@ -15,6 +15,9 @@ const handlers = new Map();
 const tools = new Map();
 const entries = [];
 const sent = [];
+const userSent = [];
+const commands = new Map();
+const bus = new Map();
 let aborts = 0;
 const pi = {
   on(name, handler) {
@@ -23,15 +26,26 @@ const pi = {
     handlers.set(name, list);
   },
   registerTool(tool) { tools.set(tool.name, tool); },
-  registerCommand() {},
+  registerCommand(name, command) { commands.set(name, command); },
   registerShortcut() {},
-  events: { on: () => () => {} },
+  getCommands: () => [{ name: "goal", sourceInfo: { path: root } }],
+  events: {
+    on(name, listener) {
+      const listeners = bus.get(name) || new Set();
+      listeners.add(listener); bus.set(name, listeners);
+      return () => listeners.delete(listener);
+    },
+    emit(name, payload) { for (const listener of bus.get(name) || []) listener(payload); },
+  },
+  exec: async (program, args) => ({ code: 0, killed: false, stderr: "", stdout:
+    program === "git" && args[0] === "rev-parse" ? temporary :
+    program === "gh" && args[1] === "view" ? JSON.stringify({ baseRefName: "main", headRefOid: "a".repeat(40), mergeable: "MERGEABLE" }) : "" }),
   appendEntry(customType, data) {
     entries.push({ type: "custom", id: `entry-${entries.length}`, customType, data,
       parentId: null, timestamp: new Date().toISOString() });
   },
   sendMessage(message, options) { sent.push({ message, options }); },
-  sendUserMessage() { assert.fail("This headless lifecycle must not send user messages"); },
+  sendUserMessage(message) { userSent.push(message); },
 };
 const ctx = {
   cwd: temporary,
@@ -40,6 +54,7 @@ const ctx = {
   isIdle: () => true,
   hasPendingMessages: () => false,
   getContextUsage: () => undefined,
+  modelRegistry: { find: () => undefined },
   abort() { aborts++; },
   ui: { setStatus() {}, notify() {}, confirm() { assert.fail("Unexpected UI prompt"); } },
   sessionManager: {
@@ -128,7 +143,31 @@ try {
   assert.equal((await goal()).status, "budgetLimited");
   assert.equal((await goal()).goalId, initial.goalId);
   assert.equal(aborts, 0, "Live continuations must not be mistaken for stale work");
+  assert.equal(userSent.length, 0, "Generic lifecycle must not enqueue user messages");
   console.log("Shipped goal lifecycle passed: user/custom starts, continuation, pause/resume, and budget enforcement.");
+
+  if (process.argv[3]) {
+    // Test both actual packaged entrypoints, with no model/network dependency.
+    await call("update_goal", { status: "complete" });
+    const reviewRoot = resolve(process.argv[3]);
+    const reviewManifest = JSON.parse(readFileSync(join(reviewRoot, "package.json"), "utf8"));
+    const { default: reviewExtension } = await import(pathToFileURL(join(reviewRoot, reviewManifest.pi.extensions[0], "pr-review-goal.ts")));
+    reviewExtension(pi);
+    await emit("session_start", { reason: "resume" });
+    // Historical generic completion stays complete; the new protected start works.
+    await commands.get("pr-review-goal").handler("7 --base main", ctx);
+    assert.equal((await goal()).status, "active");
+    const protectedSnapshot = () => entries.filter(entry => entry.data?.kind === "set").at(-1).data.goal;
+    assert.equal(protectedSnapshot().completionPolicy.id, "pi-pr-review-goal/reviewer-success/v1");
+    await assert.rejects(() => call("update_goal", { status: "complete" }), /No fresh reviewer execution evidence/);
+    assert.equal((await goal()).status, "paused");
+    await assert.rejects(() => call("run_goal_review", { provider: "unavailable", model: "missing" }), /Unknown exact reviewer model/);
+    assert.equal(protectedSnapshot().reviewExecution.status, "launch_failed");
+    await emit("session_start", { reason: "resume" });
+    await assert.rejects(() => call("update_goal", { status: "complete" }), /review-failed/);
+    assert.equal((await goal()).status, "paused");
+    console.log("Shipped PR-review policy passed: protected start, missing evidence, failed model launch, durable ledger, and fail-closed restore.");
+  }
 } finally {
   if (handlers.has("session_shutdown")) await emit("session_shutdown");
   rmSync(temporary, { recursive: true, force: true });

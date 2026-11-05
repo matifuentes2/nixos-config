@@ -44,11 +44,12 @@
     };
     mcp-nixos.url = "github:utensils/mcp-nixos";
     pi-codex-goal = {
-      url = "github:matifuentes2/pi-codex-goal";
+      # Keep the policy host and consumer paired with companion-ref.json.
+      url = "github:matifuentes2/pi-codex-goal/f5448bb8a1e3cf3e63c9543afe92522db4764587";
       flake = false;
     };
     pi-pr-review-goal = {
-      url = "github:matifuentes2/pi-pr-review-goal";
+      url = "github:matifuentes2/pi-pr-review-goal/e9d07a059973bcf4c6aeb8110bbd6deb567c45b0";
       flake = false;
     };
     pi-parallel-go-pr-herdr = {
@@ -228,7 +229,7 @@
         {
           pi-goal-lifecycle = pkgs.runCommand "pi-goal-lifecycle" { } ''
             ${nixpkgs.lib.getExe homeTools.bun} ${./tests/pi-goal-lifecycle-smoke.mjs} \
-              ${homeTools.piCodexGoalPackage}
+              ${homeTools.piCodexGoalPackage} ${homeTools.piPrReviewGoalPackage}
             touch "$out"
           '';
         }
