@@ -304,23 +304,18 @@ in
       # Use Pi's native MCP support, not a third-party /mcp replacement.
       extensions = [ "+builtin:mcp" ];
       theme = "dark";
-      defaultProvider = "openai";
-      defaultModel = "gpt-6.1-sol";
+      # Model/provider selection belongs to the session, not shared host config.
       defaultThinkingLevel = "medium";
-      subagents.defaultModel = "openai/gpt-6-luna";
       subagents.agentOverrides = {
         scout = {
-          model = "openai/gpt-6-luna";
           thinking = "high";
           defaultContext = "fresh";
         };
         worker = {
-          model = "openai/gpt-6.1-sol";
           thinking = "medium";
           defaultContext = "fresh";
         };
         reviewer = {
-          model = "openai/gpt-6.1-sol";
           thinking = "medium";
           defaultContext = "fresh";
         };
@@ -328,20 +323,16 @@ in
           defaultContext = "fresh";
         };
         researcher = {
-          model = "openai/gpt-6.1-sol";
           thinking = "medium";
           defaultContext = "fresh";
         };
         weighted-security-reviewer = {
-          model = "openai/gpt-6.1-sol";
           thinking = "medium";
         };
         evidence-auditor = {
-          model = "openai/gpt-6.1-sol";
           thinking = "medium";
         };
         oracle = {
-          model = "inherit";
           thinking = "high";
           defaultContext = "fork";
         };
