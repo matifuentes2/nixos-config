@@ -45,6 +45,12 @@ let
       appdata=$(win_dir APPDATA)
       deploy ${glazewmConfig} "$profile/.glzr/glazewm/config.yaml"
       deploy ${./windows/kanata.kbd} "$appdata/kanata/kanata.kbd"
+
+      # Windows' built-in Office key otherwise launches Microsoft 365 Chat.
+      # Override the protocol handler with a no-op for the current user.
+      /mnt/c/Windows/System32/reg.exe add \
+        'HKCU\Software\Classes\ms-officeapp\Shell\Open\Command' \
+        /ve /t REG_SZ /d rundll32 /f
     '';
   };
 in
