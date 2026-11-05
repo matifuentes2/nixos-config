@@ -54,7 +54,8 @@ const ctx = {
   isIdle: () => true,
   hasPendingMessages: () => false,
   getContextUsage: () => undefined,
-  modelRegistry: { find: () => undefined },
+  model: { provider: "smoke", id: "review-model", contextWindow: 128000 },
+  modelRegistry: { find: (provider, model) => provider === "smoke" && model === "review-model" ? ctx.model : undefined },
   abort() { aborts++; },
   ui: { setStatus() {}, notify() {}, confirm() { assert.fail("Unexpected UI prompt"); } },
   sessionManager: {
@@ -161,7 +162,12 @@ try {
     assert.equal(protectedSnapshot().completionPolicy.id, "pi-pr-review-goal/reviewer-success/v1");
     await assert.rejects(() => call("update_goal", { status: "complete" }), /No fresh reviewer execution evidence/);
     assert.equal((await goal()).status, "paused");
-    await assert.rejects(() => call("run_goal_review", { provider: "unavailable", model: "missing" }), /Unknown exact reviewer model/);
+    assert.deepEqual(protectedSnapshot().completionPolicy.reviewer, { provider: "smoke", model: "review-model" });
+    assert.deepEqual((await goal()).reviewer, { provider: "smoke", model: "review-model" });
+    // The default command supplies the selection. If it later becomes unavailable,
+    // the zero-argument tool fails on that same model rather than choosing another.
+    ctx.modelRegistry.find = () => undefined;
+    await assert.rejects(() => call("run_goal_review"), /Unknown exact reviewer model/);
     assert.equal(protectedSnapshot().reviewExecution.status, "launch_failed");
     await emit("session_start", { reason: "resume" });
     await assert.rejects(() => call("update_goal", { status: "complete" }), /review-failed/);
