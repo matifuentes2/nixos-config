@@ -738,17 +738,17 @@
     "pi-codex-goal": {
       "flake": false,
       "locked": {
-        "lastModified": 1793916879,
-        "narHash": "sha256-WdzZsL2XOyQiU3o38+j8l9+IXTF5IBIbzupSo0v8MI0=",
+        "lastModified": 1793920466,
+        "narHash": "sha256-tTLAoV1+t470l1ZMYlahdyHWLaRvZd25mcdL73Qcqss=",
         "owner": "matifuentes2",
         "repo": "pi-codex-goal",
-        "rev": "f5448bb8a1e3cf3e63c9543afe92522db4764587",
+        "rev": "dec08ee6bbcf879a322149d32c24394e83f3ebf2",
         "type": "github"
       },
       "original": {
         "owner": "matifuentes2",
         "repo": "pi-codex-goal",
-        "rev": "f5448bb8a1e3cf3e63c9543afe92522db4764587",
+        "rev": "dec08ee6bbcf879a322149d32c24394e83f3ebf2",
         "type": "github"
       }
     },
@@ -788,17 +788,17 @@
     "pi-pr-review-goal": {
       "flake": false,
       "locked": {
-        "lastModified": 1793917301,
-        "narHash": "sha256-K3ZFSrlHEa367IqgwwFKPxaB2puck5opHBGXWeBwYjA=",
+        "lastModified": 1793920518,
+        "narHash": "sha256-XH44UJxlJ+86yPvhQFE6Djtk1w3NPvF6Z+QmQ3OEy8w=",
         "owner": "matifuentes2",
         "repo": "pi-pr-review-goal",
-        "rev": "e9d07a059973bcf4c6aeb8110bbd6deb567c45b0",
+        "rev": "ae9cc74f4f69593292abcd818c9f5bd2b7973015",
         "type": "github"
       },
       "original": {
         "owner": "matifuentes2",
         "repo": "pi-pr-review-goal",
-        "rev": "e9d07a059973bcf4c6aeb8110bbd6deb567c45b0",
+        "rev": "ae9cc74f4f69593292abcd818c9f5bd2b7973015",
         "type": "github"
       }
     },
