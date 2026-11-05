@@ -61,6 +61,13 @@ in
     efi.canTouchEfiVariables = true;
   };
 
+  # Run the Docker daemon with automatic weekly pruning of unused data.
+  # Membership in the docker group below is root-equivalent.
+  virtualisation.docker = {
+    enable = true;
+    autoPrune.enable = true;
+  };
+
   # Let tools such as uv run upstream dynamically linked binaries.
   programs.nix-ld.enable = true;
 
@@ -134,6 +141,7 @@ in
       "networkmanager"
       "video"
       "audio"
+      "docker"
     ];
     # Pin the public key currently published by the user's GitHub account.
     # Keeping the key here avoids a network dependency during SSH login.

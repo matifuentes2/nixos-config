@@ -11,6 +11,13 @@
     ./hardware-configuration.nix
   ];
 
+  # Run the Docker daemon with automatic weekly pruning of unused data.
+  # Membership in the docker group below is root-equivalent.
+  virtualisation.docker = {
+    enable = true;
+    autoPrune.enable = true;
+  };
+
   # Let uv and T3's standalone Node executable/add-ons run unmodified.
   # Patching T3's ELF would corrupt its appended JavaScript payload.
   programs.nix-ld.enable = true;
@@ -82,12 +89,13 @@
     # Keep remote user services available independently of logins.
     linger = true;
     description = "Pi user";
-    # Allow sudo and access to networking, graphics, and audio devices.
+    # Allow sudo, Docker, and access to networking, graphics, and audio devices.
     extraGroups = [
       "wheel"
       "networkmanager"
       "video"
       "audio"
+      "docker"
     ];
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAt+/czluQsmX++mLb+H96Zy5SKcU7uzRikipfvG1FSn"
