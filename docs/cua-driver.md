@@ -15,9 +15,10 @@ and `modules/home/darwin.nix`, then:
 - installs upstream's agent skill for the same release as
   `~/.pi/agent/skills/cua-driver`;
 - on Linux, runs `cua-driver serve` as a systemd user service bound to
-  `graphical-session.target` and to a headless agent desktop (below). Pi's
-  MCP server and the `cua-driver call` CLI share that one runtime through
-  `~/.cache/cua-driver/cua-driver.sock`.
+  `graphical-session.target`. Pi's MCP server and the `cua-driver call` CLI
+  share that one runtime through `~/.cache/cua-driver/cua-driver.sock`. With
+  the agent-desktop option (below), the service operates a headless X11
+  desktop instead of the graphical session.
 
 The driver runs in upstream's default `standard` permission mode: observing,
 clicking, and typing into any app is allowed without prompts. Treat it as
@@ -45,11 +46,23 @@ reach it; run `cua-driver telemetry disable` once if you want it off there too.
 
 ## Linux: the agent desktop
 
-On Linux the driver does not operate the Hyprland session. It operates a
-dedicated, headless X11 desktop, `:47` (TigerVNC's `Xvnc` with Openbox and
-`xcompmgr`), started by the `cua-agent-desktop` user service.
+The Home Manager option `services.cua-driver.agentDesktop.enable` (default
+`false`, defined in `modules/home/cua-driver.nix`) moves the driver off the
+Hyprland session and onto a dedicated, headless X11 desktop, `:47`
+(TigerVNC's `Xvnc` with Openbox and `xcompmgr`, 1920x1080), started by the
+`cua-agent-desktop` user service. Only the Lenovo Legion Y720 enables it, in
+`hosts/amd64-lenovo-legion-y720/home.nix`. With the option off (the Raspberry
+Pi), Linux keeps the plain `cua-driver` service in the graphical session, with
+no agent desktop, helpers, or extra skill.
 `modules/system/linux-desktop.nix` enables the AT-SPI accessibility bus that
-both share.
+the driver and the desktop share.
+
+The option also installs a short `cua-agent-desktop` skill
+(`pi-skills/cua-agent-desktop/SKILL.md`) into `~/.claude/skills/` and
+`~/.pi/agent/skills/`, next to upstream's `cua-driver` skill. It tells agents
+that computer use targets the agent desktop rather than your screen, how to
+start apps and isolated browser profiles there, and that foreground delivery
+is authorized there.
 
 Why not Hyprland: with v0.38.0 the driver's Wayland keyboard input
 (`type_text`, `press_key`) goes only through libei behind the
@@ -76,17 +89,21 @@ upstream documents for X11.
   per-start MIT cookie in `~/.cache/cua-driver/agent.Xauthority`.
 - `cua-agent-run <command>` starts an app there with the same environment
   as the driver, for example a browser profile reserved for the agent:
-  `cua-agent-run firefox --profile ~/.mozilla/agent`. The driver's
-  `launch_app` also opens apps on the agent desktop.
+  `cua-agent-run firefox --new-instance --profile ~/.mozilla/agent`. The
+  driver's `launch_app` also opens apps on the agent desktop.
 - The driver's environment removes the Wayland variables and forces X11
   backends (GTK, Qt, SDL, Firefox, and Electron), so apps it starts never
   appear on Hyprland. `MOZ_NO_REMOTE=1` keeps Firefox from handing a URL to an
-  instance you already have open. Single-instance apps that use their own
-  IPC (most Electron apps, Chromium sharing your profile) can still forward
-  to a window on your desktop. Give them a separate profile or user-data
-  directory.
+  instance you already have open.
+- Apps that reuse a running instance can still forward to a window on your
+  Hyprland desktop: Electron apps, and Chromium or Firefox with the default
+  profile. Give each one a separate profile or user-data directory, for
+  example `firefox --new-instance --profile <dir>` or
+  `chromium --user-data-dir=<dir> --force-renderer-accessibility` (the flag
+  exposes web content to AT-SPI).
 
-Verify after rebuilding (the AT-SPI change needs a fresh login):
+Verify on a host with the option enabled after rebuilding (the AT-SPI change
+needs a fresh login):
 
 ```sh
 systemctl --user status cua-agent-desktop cua-driver
