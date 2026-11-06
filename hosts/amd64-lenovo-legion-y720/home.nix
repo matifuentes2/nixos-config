@@ -22,6 +22,10 @@ in
   # Keep this at the version used when Home Manager was first configured.
   home.stateVersion = "26.11";
 
+  # Run computer use on a headless X11 desktop; Cua Driver cannot type on
+  # Hyprland. See docs/cua-driver.md.
+  services.cua-driver.agentDesktop.enable = true;
+
   # Codex and Claude Code are already provided by modules/home/common.nix.
   home.packages = [
     pkgs.awww
