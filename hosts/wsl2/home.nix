@@ -10,8 +10,8 @@ let
   glazewmConfig = import ./windows/glazewm.nix { inherit lib pkgs; };
   t3Cli = pkgs.callPackage ../../packages/t3-cli.nix { };
 
-  # Copy the Windows-side configuration (GlazeWM and Kanata) into the Windows
-  # profile. Profile paths are resolved at runtime through WSL interop, so no
+  # Copy the Windows-side configuration into the Windows profile.
+  # Profile paths are resolved at runtime through WSL interop, so no
   # Windows account name is tracked in this repository.
   windowsConfigSync = pkgs.writeShellApplication {
     name = "windows-config-sync";
@@ -45,6 +45,32 @@ let
       appdata=$(win_dir APPDATA)
       deploy ${glazewmConfig} "$profile/.glzr/glazewm/config.yaml"
       deploy ${./windows/kanata.kbd} "$appdata/kanata/kanata.kbd"
+      deploy ${./windows/wslconfig} "$profile/.wslconfig"
+
+      # WSL's systemd services do not keep the distribution alive. A Windows
+      # logon task owns a persistent WSL command, allowing t3-server to run
+      # without an open terminal. Reconcile and start it on every activation.
+      # Dollar expressions below belong to PowerShell, not the shell.
+      # shellcheck disable=SC2016
+      /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe \
+        -NoProfile -NonInteractive -Command '
+          $ErrorActionPreference = "Stop"
+          $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+          $distribution = $env:WSL_DISTRO_NAME
+          if (-not $distribution) { $distribution = "NixOS" }
+          if ($distribution -notmatch "^[A-Za-z0-9._-]+$") { throw "Invalid WSL distribution name" }
+          $name = "NixOS-WSL-T3-$distribution-$($identity.User.Value)"
+          $action = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\wsl.exe" `
+            -Argument "--distribution $distribution --exec /run/current-system/sw/bin/sleep infinity"
+          $trigger = New-ScheduledTaskTrigger -AtLogOn -User $identity.Name
+          $principal = New-ScheduledTaskPrincipal -UserId $identity.Name -LogonType Interactive -RunLevel Limited
+          $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries `
+            -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) `
+            -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+          Register-ScheduledTask -TaskName $name -Action $action -Trigger $trigger `
+            -Principal $principal -Settings $settings -Force | Out-Null
+          Start-ScheduledTask -TaskName $name
+        '
 
       # Windows' built-in Office key otherwise launches Microsoft 365 Chat.
       # Override the protocol handler with a no-op for the current user.
