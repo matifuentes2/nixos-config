@@ -788,17 +788,17 @@
     "pi-pr-review-goal": {
       "flake": false,
       "locked": {
-        "lastModified": 1793920518,
-        "narHash": "sha256-XH44UJxlJ+86yPvhQFE6Djtk1w3NPvF6Z+QmQ3OEy8w=",
+        "lastModified": 1793923460,
+        "narHash": "sha256-OLUs+qpTMxQDz0b3pCfZcuHlWS01+spSxjBwVpi4O+w=",
         "owner": "matifuentes2",
         "repo": "pi-pr-review-goal",
-        "rev": "ae9cc74f4f69593292abcd818c9f5bd2b7973015",
+        "rev": "7a8901f20861ab5fdbff3419d2e89a6100ac42a0",
         "type": "github"
       },
       "original": {
         "owner": "matifuentes2",
         "repo": "pi-pr-review-goal",
-        "rev": "ae9cc74f4f69593292abcd818c9f5bd2b7973015",
+        "rev": "7a8901f20861ab5fdbff3419d2e89a6100ac42a0",
         "type": "github"
       }
     },
