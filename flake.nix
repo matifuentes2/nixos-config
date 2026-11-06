@@ -49,7 +49,7 @@
       flake = false;
     };
     pi-pr-review-goal = {
-      url = "github:matifuentes2/pi-pr-review-goal/ae9cc74f4f69593292abcd818c9f5bd2b7973015";
+      url = "github:matifuentes2/pi-pr-review-goal/7a8901f20861ab5fdbff3419d2e89a6100ac42a0";
       flake = false;
     };
     pi-parallel-go-pr-herdr = {

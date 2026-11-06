@@ -1,7 +1,7 @@
 // Exercise the shipped dist entry, not TypeScript sources or a model-backed session.
 // Run with the packaged Bun: bun tests/pi-goal-lifecycle-smoke.mjs <goal-package>
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -19,6 +19,13 @@ const userSent = [];
 const commands = new Map();
 const bus = new Map();
 let aborts = 0;
+const head = "a".repeat(40);
+const mixedChecks = [
+  ...Array.from({ length: 22 }, (_, i) => ({ name: `passing-${i}`, state: "SUCCESS", bucket: "pass" })),
+  ...Array.from({ length: 11 }, (_, i) => ({ name: `conditional-${i}`, state: "SKIPPED", bucket: "skipping" })),
+];
+let checks = mixedChecks;
+const originalPath = process.env.PATH;
 const pi = {
   on(name, handler) {
     const list = handlers.get(name) || [];
@@ -38,8 +45,9 @@ const pi = {
     emit(name, payload) { for (const listener of bus.get(name) || []) listener(payload); },
   },
   exec: async (program, args) => ({ code: 0, killed: false, stderr: "", stdout:
-    program === "git" && args[0] === "rev-parse" ? temporary :
-    program === "gh" && args[1] === "view" ? JSON.stringify({ baseRefName: "main", headRefOid: "a".repeat(40), mergeable: "MERGEABLE" }) : "" }),
+    program === "git" && args[0] === "rev-parse" ? (args[1] === "HEAD" ? head : temporary) :
+    program === "gh" && args[1] === "view" ? JSON.stringify({ baseRefName: "main", headRefOid: head, mergeable: "MERGEABLE" }) :
+    program === "gh" && args[1] === "checks" ? JSON.stringify(checks) : "" }),
   appendEntry(customType, data) {
     entries.push({ type: "custom", id: `entry-${entries.length}`, customType, data,
       parentId: null, timestamp: new Date().toISOString() });
@@ -173,8 +181,48 @@ try {
     await assert.rejects(() => call("update_goal", { status: "complete" }), /review-failed/);
     assert.equal((await goal()).status, "paused");
     console.log("Shipped PR-review policy passed: protected start, missing evidence, failed model launch, durable ledger, and fail-closed restore.");
+    // A deterministic subprocess fixture, not a paid/external model review. Exercise
+    // successful execution and actual protected persistence in the shipped pair.
+    writeFileSync(join(temporary, "pi"), `#!${process.execPath}
+let prompt = '';
+for await (const chunk of process.stdin) prompt += chunk;
+const verdict = JSON.parse(prompt.match(/exactly these keys: (\\{.*?\\})\\. Use/)[1]);
+const args = process.argv;
+const message = { role: 'assistant', provider: args[args.indexOf('--provider') + 1], model: args[args.indexOf('--model') + 1],
+  stopReason: 'stop', content: [{ type: 'text', text: JSON.stringify(verdict) }] };
+console.log(JSON.stringify({ type: 'message_end', message }));
+console.log(JSON.stringify({ type: 'agent_end', messages: [message] }));
+`, { mode: 0o755 });
+    process.env.PATH = `${temporary}:${originalPath || ""}`;
+    ctx.modelRegistry.find = (provider, model) => provider === "smoke" && model === "review-model" ? ctx.model : undefined;
+    await call("resume_goal");
+    await call("run_goal_review");
+    const review = structuredClone(protectedSnapshot().reviewExecution);
+    assert.equal(review.status, "completed");
+    assert.equal(review.headSha, head);
+    assert.equal(JSON.parse(review.verdict).attemptId, review.attemptId);
+    for (const blockedChecks of [
+      [...mixedChecks, { name: "prerequisite", state: "FAILURE", bucket: "fail" }],
+      [...mixedChecks, { name: "prerequisite", state: "PENDING", bucket: "pending" }],
+      [...mixedChecks, { name: "prerequisite", state: "CANCELLED", bucket: "cancel" }],
+      mixedChecks.filter(row => row.state === "SKIPPED"), [],
+    ]) {
+      checks = blockedChecks;
+      await assert.rejects(() => call("update_goal", { status: "complete" }), /ci-blocked/);
+      assert.notEqual((await goal()).status, "complete");
+    }
+    await call("pause_goal");
+    assert.equal((await goal()).status, "paused");
+    await emit("session_start", { reason: "resume" });
+    checks = mixedChecks;
+    await call("update_goal", { status: "complete" });
+    assert.equal((await goal()).status, "complete");
+    assert.deepEqual(protectedSnapshot().reviewExecution, review);
+    console.log("Shipped CI policy passed: 22 passing + 11 skipped complete; failure/pending/cancelled, absent and all-skipped CI block; durable review survives restore and recovery.");
   }
 } finally {
+  if (originalPath === undefined) delete process.env.PATH;
+  else process.env.PATH = originalPath;
   if (handlers.has("session_shutdown")) await emit("session_shutdown");
   rmSync(temporary, { recursive: true, force: true });
 }
