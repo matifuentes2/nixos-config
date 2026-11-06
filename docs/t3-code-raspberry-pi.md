@@ -4,7 +4,7 @@ The Pi's Home Manager configuration installs the native ARM64 T3 Code desktop
 release, pinned to version 0.1.7 with a fixed content hash in
 [`packages/t3-code.nix`](../packages/t3-code.nix). The Lenovo continues to use
 the same version's x86-64 release. The Pi also installs the pinned ARM64
-standalone CLI (`t3`) and the isolated `t3-headless` wrapper described below.
+standalone CLI (`t3`), used by the persistent server described below.
 
 ## Apply and launch
 
@@ -32,11 +32,26 @@ existing user lingering. It listens only on `127.0.0.1:3774`, opens no firewall
 ports, and runs agents from the user's declarative profile. It does not need
 Hyprland, a browser, or Electron running on the Pi.
 
-Its state is isolated in `~/.local/share/t3-headless` using `T3CODE_HOME`, so it
-can run alongside the desktop app's default `~/.t3` state and port. Always use
-`t3-headless` for server administration/pairing, not bare `t3`, which defaults
-to the desktop's data directory. The two environments have separate sessions,
-settings, and credentials.
+The service and normal CLI commands use the same default `~/.t3` state.
+Use plain `t3 pair`; no wrapper or `T3CODE_HOME` override is needed. Use the
+browser or the desktop client's **Add environment** flow to connect to this
+server, rather than launching a second local server against the same state.
+
+### Migration from the old isolated server
+
+Close the local T3 desktop app before rebuilding. On the first activation,
+Home Manager stops `t3-server`, preserves any existing `~/.t3` directory in
+`~/.t3-before-unification.XXXXXXXX/state`, and moves the entire old
+`~/.local/share/t3-headless` directory to `~/.t3`. This keeps the running
+headless server's sessions, settings, credentials, and SQLite WAL files
+together. The service is then started with the new configuration. Later
+activations do nothing once the old directory is gone.
+
+The two databases are **not merged**. Any old desktop sessions remain in the
+backup. Keep it until you have verified the migrated server; it contains
+private state and must not be committed. Migration refuses symlinks or a
+detected process using the default database; resolve that condition before
+retrying activation.
 
 After rebuilding, check on the Pi:
 
@@ -44,7 +59,7 @@ After rebuilding, check on the Pi:
 systemctl --user status t3-server
 journalctl --user -u t3-server -n 50
 ss -ltnp 'sport = :3774'
-t3-headless pair
+t3 pair
 ```
 
 On your client computer, keep this SSH tunnel running (replace `pi` with your
@@ -54,7 +69,7 @@ SSH alias or `pi@HOST` if necessary):
 ssh -N -L 3774:127.0.0.1:3774 pi
 ```
 
-Use the pairing link/token from `t3-headless pair` with the client endpoint
+Use the pairing link/token from `t3 pair` with the client endpoint
 `http://127.0.0.1:3774`, in a browser or the desktop client's **Add environment**
 flow. If the pairing link advertises a different host, change only its
 host/port to `127.0.0.1:3774`; retain its token/path. Pairing links are private
@@ -62,7 +77,7 @@ credentials: do not paste them into issues or commit them. Keep client/server
 versions compatible (the server is pinned to 0.1.7).
 
 To stop/restart the server, use `systemctl --user stop t3-server` or
-`systemctl --user restart t3-server`. Do not also run `t3-headless serve`
+`systemctl --user restart t3-server`. Do not also run `t3 serve`
 while the service is active. Do not use `t3 service install`, npm global
 installation, or self-update: the package and service are managed by Nix.
 
@@ -86,7 +101,7 @@ remain private, mutable user state and are not committed to this repository.
 ## Validation
 
 On a capable machine, `python3 tests/test-t3-headless.py` checks ARM64/x86-64
-CLI pins, service isolation/listen arguments, agent PATH, lingering, nix-ld
+CLI pins, shared default state, migration wiring, listen arguments, agent PATH, lingering, nix-ld
 libraries, and unchanged WSL service settings. `python3 tests/test-t3-secure-storage.py` checks the Pi's
 declarative package selection, both release URLs and hashes, keyring integration,
 and the real wrapper's argument forwarding using a mocked FHS launcher. Actual
