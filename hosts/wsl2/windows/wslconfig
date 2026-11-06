@@ -1,0 +1,4 @@
+# Managed by hosts/wsl2/home.nix through windows-config-sync.
+[wsl2]
+guiApplications=false
+localhostForwarding=true

@@ -6,7 +6,8 @@ On WSL2, T3 Code is split in two:
   runs as the `t3-server` systemd user service defined in
   [`hosts/wsl2/home.nix`](../hosts/wsl2/home.nix). It listens on `0.0.0.0:3773`,
   keeps its data in `~/.t3`, and runs the agents with the user's profile on
-  `PATH`. Lingering is enabled, so it starts when WSL boots.
+  `PATH`. Lingering is enabled, so it starts when WSL boots. A Windows logon
+  task starts WSL and keeps it alive without an open terminal.
 - **UI (Windows):** the native T3 Code app (`T3Tools.T3Code`, declared in
   [`hosts/wsl2/windows/configuration.winget`](../hosts/wsl2/windows/configuration.winget))
   connects to that server. A native window tiles cleanly under GlazeWM, unlike
@@ -17,7 +18,8 @@ on the same port with the same `~/.t3` data, and the two must not run at once.
 
 ## Setup
 
-1. Rebuild WSL2. The service starts automatically:
+1. Rebuild WSL2. The service starts automatically, and Home Manager installs
+   the Windows logon task through `windows-config-sync`:
 
    ```sh
    sudo nixos-rebuild switch --flake ~/nixos-config#wsl2
@@ -45,12 +47,28 @@ Logs are available with `journalctl --user -u t3-server`.
 
 ## Notes
 
-- WSL shuts the distribution down when nothing on Windows is using it. If the
-  Windows app cannot connect, open a WSL terminal (or run `wsl -d NixOS`) to
-  start it; the service then comes up with it.
-- When Tailscale runs on Windows and WSL2 uses NAT networking, Windows must
-  also forward its Tailscale interface's TCP port 3773 to the WSL2 address and
-  allow the connection through Windows Firewall. These Windows settings are
-  separate from this NixOS configuration. The forwarding destination may need
-  updating after WSL2 restarts because its NAT address can change.
+- `windows-config-sync` registers a per-user `NixOS-WSL-T3-*` logon task
+  that invokes `wsl.exe` directly to run `sleep infinity` in the distribution.
+  This keeps WSL alive without an open terminal. It needs no saved password or
+  administrator privileges, has no execution time limit, continues on battery
+  power, and uses three one-minute retries on failure.
+- To intentionally shut down WSL, first end and disable the `NixOS-WSL-T3-*`
+  task in Task Scheduler to prevent its failure retries. Running
+  `windows-config-sync` enables and starts the task again.
+- `windows-config-sync` also deploys the tracked
+  [`wslconfig`](../hosts/wsl2/windows/wslconfig) to `%USERPROFILE%\.wslconfig`.
+  WSL runs headless (`guiApplications=false`) with localhost forwarding enabled.
+  Windows-native applications provide the UI; the WSLg compositor is unnecessary.
+  This file applies to all WSL2 distributions for the Windows user. Changes take
+  effect after a full `wsl --shutdown`; finish active agent work before restarting.
+- For remote access, configure persistent Tailscale forwarding once from
+  Windows PowerShell:
+
+  ```powershell
+  tailscale serve --bg --yes --tcp=3773 tcp://127.0.0.1:3773
+  ```
+
+  Tailscale owns the listener and resumes it after reboots. Tailnet access policy
+  controls which devices can connect, and T3 still requires pairing. Windows
+  localhost forwarding follows WSL's current NAT address.
 - The service and the CLI must not be started a second time on port 3773.
