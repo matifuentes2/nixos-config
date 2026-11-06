@@ -15,8 +15,9 @@ and `modules/home/darwin.nix`, then:
 - installs upstream's agent skill for the same release as
   `~/.pi/agent/skills/cua-driver`;
 - on Linux, runs `cua-driver serve` as a systemd user service bound to
-  `graphical-session.target`. Pi's MCP server and the `cua-driver call` CLI
-  share that one runtime through `~/.cache/cua-driver/cua-driver.sock`.
+  `graphical-session.target` and to a headless agent desktop (below). Pi's
+  MCP server and the `cua-driver call` CLI share that one runtime through
+  `~/.cache/cua-driver/cua-driver.sock`.
 
 The driver runs in upstream's default `standard` permission mode: observing,
 clicking, and typing into any app is allowed without prompts. Treat it as
@@ -42,27 +43,56 @@ The grants are bound to the signing identity and survive version updates.
 The daemon is started by `open`, so the wrapper's telemetry setting does not
 reach it; run `cua-driver telemetry disable` once if you want it off there too.
 
-## Linux (Hyprland)
+## Linux: the agent desktop
 
-`modules/system/linux-desktop.nix` enables the AT-SPI accessibility bus.
-The wrapper sets `CUA_DRIVER_RS_ENABLE_WAYLAND=1` so the driver uses its
-Hyprland adapters, and puts `grim` on its `PATH` for desktop capture.
-Upstream rates Hyprland support as experimental; the optional Hyprland
-input plugin is not installed.
+On Linux the driver does not operate the Hyprland session. It operates a
+dedicated, headless X11 desktop, `:47` (TigerVNC's `Xvnc` with Openbox and
+`xcompmgr`), started by the `cua-agent-desktop` user service.
+`modules/system/linux-desktop.nix` enables the AT-SPI accessibility bus that
+both share.
 
-Known limitation with v0.38.0 on Hyprland 0.57: upstream cannot parse the
-`specialWorkspace` entry that Hyprland 0.57 sends without an `id`
-([trycua/cua#6267](https://github.com/trycua/cua/issues/6267)), so
-`list_windows` returns no windows. Desktop screenshots (`get_desktop_state`)
-still work; desktop-scope (screen-coordinate) input has not been verified
-here. Bump the pinned version once a release contains the fix.
+Why not Hyprland: with v0.38.0 the driver's Wayland keyboard input
+(`type_text`, `press_key`) goes only through libei behind the
+`org.freedesktop.portal.RemoteDesktop` portal. No Hyprland or wlroots portal
+implements that interface, so typing fails on Hyprland and on Sway alike. On
+top of that, it cannot parse the `specialWorkspace` entry that Hyprland 0.57
+sends without an `id`
+([trycua/cua#6267](https://github.com/trycua/cua/issues/6267)), so window
+discovery is empty. A headless Sway session was also tested. The driver never
+uses its Sway IPC adapter there, so window-targeted input refuses and
+per-window capture is unattested. X11 with Openbox is upstream's most complete
+Linux baseline. On the agent desktop, window discovery, per-window
+screenshots, AT-SPI trees, XTest keyboard and pointer input
+(`delivery_mode:"foreground"`), and `set_window_frame` all work.
+
+The agent desktop has its own focus, pointer, and clipboard, so the agent
+never types into your windows and you can keep working. Foreground delivery is
+therefore safe there. Background delivery stays limited to AT-SPI actions, as
+upstream documents for X11.
+
+- `cua-agent-view` opens a VNC viewer on the agent desktop to watch it or
+  take over. The VNC endpoint is a 0600 unix socket in
+  `$XDG_RUNTIME_DIR/cua-agent/`, never a TCP port. The X server uses a
+  per-start MIT cookie in `~/.cache/cua-driver/agent.Xauthority`.
+- `cua-agent-run <command>` starts an app there with the same environment
+  as the driver, for example a browser profile reserved for the agent:
+  `cua-agent-run firefox --profile ~/.mozilla/agent`. The driver's
+  `launch_app` also opens apps on the agent desktop.
+- The driver's environment removes the Wayland variables and forces X11
+  backends (GTK, Qt, SDL, Firefox, and Electron), so apps it starts never
+  appear on Hyprland. `MOZ_NO_REMOTE=1` keeps Firefox from handing a URL to an
+  instance you already have open. Single-instance apps that use their own
+  IPC (most Electron apps, Chromium sharing your profile) can still forward
+  to a window on your desktop. Give them a separate profile or user-data
+  directory.
 
 Verify after rebuilding (the AT-SPI change needs a fresh login):
 
 ```sh
-systemctl --user status cua-driver
-cua-driver doctor
-cua-driver call list_windows   # uses the default socket shared with Pi
+systemctl --user status cua-agent-desktop cua-driver
+cua-driver call health_report        # ax_capability and screen_capture pass
+cua-agent-run kitty &                # or let the agent call launch_app
+cua-driver call list_windows         # uses the default socket shared with Pi
 ```
 
 Upstream labels the Linux arm64 build (Raspberry Pi) a preview.
