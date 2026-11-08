@@ -45,11 +45,11 @@
     mcp-nixos.url = "github:utensils/mcp-nixos";
     pi-codex-goal = {
       # Keep the policy host and consumer paired with companion-ref.json.
-      url = "github:matifuentes2/pi-codex-goal/dec08ee6bbcf879a322149d32c24394e83f3ebf2";
+      url = "github:matifuentes2/pi-codex-goal/4724cd8bd4843247169e871480a6abc259b7d5ab";
       flake = false;
     };
     pi-pr-review-goal = {
-      url = "github:matifuentes2/pi-pr-review-goal/7a8901f20861ab5fdbff3419d2e89a6100ac42a0";
+      url = "github:matifuentes2/pi-pr-review-goal/f43390e77efbd205a9ccdc69adcfe111f11ebb1e";
       flake = false;
     };
     pi-parallel-go-pr-herdr = {
