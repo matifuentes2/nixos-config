@@ -50,6 +50,9 @@ let
       # WSL's systemd services do not keep the distribution alive. A Windows
       # logon task owns a persistent WSL command, allowing t3-server to run
       # without an open terminal. Reconcile and start it on every activation.
+      # Restart settings only cover launch failures, not the command exiting
+      # when WSL stops the VM, so a repeating trigger relaunches it within five
+      # minutes; IgnoreNew skips repeats while it is still running.
       # Dollar expressions below belong to PowerShell, not the shell.
       # shellcheck disable=SC2016
       /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe \
@@ -62,7 +65,10 @@ let
           $name = "NixOS-WSL-T3-$distribution-$($identity.User.Value)"
           $action = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\wsl.exe" `
             -Argument "--distribution $distribution --exec /run/current-system/sw/bin/sleep infinity"
-          $trigger = New-ScheduledTaskTrigger -AtLogOn -User $identity.Name
+          $trigger = @(
+            New-ScheduledTaskTrigger -AtLogOn -User $identity.Name
+            New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)
+          )
           $principal = New-ScheduledTaskPrincipal -UserId $identity.Name -LogonType Interactive -RunLevel Limited
           $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries `
             -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) `
