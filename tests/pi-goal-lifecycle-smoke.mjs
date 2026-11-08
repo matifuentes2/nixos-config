@@ -181,6 +181,14 @@ try {
     await assert.rejects(() => call("update_goal", { status: "complete" }), /review-failed/);
     assert.equal((await goal()).status, "paused");
     console.log("Shipped PR-review policy passed: protected start, missing evidence, failed model launch, durable ledger, and fail-closed restore.");
+    // Replacement is cancellation, not completion: the model must not swap the
+    // protected goal for a generic one that it could then complete instead.
+    const protectedGoalId = (await goal()).goalId;
+    await assert.rejects(() => call("create_goal", { objective: "Declare review done", replace_existing: true }),
+      /protected goal cannot be replaced/);
+    assert.equal((await goal()).goalId, protectedGoalId);
+    assert.equal(protectedSnapshot().completionPolicy.id, "pi-pr-review-goal/reviewer-success/v1");
+    console.log("Shipped PR-review policy passed: model-initiated replacement of the protected goal is refused.");
     // A deterministic subprocess fixture, not a paid/external model review. Exercise
     // successful execution and actual protected persistence in the shipped pair.
     writeFileSync(join(temporary, "pi"), `#!${process.execPath}
