@@ -51,9 +51,11 @@ Logs are available with `journalctl --user -u t3-server`.
   that invokes `wsl.exe` directly to run `sleep infinity` in the distribution.
   This keeps WSL alive without an open terminal. It needs no saved password or
   administrator privileges, has no execution time limit, continues on battery
-  power, and uses three one-minute retries on failure.
+  power, and uses three one-minute retries if it fails to launch. A second
+  trigger repeats every five minutes, so if WSL stops the VM and the command
+  exits, the task starts WSL again; repeats are skipped while it is running.
 - To intentionally shut down WSL, first end and disable the `NixOS-WSL-T3-*`
-  task in Task Scheduler to prevent its failure retries. Running
+  task in Task Scheduler; otherwise it restarts WSL within five minutes. Running
   `windows-config-sync` enables and starts the task again.
 - `windows-config-sync` also deploys the tracked
   [`wslconfig`](../hosts/wsl2/windows/wslconfig) to `%USERPROFILE%\.wslconfig`.
