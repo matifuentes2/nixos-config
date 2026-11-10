@@ -1,7 +1,7 @@
 # T3 Code on the Raspberry Pi
 
 The Pi's Home Manager configuration installs the native ARM64 T3 Code desktop
-release, pinned to version 0.1.7 with a fixed content hash in
+release, pinned to version 0.1.8 with a fixed content hash in
 [`packages/t3-code.nix`](../packages/t3-code.nix). The Lenovo continues to use
 the same version's x86-64 release. The Pi also installs the pinned ARM64
 standalone CLI (`t3`), used by the persistent server described below.
@@ -74,7 +74,7 @@ Use the pairing link/token from `t3 pair` with the client endpoint
 flow. If the pairing link advertises a different host, change only its
 host/port to `127.0.0.1:3774`; retain its token/path. Pairing links are private
 credentials: do not paste them into issues or commit them. Keep client/server
-versions compatible (the server is pinned to 0.1.7).
+versions compatible (the server is pinned to 0.1.8).
 
 To stop/restart the server, use `systemctl --user stop t3-server` or
 `systemctl --user restart t3-server`. Do not also run `t3 serve`

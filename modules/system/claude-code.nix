@@ -2,16 +2,16 @@
 
 {
   # Pin the same upstream release on every host. Checksums come from
-  # https://downloads.claude.ai/claude-code-releases/2.1.318/manifest.json.
+  # https://downloads.claude.ai/claude-code-releases/2.1.322/manifest.json.
   nixpkgs.overlays = [
     (final: prev: {
       claude-code = prev.claude-code.override {
         manifest = {
-          version = "2.1.318";
+          version = "2.1.322";
           platforms = {
-            darwin-arm64.checksum = "677a2ea7bf576cedd20e191d973914ed8a41796f53a63b1923381ddc4d5b5e7d";
-            linux-arm64.checksum = "53a0d7e219d7b0804ecba5dbc002745e89f786cc946d2de85a6470d5b2d1fb06";
-            linux-x64.checksum = "708c77b204db30086ff6f1ed34577bda03e1be74ced80557cbf7b54249ebf0bd";
+            darwin-arm64.checksum = "a9d237949db816a0b7afd88a9a8e1df36b3a597a30f5a41d1c0539eb180a3450";
+            linux-arm64.checksum = "f220ca50ea4f3222043ff83cc224a1262e0196e9897acc0871efa94235b0c1fd";
+            linux-x64.checksum = "bfb3703ad5380242328459bc62ada4bde8ae7ba57c6e1eeadb9c00e08874c478";
           };
         };
       };

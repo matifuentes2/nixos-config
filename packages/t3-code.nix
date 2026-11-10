@@ -9,17 +9,17 @@
 
 let
   pname = "t3-code";
-  version = "0.1.7";
+  version = "0.1.8";
   release =
     if stdenv.hostPlatform.isAarch64 then
       {
         arch = "arm64";
-        hash = "sha256-REW+/6z5baO+LIHCgCIgIOOyYjV54zZLEPROhL/R48I=";
+        hash = "sha256-ai63kc+2C3hPFVGqbR4i0IcMweFVToFXSEYoFvEhZj4=";
       }
     else
       {
         arch = "x86_64";
-        hash = "sha256-+q7kCU3KEnYFeEChpFprLQDXQYr79XNfdadQO3dOY9E=";
+        hash = "sha256-4Rdpi+TMWeXsFBbFHf1EKlPvoxQZd7wgy9DYH9P9WCQ=";
       };
   desktopItem = makeDesktopItem {
     name = pname;
