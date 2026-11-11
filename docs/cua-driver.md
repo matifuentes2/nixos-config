@@ -32,6 +32,10 @@ macbook host's activation therefore copies the pinned, Developer ID-signed
 bundle there (the same `ditto`, `codesign --verify`, and `lsregister` steps as
 upstream's installer) whenever the installed version differs. `cua-driver mcp`
 proxies to that app and starts it on demand.
+The package wraps an immutable launcher so a clean build does not depend on
+the app already existing in `/Applications`; runtime still executes that exact
+installed bundle. `tests/cua-darwin-wrapper.nix` exercises this install branch
+with a fixture on the current build host.
 
 After the first `darwin-rebuild switch`, grant permissions once:
 
@@ -138,7 +142,8 @@ resource-safety rules. Use CI or a capable builder where possible.
 The targeted ARM64 packages were built with one job and one core. Live tests
 used temporary user services generated from the evaluated module, a separate
 driver socket, and disposable data while the physical Hyprland session was
-locked. They did not replace the installed system generation.
+locked. The full Pi system build subsequently passed, the configuration was activated,
+and the installed smoke check and service health checks passed.
 
 | Capability | Verified result |
 | --- | --- |
@@ -156,6 +161,7 @@ locked. They did not replace the installed system generation.
 | Trajectory recording | Nine turns with before/after PNGs and action JSON |
 | Video recording | Finalized 1920x1080 H.264 MP4, 61 frames over 2.03 seconds |
 | Headless Chrome runtime | No missing libraries; pinned shell rendered the local fixture |
+| Installed T3 preview | Navigation, snapshot, Unicode typing, form/select/checkbox, upload/download, drag/drop and scroll passed after server restart |
 
 GTK4 can publish incorrect element bounds. Cua refused foreground pointer
 clicks on those controls; background semantic button actions worked. Use
@@ -172,9 +178,8 @@ weaken the persistent profile's password store to bypass that prompt.
 Video recording uses the declared full FFmpeg build, since the default build
 omits X11 capture. Recording stays off until explicitly requested. The short
 video check does not establish sustained recording performance on the Pi.
-Media acceleration, reboot/logout startup, and T3's complete preview tool flow
-are not certified by these checks. T3 preview needs a safe server
-restart after activation before its new wrapper can be exercised end to end.
+Media acceleration, reboot/logout startup and sustained video throughput
+remain untested. The installed T3 preview flow passed after its server restart.
 
 ### T3 preview browser
 

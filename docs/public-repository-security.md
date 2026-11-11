@@ -74,6 +74,9 @@ Legion Y720, perform a non-switching host build:
 sudo nixos-rebuild build --flake /etc/nixos#amd64-lenovo-legion-y720
 ```
 
+The required repository-check job waits for the macOS build and explicitly
+fails if that build does not succeed, including when it is skipped or cancelled.
+
 On the WSL2 host, also perform a non-switching host build:
 
 ```sh

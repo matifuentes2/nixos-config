@@ -92,8 +92,12 @@ pkgs.stdenv.mkDerivation {
         # The CLI must resolve to /Applications/CuaDriver.app, where the
         # nix-darwin activation installs a copy; the driver only trusts that
         # exact path for its daemon and permission grants.
+        # The app is absent inside a clean build sandbox. Wrap an immutable
+        # launcher instead, deferring the /Applications lookup until runtime.
         mkdir -p "$out/bin"
-        makeWrapper /Applications/CuaDriver.app/Contents/MacOS/cua-driver \
+        makeWrapper ${pkgs.writeShellScript "cua-driver-app-launcher" ''
+          exec /Applications/CuaDriver.app/Contents/MacOS/cua-driver "$@"
+        ''} \
           "$out/bin/cua-driver" ${lib.escapeShellArgs wrapperFlags}
       ''
     else
