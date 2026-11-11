@@ -1,0 +1,27 @@
+--- a/dist/goal-runtime-controller-t3bapw8t.js
++++ b/dist/goal-runtime-controller-t3bapw8t.js
+@@ -2901,17 +2901,23 @@
+       } catch (error) {
+         execution.status = signal?.aborted ? "interrupted" : launched ? "runtime_failed" : "launch_failed";
+         execution.reason = error instanceof Error ? error.message : String(error);
++        execution.consecutiveFailures = (goal.reviewExecution?.consecutiveFailures ?? 0) + 1;
+       }
+       if (!record())
+         return { ok: false, reason: "Review attempt superseded; result discarded." };
+       if (execution.status !== "completed") {
++        // Let the parent repair setup or retry the exact reviewer before pausing.
++        // Persist the counter with the attempt so reload cannot reset the limit.
++        if (!signal?.aborted && execution.consecutiveFailures < 3 && persistence.getGoal()?.status === "active") {
++          return { ok: false, reason: `review-failed (attempt ${execution.consecutiveFailures}/3; goal remains active): ${execution.reason}. Diagnose and repair the cause, then call run_goal_review({}) on the same reviewer. Completion remains blocked.` };
++        }
+         if (persistence.getGoal()?.status === "active") {
+           stateController.applyGoalTransition({ kind: "recovery_pause", recoveryReason: `review-failed: ${execution.reason}` }, ctx);
+         } else {
+           setRecoveryPausedAttention(runtimeState.recoveryState, `review-failed: ${execution.reason}`);
+           status.refreshUi(ctx);
+         }
+-        return { ok: false, reason: `review-failed: ${execution.reason}` };
++        return { ok: false, reason: `review-failed: ${execution.reason}. Goal paused after interruption or three consecutive failures. Report the blocker; /goal resume continues this goal.` };
+       }
+       return { ok: true, reason: execution.verdict };
+     },

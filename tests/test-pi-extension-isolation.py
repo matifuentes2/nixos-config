@@ -15,6 +15,7 @@ class ExtensionIsolation(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="pi-extension-isolation-") as temporary:
             root = pathlib.Path(temporary)
             shutil.copytree(REPO / "pi-extensions", root / "pi-extensions")
+            shutil.copytree(REPO / "patches", root / "patches")
             (root / "packages").mkdir()
             for name in ("home-tools.nix", "pi-extensions.nix"):
                 shutil.copyfile(REPO / "packages" / name, root / "packages" / name)
