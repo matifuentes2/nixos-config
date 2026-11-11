@@ -25,6 +25,7 @@ const mixedChecks = [
   ...Array.from({ length: 11 }, (_, i) => ({ name: `conditional-${i}`, state: "SKIPPED", bucket: "skipping" })),
 ];
 let checks = mixedChecks;
+
 const originalPath = process.env.PATH;
 const pi = {
   on(name, handler) {
@@ -189,6 +190,25 @@ try {
     assert.equal((await goal()).goalId, protectedGoalId);
     assert.equal(protectedSnapshot().completionPolicy.id, "pi-pr-review-goal/reviewer-success/v1");
     console.log("Shipped PR-review policy passed: model-initiated replacement of the protected goal is refused.");
+    // A transient setup error must give the parent a bounded repair opportunity.
+    // The first prior failure was already recorded while the goal was paused.
+    await call("resume_goal");
+    await assert.rejects(() => call("run_goal_review"), /attempt 2\/3; goal remains active/);
+    assert.equal((await goal()).status, "active");
+    await emit("session_start", { reason: "resume" });
+    await assert.rejects(() => call("run_goal_review"), /Goal paused/);
+    assert.equal((await goal()).status, "paused");
+    assert.equal(protectedSnapshot().reviewExecution.consecutiveFailures, 3);
+    assert.match((await goal()).objective, /CI and a clean code verdict do not substitute/);
+    assert.doesNotMatch((await goal()).objective, /codex|chatgpt-codex-connector/i);
+    assert.match((await goal()).objective, /fresh review -> fixes/);
+    console.log("Shipped recovery passed: bounded repair attempts survive session reload and pause after three failures.");
+    ctx.modelRegistry.find = (provider, model) => provider === "smoke" && model === "review-model" ? ctx.model : undefined;
+    const successfulExec = pi.exec;
+    pi.exec = async () => ({ code: 1, killed: false, truncated: false, stdout: "", stderr: "temporary GitHub API failure" });
+    await assert.rejects(() => call("run_goal_review"), /exit=1.*temporary GitHub API failure/);
+    pi.exec = successfulExec;
+    console.log("Shipped diagnostics passed: failed gh preparation preserves exit and stderr.");
     // A deterministic subprocess fixture, not a paid/external model review. Exercise
     // successful execution and actual protected persistence in the shipped pair.
     writeFileSync(join(temporary, "pi"), `#!${process.execPath}

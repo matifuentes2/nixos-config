@@ -269,8 +269,20 @@ let
 
   # Descriptive output names preserve package provenance in Pi's registry.
   # PR-review compatibility is established by the completion-policy host API.
-  piCodexGoalPackage = mkPiExtensionPackage "pi-codex-goal" pi-codex-goal;
-  piPrReviewGoalPackage = mkPiExtensionPackage "pi-pr-review-goal" pi-pr-review-goal;
+  piCodexGoalPackage = (mkPiExtensionPackage "pi-codex-goal" pi-codex-goal).overrideAttrs (old: {
+    buildCommand = old.buildCommand + ''
+      chmod -R u+w "$out/dist"
+      patch -d "$out" -p1 < ${../patches/pi-goals/recovery.patch}
+    '';
+  });
+  piPrReviewGoalPackage =
+    (mkPiExtensionPackage "pi-pr-review-goal" pi-pr-review-goal).overrideAttrs
+      (old: {
+        buildCommand = old.buildCommand + ''
+          chmod -R u+w "$out/src" "$out/extensions"
+          patch -d "$out" -p1 < ${../patches/pi-goals/pr-review.patch}
+        '';
+      });
   piParallelGoPrHerdrPackage = mkPiExtensionPackage "pi-parallel-go-pr-herdr" pi-parallel-go-pr-herdr;
   piExecutionTimePackage = mkPiExtensionPackage "pi-execution-time" pi-execution-time;
 
