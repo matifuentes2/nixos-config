@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>CUA browser validation</title>
+<style>
+  body { font: 20px sans-serif; max-width: 700px; margin: 40px auto; }
+  label, button, output { display: block; margin: 16px 0; }
+  input, select, button { font: inherit; }
+  #drag, #drop { padding: 30px; border: 2px solid; margin: 20px 0; }
+  #scroll-target { margin-top: 110vh; }
+</style>
+<h1>CUA browser validation</h1>
+<p>This local fixture sends no data over the network.</p>
+<form id="form">
+  <label>Message <input id="message" name="message" autocomplete="off"></label>
+  <label>Choice <select name="choice"><option>One</option><option>Two</option></select></label>
+  <label><input type="checkbox" name="enabled"> Enabled</label>
+  <label>Upload test file <input id="upload" type="file"></label>
+  <button>Submit test form</button>
+</form>
+<output id="result" aria-live="polite">Not submitted</output>
+<a download="cua-test.txt" href="data:text/plain,CUA%20download%20verified%0A">Download test file</a>
+<div id="drag" draggable="true">Drag this test item</div>
+<div id="drop">Drop test item here</div>
+<p id="scroll-target">Scroll verification target</p>
+<script>
+  document.querySelector('#form').addEventListener('submit', event => {
+    event.preventDefault();
+    const data = new FormData(event.target);
+    document.querySelector('#result').textContent =
+      `Submitted: ${data.get('message')} | ${data.get('choice')} | ${data.has('enabled')}`;
+  });
+  document.querySelector('#upload').addEventListener('change', event => {
+    document.querySelector('#result').textContent = `Uploaded: ${event.target.files[0]?.name}`;
+  });
+  document.querySelector('#drag').addEventListener('dragstart', event => {
+    event.dataTransfer.setData('text/plain', 'CUA test item');
+  });
+  document.querySelector('#drop').addEventListener('dragover', event => event.preventDefault());
+  document.querySelector('#drop').addEventListener('drop', event => {
+    event.preventDefault();
+    event.currentTarget.textContent = `Dropped: ${event.dataTransfer.getData('text/plain')}`;
+  });
+</script>
+</html>

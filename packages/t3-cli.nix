@@ -3,6 +3,7 @@
   stdenvNoCC,
   fetchurl,
   makeWrapper,
+  pkgs,
 }:
 
 # Headless T3 Code server and CLI (`t3`), from the upstream standalone release.
@@ -10,6 +11,28 @@
 # patchelf would corrupt the appended payload. It and its native Node add-ons
 # (node-pty, keyring, ffi) run through nix-ld, which the host must enable.
 let
+  # T3 pins and verifies Chrome Headless Shell's archive itself. Its downloaded
+  # ELF and the ldd-based startup diagnostic both need this environment on NixOS.
+  browserLibraries = with pkgs; [
+    glib
+    nspr
+    nss
+    atk
+    dbus
+    libX11
+    libXcomposite
+    libXdamage
+    libXext
+    libXfixes
+    libXrandr
+    libgbm
+    expat
+    libxcb
+    libxkbcommon
+    systemd
+    alsa-lib
+    at-spi2-core
+  ];
   release =
     if stdenvNoCC.hostPlatform.isAarch64 then
       {
@@ -43,9 +66,12 @@ stdenvNoCC.mkDerivation rec {
     runHook preInstall
     mkdir -p $out/libexec/t3 $out/bin
     cp -r . $out/libexec/t3
-    makeWrapper $out/libexec/t3/t3 $out/bin/t3
+    makeWrapper $out/libexec/t3/t3 $out/bin/t3 \
+      --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath browserLibraries}
     runHook postInstall
   '';
+
+  passthru.browserLibraryPath = lib.makeLibraryPath browserLibraries;
 
   meta = {
     description = "Headless server and CLI for T3 Code";

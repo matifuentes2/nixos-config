@@ -46,73 +46,155 @@ reach it; run `cua-driver telemetry disable` once if you want it off there too.
 
 ## Linux: the agent desktop
 
-The Home Manager option `services.cua-driver.agentDesktop.enable` (default
-`false`, defined in `modules/home/cua-driver.nix`) moves the driver off the
-Hyprland session and onto a dedicated, headless X11 desktop, `:47`
-(TigerVNC's `Xvnc` with Openbox and `xcompmgr`, 1920x1080), started by the
-`cua-agent-desktop` user service. Only the Lenovo Legion Y720 enables it, in
-`hosts/amd64-lenovo-legion-y720/home.nix`. With the option off (the Raspberry
-Pi), Linux keeps the plain `cua-driver` service in the graphical session, with
-no agent desktop, helpers, or extra skill.
-`modules/system/linux-desktop.nix` enables the AT-SPI accessibility bus that
-the driver and the desktop share.
+`services.cua-driver.agentDesktop.enable` moves Cua off Hyprland onto a
+private X11 desktop: TigerVNC's Xvnc, Openbox and xcompmgr on `:47` at
+1920x1080. The Raspberry Pi and Lenovo Legion Y720 enable it. The Pi also
+sets `services.cua-driver.agentDesktop.headless = true`: both services start
+with the lingering user manager at boot and survive graphical logout. The
+Lenovo retains graphical-session startup. These options do not affect macOS.
 
-The option also installs a short `cua-agent-desktop` skill
-(`pi-skills/cua-agent-desktop/SKILL.md`) into `~/.claude/skills/` and
-`~/.pi/agent/skills/`, next to upstream's `cua-driver` skill. It tells agents
-that computer use targets the agent desktop rather than your screen, how to
-start apps and isolated browser profiles there, and that foreground delivery
-is authorized there.
+Xvnc has no physical output. Its VNC endpoint is a 0600 Unix socket in the
+0700 `$XDG_RUNTIME_DIR/cua-agent/` directory; neither VNC nor X11 listens on
+TCP. A fresh, private MIT cookie is generated at each desktop start. A
+private D-Bus session supplies AT-SPI, with `dbus-daemon` service activation
+so the accessibility registry can start without a graphical login. This
+isolates focus, pointer, clipboard and accessibility discovery from Hyprland;
+it is not a security sandbox against processes running as the same user.
 
-Why not Hyprland: with v0.38.0 the driver's Wayland keyboard input
-(`type_text`, `press_key`) goes only through libei behind the
-`org.freedesktop.portal.RemoteDesktop` portal. No Hyprland or wlroots portal
-implements that interface, so typing fails on Hyprland and on Sway alike. On
-top of that, it cannot parse the `specialWorkspace` entry that Hyprland 0.57
-sends without an `id`
-([trycua/cua#6267](https://github.com/trycua/cua/issues/6267)), so window
-discovery is empty. A headless Sway session was also tested. The driver never
-uses its Sway IPC adapter there, so window-targeted input refuses and
-per-window capture is unattested. X11 with Openbox is upstream's most complete
-Linux baseline. On the agent desktop, window discovery, per-window
-screenshots, AT-SPI trees, XTest keyboard and pointer input
-(`delivery_mode:"foreground"`), and `set_window_frame` all work.
+The desktop signals readiness only after authenticated X connections, the
+window manager and the accessibility bus respond. The desktop supervises
+Xvnc, the private session, Openbox and the compositor. Its service keeps the
+driver running and restarts it when the desktop restarts.
 
-The agent desktop has its own focus, pointer, and clipboard, so the agent
-never types into your windows and you can keep working. Foreground delivery is
-therefore safe there. Background delivery stays limited to AT-SPI actions, as
-upstream documents for X11.
+Why X11: on the assessed Pi (Hyprland 0.56.1, Cua 0.38.0), app launch,
+window discovery and capture worked, but background keyboard input returned
+`background_unavailable` and foreground input returned
+`production Hyprland input plugin is unavailable`. The terminal had no useful
+AT-SPI controls. Hyprland 0.57 also has a known discovery parsing issue
+([trycua/cua#6267](https://github.com/trycua/cua/issues/6267)). Native Wayland
+keyboard input depends on a RemoteDesktop portal absent from Hyprland's
+portal implementation. The isolated X11 desktop avoids these routes.
 
-- `cua-agent-view` opens a VNC viewer on the agent desktop to watch it or
-  take over. The VNC endpoint is a 0600 unix socket in
-  `$XDG_RUNTIME_DIR/cua-agent/`, never a TCP port. The X server uses a
-  per-start MIT cookie in `~/.cache/cua-driver/agent.Xauthority`.
-- `cua-agent-run <command>` starts an app there with the same environment
-  as the driver, for example a browser profile reserved for the agent:
-  `cua-agent-run firefox --new-instance --profile ~/.mozilla/agent`. The
-  driver's `launch_app` also opens apps on the agent desktop.
-- The driver's environment removes the Wayland variables and forces X11
-  backends (GTK, Qt, SDL, Firefox, and Electron), so apps it starts never
-  appear on Hyprland. `MOZ_NO_REMOTE=1` keeps Firefox from handing a URL to an
-  instance you already have open.
-- Apps that reuse a running instance can still forward to a window on your
-  Hyprland desktop: Electron apps, and Chromium or Firefox with the default
-  profile. Give each one a separate profile or user-data directory, for
-  example `firefox --new-instance --profile <dir>` or
-  `chromium --user-data-dir=<dir> --force-renderer-accessibility` (the flag
-  exposes web content to AT-SPI).
+### Agent and human entrypoints
 
-Verify on a host with the option enabled after rebuilding (the AT-SPI change
-needs a fresh login):
+- `cua-agent-browser <url>` starts Chromium with X11, renderer accessibility
+  and its own persistent profile in `~/.local/share/cua-driver/chromium`.
+  The profile is created at runtime, never tracked. Keep browser sign-ins and
+  credentials out of the repository.
+- `cua-agent-editor <file>` opens Mousepad without reusing an existing instance.
+- `cua-agent-run <command>` sets the X11 and private D-Bus environment for any
+  other application. For Firefox, also pass `--new-instance --profile <dir>`.
+- `cua-agent-view` opens a local VNC viewer for watching or taking over.
+- `cua-agent-smoke` opens a disposable dialog and verifies window discovery,
+  an accessible entry, semantic Unicode editing, foreground focus/shortcuts/
+  typing, clipboard copy/paste, window movement, a PNG capture and the exact
+  submitted value. It cleans up its own
+  dialog and temporary artifacts, and exits nonzero on failure.
+
+Pi, Claude and Codex discover both upstream's pinned skill and the local
+`cua-agent-desktop` skill (Codex via `~/.agents/skills/`). CLI and Pi MCP
+share the one daemon socket `~/.cache/cua-driver/cua-driver.sock`. Use
+`delivery_mode:"foreground"` on this isolated desktop; background actions
+remain limited by each application's accessibility support. Apps started
+through `launch_app` inherit the daemon's environment. Single-instance
+browsers and Electron apps still need isolated profiles.
+
+### Validation and recovery
+
+After activating the configuration:
 
 ```sh
 systemctl --user status cua-agent-desktop cua-driver
-cua-driver call health_report        # ax_capability and screen_capture pass
-cua-agent-run kitty &                # or let the agent call launch_app
-cua-driver call list_windows         # uses the default socket shared with Pi
+cua-driver call health_report
+cua-agent-smoke
+cua-agent-browser "file://$PWD/tests/cua-browser.html"
 ```
 
-Upstream labels the Linux arm64 build (Raspberry Pi) a preview.
+The browser fixture contains a form, select, checkbox, upload, download, drag
+and drop, and a scroll target. Verify each visible result; successful input
+acknowledgements alone do not prove delivery. Also test window resize,
+right-click menus and any advertised recording tools.
+Unsupported tools remain limitations rather than being marked passed.
+
+Repeat the smoke check after `systemctl --user restart cua-agent-desktop`,
+after an unexpected X-server exit, while Hyprland is locked, and after a
+reboot without graphical login. Reboot and logout tests are disruptive and
+must be scheduled with the user. Stop the whole desktop with
+`systemctl --user stop cua-agent-desktop`; stopping just the driver causes
+the desktop service to start it again. Restarting the desktop closes its apps.
+
+Targeted development builds avoid evaluating a full host:
+
+```sh
+nix build --impure --no-link --max-jobs 1 --cores 1 --expr \
+  'let t = import ./tests/cua-desktop.nix; in [ t.desktop t.run t.smoke t.browser t.editor t.t3 ]'
+```
+
+On the Pi, full flake checks and host builds remain subject to the repository's
+resource-safety rules. Use CI or a capable builder where possible.
+
+### Raspberry Pi verification
+
+The targeted ARM64 packages were built with one job and one core. Live tests
+used temporary user services generated from the evaluated module, a separate
+driver socket, and disposable data while the physical Hyprland session was
+locked. They did not replace the installed system generation.
+
+| Capability | Verified result |
+| --- | --- |
+| Discovery, accessibility, semantic Unicode editing | Passed disposable dialog checks |
+| Foreground keyboard and shortcuts | Passed entry readback and submitted-output checks |
+| Isolated clipboard | Copy, clear and paste preserved the test value |
+| Capture | Dialog PNG and visually inspected browser window |
+| Window management | Dialog movement and Chromium move/resize readback |
+| Pointer clicks and checkbox | Browser form returned the exact typed value and checked state |
+| Drag and drop | Page reported `Dropped: CUA test item` |
+| Scrolling | Previously offscreen marker moved inside the browser viewport |
+| Context menus | Right-click created a discovered native popup |
+| Upload/download | Native chooser selected the test file; downloaded contents matched |
+| Service recovery | Killing Xvnc restarted the desktop and driver; full smoke check passed afterward |
+| Trajectory recording | Nine turns with before/after PNGs and action JSON |
+| Video recording | Finalized 1920x1080 H.264 MP4, 61 frames over 2.03 seconds |
+| Headless Chrome runtime | No missing libraries; pinned shell rendered the local fixture |
+
+GTK4 can publish incorrect element bounds. Cua refused foreground pointer
+clicks on those controls; background semantic button actions worked. Use
+fresh window screenshots when element geometry is unreliable. Accessibility
+registration can also lag window mapping; the smoke check waits boundedly
+for a usable entry. Another app or a keyring prompt can take focus, so run
+the smoke check with a single controller and handle human-owned prompts
+manually.
+
+The persistent Chromium profile uses the browser's normal credential store;
+its first start may ask the user to unlock the keyring on the private session.
+Browser validation used a disposable profile with no credentials. Do not
+weaken the persistent profile's password store to bypass that prompt.
+Video recording uses the declared full FFmpeg build, since the default build
+omits X11 capture. Recording stays off until explicitly requested. The short
+video check does not establish sustained recording performance on the Pi.
+Media acceleration, reboot/logout startup, and T3's complete preview tool flow
+are not certified by these checks. T3 preview needs a safe server
+restart after activation before its new wrapper can be exercised end to end.
+
+### T3 preview browser
+
+T3 preview is a separate headless browser, not a window on the Cua desktop.
+The pinned T3 0.1.8 release downloads Chrome Headless Shell 157.0.8103.38 and
+checks its archive size and SHA-256. `packages/t3-cli.nix` supplies its native
+libraries through the CLI wrapper's `LD_LIBRARY_PATH`, including the same
+environment for T3's `ldd` diagnostic. No imperative system package installation
+is needed. A fresh machine needs network access for T3's verified browser
+download on first use. Updates to T3 must revalidate this browser dependency
+list and its pinned download behavior.
+
+After activation, restart T3 outside an active agent task to pick up its new
+wrapper, then verify a preview tab can navigate, snapshot, click, type,
+upload, download and close. Browser credentials and cache remain runtime
+state. Do not overwrite or stop an active T3 instance just to run a check.
+
+Upstream labels the Linux arm64 Cua build a preview. Linux X11 does not imply
+feature parity with macOS, nor does it make the user's Hyprland windows
+controllable.
 
 ## Updating
 
