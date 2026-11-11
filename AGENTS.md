@@ -10,7 +10,7 @@ repository and rebuilding the appropriate flake output.
 - Put host-specific operating-system configuration under `hosts/<host>/`.
   The Raspberry Pi uses `hosts/raspberry-pi/`, the Lenovo Legion Y720 uses
   `hosts/amd64-lenovo-legion-y720/`, WSL2 uses `hosts/wsl2/`, and the Mac uses
-  `hosts/macbook/`.
+  `hosts/macbook/`. The ARM64 cloud server uses `hosts/hgrai/`.
 - Put cross-platform user packages, dotfiles, shell settings, and application
   configuration in `modules/home/common.nix` or another tracked shared module.
 - Put Linux desktop Home Manager settings in `modules/home/linux.nix`, macOS-only

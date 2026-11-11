@@ -280,6 +280,14 @@
         ];
       };
 
+      nixosConfigurations.hgrai = nixpkgs.lib.nixosSystem {
+        system = "aarch64-linux";
+        modules = [
+          disko.nixosModules.disko
+          ./hosts/hgrai
+        ];
+      };
+
       nixosConfigurations.wsl2 = nixpkgs.lib.nixosSystem {
         system = wslSystem;
         specialArgs = {
