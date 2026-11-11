@@ -65,8 +65,9 @@ After changing GitHub repository controls, additionally run:
 scripts/audit-github-settings.sh
 ```
 
-The standard CI runner evaluates the physical amd64 and WSL2 activation
-derivations rather than realizing their multi-gigabyte closures. On the Lenovo
+The Ubuntu CI job evaluates the physical amd64 and WSL2 activation
+derivations rather than realizing their multi-gigabyte closures. The native
+Apple silicon macOS job builds the Mac activation package. On the Lenovo
 Legion Y720, perform a non-switching host build:
 
 ```sh
