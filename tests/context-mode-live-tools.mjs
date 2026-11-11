@@ -42,6 +42,13 @@ try {
     assert.equal(typeof tool.renderCall, "function");
     assert.equal(typeof tool.renderResult, "function");
   }
+  await test("goal control and nested codemode results remain exact", async () => {
+    const content = [{ type: "text", text: JSON.stringify({ goal: { objective: "required browser checks\n".repeat(400), status: "active" } }) }];
+    for (const toolName of ["get_goal", "create_goal", "update_goal", "pause_goal", "resume_goal", "run_goal_review", "codemode"]) {
+      const result = await events.get("tool_result")({ toolName, toolCallId: "goal-state", input: {}, content, isError: false }, { cwd: directory });
+      assert.equal(result, undefined, `${toolName} must pass through without rewriting`);
+    }
+  });
   const tool = tools.get("ctx_execute");
   await test("real Pi transcript row expands arguments while execution is pending", async () => {
     const require = createRequire(join(root, "package.json"));

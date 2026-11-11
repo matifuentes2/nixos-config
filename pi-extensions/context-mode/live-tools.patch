@@ -7,3 +7,8 @@
 +      renderCall: createContextModeCallRenderer(tool.name),
 +      renderResult: createContextModeResultRenderer(tool.name),
 +      execute: createContextModeExecutor(tool.name, async (_name, params, signal) => toPi(await runTool(tool, params, signal)))
+@@ -59274,0 +59278,4 @@
++    // Goal state is control data: excerpts can hide the objective or corrupt JSON.
++    // Nested codemode results must remain intact for programmatic consumers too.
++    if (["get_goal", "create_goal", "update_goal", "pause_goal", "resume_goal", "run_goal_review", "codemode"].includes(event.toolName))
++      return;
