@@ -11,6 +11,13 @@
     ./hardware-configuration.nix
   ];
 
+  # Keep local builds from consuming every core while the desktop and remote
+  # services are in use. These are defaults; callers can override them explicitly.
+  nix.settings = {
+    max-jobs = 1;
+    cores = 1;
+  };
+
   # Run the Docker daemon with automatic weekly pruning of unused data.
   # Membership in the docker group below is root-equivalent.
   virtualisation.docker = {
