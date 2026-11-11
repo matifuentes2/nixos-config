@@ -3,12 +3,7 @@
 let
   palette = import ./palette.nix;
 
-  # Omarchy's Tokyo Night background, pinned to an immutable release.
-  wallpaper = pkgs.fetchurl {
-    name = "omarchy-tokyo-night-sunset-lake.png";
-    url = "https://raw.githubusercontent.com/basecamp/omarchy/8fcc9d6048af4cb0e3af8512c78049857a3b53dd/themes/tokyo-night/backgrounds/1-sunset-lake.png";
-    hash = "sha256-Bt+5/OAp7DWttA6jk5KWd3wrFA0SMrWhaXsVBS1XU2I=";
-  };
+  wallpaper = pkgs.callPackage ./wallpaper.nix { };
 
   terminal = lib.getExe pkgs.kitty;
   lock = lib.getExe pkgs.hyprlock;

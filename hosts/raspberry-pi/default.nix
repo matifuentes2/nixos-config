@@ -34,6 +34,18 @@
   # Linux 6.18 repeatedly wedged the Pi 4's MMC worker in mmc_rescan.
   boot.kernelPackages = pkgs.linuxPackages_6_12;
 
+  # The generic device tree reserves only 64 MiB for contiguous DMA buffers.
+  # Give the VC4 display pipeline room for the greeter, compositor and clients,
+  # keeping the pool in the low memory range accessible to the display engine.
+  boot.kernelParams = [ "cma=256M@0-1G" ];
+
+  # Avoid the greeter's failing GPU buffer-import path. Hyprland still uses V3D
+  # acceleration once logged in; only the login screen uses software rendering.
+  services.displayManager.sddm = {
+    wayland.compositorCommand = "${pkgs.weston}/bin/weston --shell=kiosk --renderer=pixman --no-config";
+    settings.General.GreeterEnvironment = "QT_QUICK_BACKEND=software";
+  };
+
   # Absorb transient agent memory spikes instead of invoking the OOM killer.
   zramSwap = {
     enable = true;

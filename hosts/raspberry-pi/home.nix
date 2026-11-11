@@ -25,6 +25,20 @@ in
     "GSK_RENDERER=ngl"
   ];
 
+  # Load after the shared look-and-feel module. Keep Pi window movement cheap;
+  # the other Linux desktops retain their animations.
+  wayland.windowManager.hyprland.extraLuaFiles."desktop/zz-pi" = ''
+    hl.config({ animations = { enabled = false } })
+  '';
+
+  programs.hyprlock.settings.background = lib.mkForce [
+    {
+      monitor = "";
+      path = "${pkgs.callPackage ../../hyprland/wallpaper.nix { }}";
+      blur_passes = 0;
+    }
+  ];
+
   home.packages = [
     pkgs.tree
     t3Cli
