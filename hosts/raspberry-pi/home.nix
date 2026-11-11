@@ -20,6 +20,11 @@ in
   # Keep this at the version used when Home Manager was first configured.
   home.stateVersion = "25.11";
 
+  services.cua-driver.agentDesktop = {
+    enable = true;
+    headless = true;
+  };
+
   # GTK's Vulkan renderer crashes in the Pi's Broadcom driver when Walker opens.
   systemd.user.services.walker.Service.Environment = [
     "GSK_RENDERER=ngl"

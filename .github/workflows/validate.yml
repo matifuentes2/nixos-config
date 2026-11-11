@@ -15,10 +15,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  macbook:
+    name: Build macOS activation
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Check out the exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Verify Apple silicon runner
+        run: test "$(uname -m)" = arm64
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@2126ae7fc54c9df00dd18f7f18754393182c73cd # v31.9.1
+
+      - name: Build macOS activation
+        run: nix build --no-link --no-write-lock-file --max-jobs 1 --cores 2 .#darwinConfigurations.macbook.system
+
   repository:
     name: Flake, shell, and public-repository checks
+    needs: macbook
+    if: always()
     runs-on: ubuntu-latest
     steps:
+      - name: Require successful macOS activation build
+        env:
+          MACOS_BUILD_RESULT: ${{ needs.macbook.result }}
+        run: test "$MACOS_BUILD_RESULT" = success
+
       - name: Check out the exact revision with full history
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
