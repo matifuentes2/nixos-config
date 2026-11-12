@@ -156,6 +156,23 @@ def main():
             steps(action("press_key", key="l", modifiers=["ctrl"]),
                   action("type_text", text=str(upload)), action("press_key", key="Return"),
                   exact=chooser)
+            # GTK may resolve the typed path before accepting the dialog. If
+            # it remains open, observe its current controls and explicitly
+            # activate Open instead of assuming Return completed the upload.
+            state = read()
+            if any(d.get("window_id") == chooser["window_id"] for d in state.get("dialogs", [])):
+                chooser_state = read(chooser, name="chooser-resolved")
+                open_buttons = [e for e in chooser_state.get("elements", [])
+                                if e.get("role") == "button"
+                                and e.get("label", "").replace("_", "") == "Open"
+                                and e.get("enabled", True)]
+                if len(open_buttons) == 1:
+                    steps(action("click", element_token=open_buttons[0]["element_token"]), exact=chooser)
+                else:
+                    # Some GTK chooser builds expose only the browser tree.
+                    # After resolving the path, use the Open mnemonic on the
+                    # observed dialog rather than sending Return to its entry.
+                    steps(action("press_key", key="o", modifiers=["alt"]), exact=chooser)
             wait_for("uploaded file result", lambda: expect_label("Uploaded: cua-upload.txt"))
             chooser = None
             print("PASS upload through native file chooser and page readback", flush=True)

@@ -34,6 +34,11 @@ let
     MOZ_NO_REMOTE = "1";
     ELECTRON_OZONE_PLATFORM_HINT = "x11";
     GTK_A11Y = "atspi";
+    NO_AT_BRIDGE = "0";
+    # GTK3/Chromium also consult these flags on a headless session where no
+    # desktop settings daemon enables assistive technologies for them.
+    ACCESSIBILITY_ENABLED = "1";
+    GNOME_ACCESSIBILITY = "1";
     # The virtual X server has no accelerated presentation path.
     GSK_RENDERER = "cairo";
     # dbus-broker delegates service activation to the user manager, which is

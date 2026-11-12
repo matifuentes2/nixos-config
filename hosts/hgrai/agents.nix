@@ -40,6 +40,7 @@ in
   # even though this host has no physical display or graphical login manager.
   fonts.fontconfig.enable = true;
   fonts.packages = [ pkgs.dejavu_fonts ];
+  services.gnome.at-spi2-core.enable = true;
 
   # A user service provides a user bus and the same HOME as interactive T3
   # commands. ConditionUser prevents its global unit from running for admins.
