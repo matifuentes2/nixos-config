@@ -14,6 +14,8 @@ let
   isLinux = pkgs.stdenv.hostPlatform.isLinux;
   cfg = config.services.cua-driver.agentDesktop;
   agentDesktopEnabled = isLinux && cfg.enable;
+  poolEnabled = agentDesktopEnabled && cfg.pool.enable;
+  pool = "${cfg.pool.clientPackage}/bin/cua-pool";
   agentTarget = if cfg.headless then "default.target" else "graphical-session.target";
   # One runtime per desktop session, shared by Pi's MCP connection and the
   # `cua-driver call` CLI that the skill prefers. This is upstream's default.
@@ -37,206 +39,50 @@ let
     xauthority = "${config.home.homeDirectory}/.cache/cua-driver/agent.Xauthority";
   };
 
-  # Environment for the driver and every app it launches on the agent desktop.
-  # Removing the Wayland variables keeps toolkits from attaching to Hyprland;
-  # MOZ_NO_REMOTE stops Firefox from handing URLs to the user's own instance.
-  agentEnvironment = {
-    DISPLAY = agent.display;
-    XDG_SESSION_TYPE = "x11";
-    XDG_CURRENT_DESKTOP = "openbox";
-    CUA_DRIVER_RS_ENABLE_WAYLAND = "0";
-    GDK_BACKEND = "x11";
-    QT_QPA_PLATFORM = "xcb";
-    SDL_VIDEODRIVER = "x11";
-    MOZ_ENABLE_WAYLAND = "0";
-    MOZ_NO_REMOTE = "1";
-    ELECTRON_OZONE_PLATFORM_HINT = "x11";
-    GTK_A11Y = "atspi";
-    # The virtual X server has no accelerated presentation path.
-    GSK_RENDERER = "cairo";
-    # dbus-broker delegates service activation to the user manager, which is
-    # outside this private bus. dbus-daemon can activate its AT-SPI registry.
-    ATSPI_DBUS_IMPLEMENTATION = "dbus-daemon";
+  runtime = import ./cua-runtime.nix {
+    inherit lib pkgs;
+    inherit (agent)
+      display
+      geometry
+      runtimeDir
+      xauthority
+      ;
   };
-  waylandVariables = [
-    "WAYLAND_DISPLAY"
-    "WAYLAND_SOCKET"
-    "HYPRLAND_INSTANCE_SIGNATURE"
-    "SWAYSOCK"
-    "NIXOS_OZONE_WL"
-  ];
-
-  waitForAgentDisplay = pkgs.writeShellApplication {
-    name = "cua-agent-wait";
-    runtimeInputs = [
-      pkgs.coreutils
-      pkgs.xdpyinfo
-      pkgs.xprop
-      pkgs.gnugrep
-    ];
-    text = ''
-      for _ in $(seq 100); do
-        if DISPLAY=${agent.display} XAUTHORITY=${lib.escapeShellArg agent.xauthority} xdpyinfo >/dev/null 2>&1; then
-          if [[ "''${1:-}" == --server-only ]] || \
-            DISPLAY=${agent.display} XAUTHORITY=${lib.escapeShellArg agent.xauthority} \
-              xprop -root _NET_SUPPORTING_WM_CHECK 2>/dev/null | grep -q 'window id # 0x'; then
-            exit 0
-          fi
-        fi
-        sleep 0.1
-      done
-      echo "agent X display ${agent.display} did not appear" >&2
-      exit 1
-    '';
-  };
-
-  # A private session bus keeps AT-SPI discovery on the agent desktop as well.
-  # Publish only its address, never shell code, for the driver and launch helper.
-  agentSession = pkgs.writeShellApplication {
-    name = "cua-agent-session";
-    runtimeInputs = [
-      pkgs.coreutils
-      pkgs.glib
-      pkgs.openbox
-      pkgs.xcompmgr
-      pkgs.systemd
-    ];
-    text = ''
-      umask 077
-      dir="$XDG_RUNTIME_DIR/${agent.runtimeDir}"
-      xcompmgr &
-      openbox --config-file ${pkgs.openbox}/etc/xdg/openbox/rc.xml &
-      ${lib.getExe waitForAgentDisplay}
-      atspi_address="$(gdbus call --session --dest org.a11y.Bus --object-path /org/a11y/bus \
-        --method org.a11y.Bus.GetAddress | cut -d "'" -f2)"
-      gdbus call --address "$atspi_address" --dest org.a11y.atspi.Registry \
-        --object-path /org/a11y/atspi/accessible/root \
-        --method org.a11y.atspi.Accessible.GetChildren >/dev/null
-      printf '%s\n' "$DBUS_SESSION_BUS_ADDRESS" > "$dir/bus-address.tmp"
-      mv "$dir/bus-address.tmp" "$dir/bus-address"
-      wait -n
-      exit 1
-    '';
-  };
-
-  waitForAgentSession = pkgs.writeShellApplication {
-    name = "cua-agent-session-wait";
-    runtimeInputs = [
-      pkgs.coreutils
-      pkgs.glib
-    ];
-    text = ''
-      file="$XDG_RUNTIME_DIR/${agent.runtimeDir}/bus-address"
-      for _ in $(seq 50); do
-        if [[ -s "$file" ]]; then
-          address="$(< "$file")"
-          if timeout 0.2 gdbus call --address "$address" \
-            --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus \
-            --method org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1; then
-            printf '%s\n' "$address"
-            exit 0
-          fi
-        fi
-        sleep 0.1
-      done
-      echo "agent session bus is not ready; check cua-agent-desktop.service" >&2
-      exit 1
-    '';
-  };
-
-  # Xvnc is a complete X server with no physical output. Its VNC endpoint is a
-  # 0600 unix socket inside the private runtime directory, never a TCP port.
-  agentDesktop = pkgs.writeShellApplication {
-    name = "cua-agent-desktop";
-    runtimeInputs = [
-      pkgs.tigervnc
-      pkgs.openbox
-      pkgs.xcompmgr
-      pkgs.xauth
-      pkgs.util-linux
-      pkgs.coreutils
-      pkgs.dbus
-      pkgs.systemd
-    ];
-    text = ''
-      # dbus-daemon also sends READY=1. Keep the notification endpoint out of
-      # every child environment; only this supervisor declares full readiness.
-      service_notify_endpoint="$NOTIFY_SOCKET"
-      unset NOTIFY_SOCKET
-      dir="$XDG_RUNTIME_DIR/${agent.runtimeDir}"
-      rm -f -- "$dir/bus-address"
-      export XAUTHORITY="${agent.xauthority}"
-      mkdir -p "$(dirname "$XAUTHORITY")"
-      # A fresh cookie per start; created 0600 so it is never readable by others.
-      rm -f "$XAUTHORITY"
-      (umask 077 && : > "$XAUTHORITY")
-      xauth -q add "${agent.display}" MIT-MAGIC-COOKIE-1 "$(mcookie)"
-
-      # Xvnc can notify systemd itself; only our full-session readiness probe
-      # may release the dependent driver.
-      Xvnc "${agent.display}" -auth "$XAUTHORITY" \
-        -geometry ${agent.geometry} -depth 24 -nolisten tcp \
-        -rfbport -1 -rfbunixpath "$dir/vnc.sock" -rfbunixmode 0600 \
-        -SecurityTypes None -AlwaysShared &
-      xserver_pid=$!
-
-      ${lib.getExe waitForAgentDisplay} --server-only
-
-      export DISPLAY="${agent.display}"
-      # Supply the AT-SPI D-Bus activation file even before any desktop login.
-      export XDG_DATA_DIRS="${pkgs.at-spi2-core}/share:''${XDG_DATA_DIRS:-/run/current-system/sw/share}"
-      dbus-run-session -- ${lib.getExe agentSession} &
-      session_pid=$!
-
-      # agentSession publishes this only after the WM and AT-SPI registry
-      # answer. Fail startup if either supervised child exits or times out.
-      for _ in $(seq 200); do
-        kill -0 "$xserver_pid"
-        kill -0 "$session_pid"
-        if [[ -s "$dir/bus-address" ]]; then
-          NOTIFY_SOCKET="$service_notify_endpoint" systemd-notify --ready
-          wait -n
-          exit 1
-        fi
-        sleep 0.1
-      done
-      echo "agent desktop session did not become ready" >&2
-      exit 1
-    '';
-  };
-
-  # Watch (and, if needed, take over) the agent desktop.
-  agentView = pkgs.writeShellApplication {
-    name = "cua-agent-view";
-    runtimeInputs = [ pkgs.tigervnc ];
-    text = ''
-      exec vncviewer "$@" "$XDG_RUNTIME_DIR/${agent.runtimeDir}/vnc.sock"
-    '';
-  };
-
-  # Start an app on the agent desktop yourself, for example a browser profile
-  # the agent should use: cua-agent-run firefox --profile ~/.mozilla/agent
+  agentEnvironment = runtime.environment;
+  waylandVariables = runtime.unsetEnvironment;
+  agentDesktop = runtime.desktop;
   agentRun = pkgs.writeShellApplication {
     name = "cua-agent-run";
-    # Cua's optional Linux video recorder launches ffmpeg from the daemon PATH.
-    # The default ffmpeg omits x11grab; full also provides cursor capture and x264.
-    runtimeInputs = [ pkgs.ffmpeg-full ];
     text = ''
-      unset ${lib.concatStringsSep " " waylandVariables}
-      ${lib.concatStrings (
-        lib.mapAttrsToList (name: value: "export ${name}=${lib.escapeShellArg value}\n") agentEnvironment
-      )}
-      export XAUTHORITY="${agent.xauthority}"
-      DBUS_SESSION_BUS_ADDRESS="$(${lib.getExe waitForAgentSession})"
-      export DBUS_SESSION_BUS_ADDRESS
-      unset AT_SPI_BUS_ADDRESS
-      exec "$@"
+      ${lib.optionalString poolEnabled ''
+        if [[ -n "''${CUA_POOL_LEASE:-}" ]]; then
+          exec ${pool} run "$CUA_POOL_LEASE" -- "$@"
+        fi
+      ''}
+      exec ${lib.getExe runtime.run} "$@"
     '';
   };
+  agentView = pkgs.writeShellApplication {
+    name = "cua-agent-view";
+    text = ''
+      ${lib.optionalString poolEnabled ''
+        if [[ -n "''${CUA_POOL_LEASE:-}" ]]; then
+          exec ${pool} view "$CUA_POOL_LEASE" -- "$@"
+        fi
+      ''}
+      exec ${lib.getExe runtime.view} "$@"
+    '';
+  };
+  waitForAgentDisplay = runtime.waitForDisplay;
   agentBrowser = pkgs.writeShellApplication {
     name = "cua-agent-browser";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
+      ${lib.optionalString poolEnabled ''
+        if [[ -n "''${CUA_POOL_LEASE:-}" ]]; then
+          exec ${pool} browser "$CUA_POOL_LEASE" -- "$@"
+        fi
+      ''}
       umask 077
       profile="$HOME/.local/share/cua-driver/chromium"
       mkdir -p "$profile"
@@ -255,10 +101,17 @@ let
   agentSmoke = pkgs.writeShellApplication {
     name = "cua-agent-smoke";
     runtimeInputs = [
-      cuaDriver
+      (if poolEnabled then cfg.pool.clientPackage else cuaDriver)
       agentRun
     ];
     text = ''
+      ${lib.optionalString poolEnabled ''
+        if [[ -z "''${CUA_POOL_LEASE:-}" && "''${CUA_LEGACY_DESKTOP:-}" != 1 ]]; then
+          exec ${pool} exec --name native-smoke -- \
+            ${lib.getExe pkgs.python3} ${../../scripts/cua-smoke.py} \
+            --zenity ${lib.getExe pkgs.zenity} "$@"
+        fi
+      ''}
       exec ${lib.getExe pkgs.python3} ${../../scripts/cua-smoke.py} \
         --zenity ${lib.getExe pkgs.zenity} "$@"
     '';
@@ -266,10 +119,18 @@ let
   agentBrowserSmoke = pkgs.writeShellApplication {
     name = "cua-agent-browser-smoke";
     runtimeInputs = [
-      cuaDriver
+      (if poolEnabled then cfg.pool.clientPackage else cuaDriver)
       agentRun
     ];
     text = ''
+      ${lib.optionalString poolEnabled ''
+        if [[ -z "''${CUA_POOL_LEASE:-}" && "''${CUA_LEGACY_DESKTOP:-}" != 1 ]]; then
+          exec ${pool} exec --name browser-smoke -- \
+            ${lib.getExe pkgs.python3} ${../../scripts/cua-browser-smoke.py} \
+            --chromium ${lib.getExe pkgs.chromium} \
+            --fixture ${../../tests/cua-browser.html} "$@"
+        fi
+      ''}
       exec ${lib.getExe pkgs.python3} ${../../scripts/cua-browser-smoke.py} \
         --chromium ${lib.getExe pkgs.chromium} \
         --fixture ${../../tests/cua-browser.html} "$@"
@@ -277,6 +138,7 @@ let
   };
 in
 {
+  imports = [ ./cua-pool.nix ];
   options.services.cua-driver.agentDesktop = {
     enable = lib.mkEnableOption ''
       a dedicated headless X11 desktop (Xvnc and Openbox on ${agent.display}) that
@@ -291,7 +153,7 @@ in
 
   config = lib.mkMerge [
     {
-      home.packages = [ cuaDriver ];
+      home.packages = [ (if poolEnabled then lib.lowPrio cuaDriver else cuaDriver) ];
 
       # On macOS `cua-driver mcp` proxies to /Applications/CuaDriver.app (installed
       # by hosts/macbook) and starts it on demand, so the app keeps its TCC grants.
