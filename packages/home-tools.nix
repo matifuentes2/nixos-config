@@ -268,6 +268,7 @@ let
     buildCommand = old.buildCommand + ''
       chmod -R u+w "$out/dist"
       patch -d "$out" -p1 < ${../patches/pi-goals/recovery.patch}
+      patch -d "$out" -p1 < ${../patches/pi-goals/progress.patch}
       cp ${../patches/pi-goals/review-batches.mjs} "$out/dist/review-batches.mjs"
     '';
   });

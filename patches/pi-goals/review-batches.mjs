@@ -23,15 +23,32 @@ export function reviewSections(diff, limit = 32000) {
   return sections;
 }
 
-export async function runReviewSections(input, run, signal) {
+// Counts include the optional integration pass. Only validated verdicts advance
+// completed; diagnostics never grant completion or expose model reasoning.
+export function formatReviewProgress(execution) {
+  const p = execution.progress;
+  return `Review ${p.phase}: ${p.completed}/${p.total ?? '?'} validated` +
+    (p.current ? ` · step ${p.current}` : '') +
+    ` · ${execution.provider ?? '?'}/${execution.model ?? '?'}` +
+    ` · head ${execution.headSha || 'pending'} · started ${p.startedAt}` +
+    (p.sectionStartedAt ? ` · step started ${p.sectionStartedAt}` : '') +
+    (p.lastCompletedAt ? ` · last completed ${p.lastCompletedAt}` : '') +
+    (execution.reason ? ` · ${execution.reason}` : '');
+}
+
+export async function runReviewSections(input, run, signal, onProgress = () => {}) {
   const prompts = input.prompts ?? [input.prompt];
   if (!Array.isArray(prompts) || !prompts.length || prompts.some(p => typeof p !== 'string' || !p.trim())) {
     throw new Error('Missing trusted review sections.');
   }
   const verdicts = [];
-  for (const prompt of prompts) {
+  for (const [index, prompt] of prompts.entries()) {
     if (signal?.aborted) throw new Error('Reviewer interrupted.');
+    onProgress({ phase: index === input.integrationIndex ? 'integration' : 'section',
+      current: index + 1, total: prompts.length, completed: verdicts.length,
+      sectionStartedAt: new Date().toISOString() });
     const result = await run(prompt);
+    if (signal?.aborted) throw new Error('Reviewer interrupted.');
     const v = JSON.parse(result.verdict);
     if (!v || Object.keys(v).sort().join(',') !== 'attemptId,decision,findings,headSha,schemaVersion' ||
         v.schemaVersion !== 1 || v.attemptId !== input.attemptId || v.headSha !== input.headSha ||
@@ -41,6 +58,7 @@ export async function runReviewSections(input, run, signal) {
       throw new Error('Invalid section verdict; review remains incomplete.');
     }
     verdicts.push(v);
+    onProgress({ completed: verdicts.length, lastCompletedAt: new Date().toISOString() });
   }
   const findings = verdicts.flatMap(v => v.findings);
   return { verdict: JSON.stringify({ schemaVersion: 1, attemptId: input.attemptId,
