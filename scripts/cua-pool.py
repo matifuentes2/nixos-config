@@ -4,6 +4,7 @@ import argparse
 import fcntl
 import json
 import os
+import queue
 from pathlib import Path
 import secrets
 import re
@@ -42,6 +43,19 @@ def systemctl(*args, check=True):
     return result.stdout.strip()
 
 
+def remove_path(path):
+    """Remove generated state without following a substituted symlink."""
+    if path.is_symlink():
+        path.unlink()
+    elif path.exists():
+        shutil.rmtree(path)
+
+
+def clean_task(workspace):
+    for name in ("profile", "cache", "config", "data"):
+        remove_path(workspace / name)
+
+
 class Broker:
     def __init__(self, config, root):
         self.config, self.root = config, root
@@ -50,8 +64,19 @@ class Broker:
         self.closed = False
         # A broker restart invalidates every old token. Never adopt a desktop
         # whose prior task/focus/profile state cannot be proved.
+        # The parent slice also contains slots removed by a configuration change.
+        systemctl("stop", "cua-pool.slice")
         for slot in config["slots"]:
-            systemctl("stop", slot["slice"], check=False)
+            systemctl("stop", slot["slice"])
+        # RuntimeDirectory can disappear on a crash; durable task directories
+        # are the recovery inventory. Stop every slice before touching state.
+        tasks = Path(config["workspaceRoot"])
+        if tasks.exists():
+            for task in tasks.iterdir():
+                if re.fullmatch(r"[0-9a-f]{32}", task.name) and not task.is_symlink() and task.is_dir():
+                    clean_task(task)
+        for slot in config["slots"]:
+            remove_path(root / "slots" / str(slot["id"]))
         self.monitor = threading.Thread(target=self.reap, daemon=True)
         self.monitor.start()
 
@@ -147,12 +172,15 @@ class Broker:
                 raise PoolError("lease_lost", "Lease ended during validation")
             return self.description(lease)
 
-    def release(self, token):
+    def release(self, token, expired_only=False):
         with self.condition:
             lease = self.leases.get(token)
             if lease is None:
                 return {"released": False}
             if lease["state"] == "stopping":
+                return {"released": False}
+            if expired_only and (lease["state"] != "active" or
+                                 time.monotonic() - lease["touched"] <= self.config["idleSeconds"]):
                 return {"released": False}
             lease["state"] = "stopping"
         # The slot is not allocatable while the slice and all its app jobs stop.
@@ -161,8 +189,7 @@ class Broker:
             systemctl("stop", lease["slot"]["slice"])
             # Preserve task outputs, but never reuse a browser profile or caches
             # across leases. Apps have stopped before their profiles are removed.
-            for name in ("profile", "cache", "config", "data"):
-                shutil.rmtree(lease["workspace"] / name, ignore_errors=True)
+            clean_task(lease["workspace"])
         except Exception:
             # Fail closed: leave a quarantined slot rather than reuse live apps.
             with self.condition:
@@ -200,7 +227,7 @@ class Broker:
                     fields = dict(line.split("=", 1) for line in values.splitlines() if "=" in line)
                     failed = fields.get("ActiveState") != "active" or fields.get("InvocationID") != lease["invocation"]
                     if expired or failed:
-                        self.release(lease["token"])
+                        self.release(lease["token"], expired_only=not failed)
                 except Exception as error:
                     print(f"Lease cleanup failed: {error}", file=sys.stderr)
             time.sleep(1)
@@ -346,10 +373,19 @@ def execute(config, root, desc, command):
         previous[sig] = signal.signal(sig, cancel)
     try:
         code = child.wait()
+        done.set()
         if cancelled:
             return 128 + cancelled[0]
         if lost.is_set():
             raise PoolError("lease_lost", "Lease was lost while the task was running")
+        if code == 0:
+            # systemd-run can return success when BindsTo or an external stop
+            # interrupted the job before the next heartbeat. Validate both the
+            # token and desktop invocation before accepting that exit status.
+            try:
+                request(root, "resolve", lease=desc["lease"])
+            except PoolError as error:
+                raise PoolError("lease_lost", "Cannot confirm task completion on an active desktop: " + str(error)) from error
         return code
     finally:
         done.set()
@@ -361,20 +397,81 @@ def execute(config, root, desc, command):
             signal.signal(sig, handler)
 
 
-def mcp(config, root, args):
-    """Answer discovery offline, then transparently proxy the native MCP server.
+def start_mcp(config, args, desc):
+    return subprocess.Popen([
+        sys.executable, str(Path(__file__).resolve()), "--config", str(args.config),
+        "run", desc["lease"], "--", config["driver"], "mcp", "--socket", desc["socket"],
+    ], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 
-    Pi connects enabled servers eagerly. A connection that only initializes or
-    lists tools must not consume one of the bounded desktop slots.
-    """
+
+def mcp(config, root, args):
+    """Discover offline and proxy native messages while reclaiming idle leases."""
     schemas = None
     initialize = None
     child = None
     desc = None
     automatic = not os.environ.get("CUA_POOL_LEASE")
+    events = queue.Queue()
+    pending = {}
+    ready = False
+    started_at = None
+    waiting = []
+    reset_reason = None
+    last_activity = time.monotonic()
+    idle_seconds = config.get("mcpIdleSeconds", 600)
+    release_tool = "pool_release_desktop"
+
     def send(message):
         sys.stdout.write(json.dumps(message) + "\n")
         sys.stdout.flush()
+
+    def tool_result(identifier, text, error=False):
+        send(dict(jsonrpc="2.0", id=identifier, result={
+            "isError": error, "content": [{"type": "text", "text": text}],
+        }))
+
+    def read_stream(stream, source):
+        try:
+            for line in stream:
+                events.put((source, line))
+        finally:
+            events.put((source, None))
+
+    def dispose(reason=None):
+        nonlocal child, desc, ready, reset_reason
+        old_child, old_desc = child, desc
+        child, desc, ready = None, None, False
+        waiting.clear()
+        release_error = None
+        try:
+            if old_child is not None:
+                if old_child.poll() is None:
+                    old_child.terminate()
+                    try:
+                        old_child.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        old_child.kill()
+                        old_child.wait()
+                old_child.stdin.close()
+                old_child.stdout.close()
+        finally:
+            if old_desc is not None and automatic:
+                try:
+                    request(root, "release", lease=old_desc["lease"])
+                except PoolError as error:
+                    # The broker owns quarantine and restart cleanup. An outage
+                    # must not prevent reporting lost state or close this MCP
+                    # connection; never claim cleanup succeeded in that case.
+                    release_error = error
+                    reason = (reason or "desktop_lost: Desktop detached.") + f" Cleanup not confirmed ({error.code}): {error}"
+                    print(reason, file=sys.stderr)
+        if reason:
+            reset_reason = reason
+        for identifier in pending:
+            tool_result(identifier, reason or "Desktop released", True)
+        pending.clear()
+        return release_error
+
     def tools():
         nonlocal schemas
         if schemas is None:
@@ -388,20 +485,69 @@ def mcp(config, root, args):
                 heading, schema = description.split("\n\ninput_schema:\n", 1)
                 schemas.append(dict(name=name, description=heading.split("\ndescription:\n", 1)[1].strip(),
                                     inputSchema=json.loads(schema)))
+            schemas.append(dict(name=release_tool,
+                                description="Release this connection's desktop when GUI work is complete. Closes its apps and discards profiles; preserves task outputs. The next GUI call gets a fresh desktop: discover windows again. Refused while requests are pending or the lease belongs to a parent command.",
+                                inputSchema={"type": "object", "properties": {}, "additionalProperties": False}))
         return schemas
+
+    threading.Thread(target=read_stream, args=(sys.stdin.buffer, "client"), daemon=True).start()
     try:
-        for line in sys.stdin.buffer:
+        while True:
+            if child is not None and automatic and not pending and time.monotonic() - last_activity >= idle_seconds:
+                dispose("desktop_expired: Idle desktop released. Its windows and sessions no longer exist. Retry with fresh discovery to acquire a new desktop.")
+            if child is not None and not ready and time.monotonic() - started_at > 30:
+                dispose("desktop_lost: Native MCP initialization timed out.")
+            try:
+                source, line = events.get(timeout=0.1)
+            except queue.Empty:
+                continue
+            if source != "client" and source is not child:
+                continue  # Output/EOF from an already retired native process.
+            if line is None:
+                if source == "client":
+                    return 0
+                dispose("desktop_lost: Native MCP process exited. Retry with fresh discovery to acquire a new desktop.")
+                continue
             try:
                 message = json.loads(line)
-                method = message.get("method")
-                identifier = message.get("id")
+            except (ValueError, UnicodeError):
+                if source == "client":
+                    send(dict(jsonrpc="2.0", id=None, error={"code": -32700, "message": "Invalid JSON"}))
+                    continue
+                dispose("desktop_lost: Invalid native MCP response; acquire a fresh desktop.")
+                continue
+            if source is child:
+                if not ready:
+                    if "method" in message:
+                        send(message)
+                        continue
+                    if message.get("id") != "cua-pool-initialize" or "error" in message:
+                        dispose("desktop_lost: Native MCP initialization failed.")
+                        continue
+                    ready = True
+                    try:
+                        child.stdin.write(b'{"jsonrpc":"2.0","method":"notifications/initialized"}\n')
+                        for queued in waiting:
+                            child.stdin.write(queued)
+                        waiting.clear()
+                        child.stdin.flush()
+                    except OSError:
+                        dispose("desktop_lost: Native MCP connection failed during initialization.")
+                    continue
+                if "id" in message and "method" not in message:
+                    pending.pop(message["id"], None)
+                    last_activity = time.monotonic()
+                send(message)  # Preserve native image and structured content.
+                continue
+            identifier = message.get("id")
+            method = message.get("method")
+            try:
                 if method == "initialize":
                     initialize = message
-                    version = message.get("params", {}).get("protocolVersion", "2024-11-05")
                     guidance = Path(config["guide"]).read_text() + "\n\n" if config.get("guide") else ""
-                    result = dict(protocolVersion=version, capabilities={"tools": {}},
-                                  serverInfo={"name": "cua-pool", "version": "1"},
-                                  instructions=guidance + "Cua tools target a private leased X11 desktop. Use exact window targets, fresh snapshots and verified outcomes. A Cua session ID does not isolate focus within this connection. The desktop is acquired on first tool use and destroyed when this connection closes.")
+                    result = dict(protocolVersion=message.get("params", {}).get("protocolVersion", "2024-11-05"),
+                                  capabilities={"tools": {}}, serverInfo={"name": "cua-pool", "version": "1"},
+                                  instructions=guidance + f"Cua tools use a private leased X11 desktop. Use exact window targets, fresh snapshots and verified outcomes. Call {release_tool} when GUI work is finished. Automatically owned desktops expire after {idle_seconds} idle seconds with no pending requests. After release or expiry, windows and session IDs are invalid: acquire through a fresh discovery call. A lease owned by cua-pool exec lasts until that command exits.")
                 elif method == "tools/list":
                     result = {"tools": tools()}
                 elif method in ("resources/list", "resources/templates/list", "prompts/list"):
@@ -410,42 +556,46 @@ def mcp(config, root, args):
                               "prompts/list": {"prompts": []}}[method]
                 elif method == "ping":
                     result = {}
+                elif method == "tools/call" and message.get("params", {}).get("name") == release_tool:
+                    if not automatic:
+                        raise PoolError("parent_owned", "The parent command owns this lease; finish that command to release it")
+                    if pending:
+                        raise PoolError("desktop_busy", "Wait for pending requests before releasing the desktop")
+                    release_error = dispose()
+                    if release_error is not None:
+                        raise release_error
+                    reset_reason = None
+                    result = {"content": [{"type": "text", "text": "Desktop released. Discover fresh windows on the next GUI call."}]}
                 elif method == "tools/call":
                     if initialize is None:
                         raise PoolError("not_initialized", "Initialize MCP before calling tools")
-                    desc = (request(root, "acquire", name=args.name, wait=args.wait) if automatic else
-                            request(root, "resolve", lease=os.environ["CUA_POOL_LEASE"]))
-                    child = subprocess.Popen([
-                        sys.executable, str(Path(__file__).resolve()), "--config", str(args.config),
-                        "run", desc["lease"], "--", config["driver"], "mcp", "--socket", desc["socket"],
-                    ], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-                    child.stdin.write((json.dumps(initialize) + "\n").encode())
-                    child.stdin.flush()
-                    response = json.loads(child.stdout.readline())
-                    if "error" in response or response.get("id") != initialize.get("id"):
-                        raise PoolError("mcp_failed", "Native MCP initialization failed")
-                    child.stdin.write(b'{"jsonrpc":"2.0","method":"notifications/initialized"}\n')
-                    child.stdin.write(line)
-                    child.stdin.flush()
-                    def forward_input():
-                        try:
-                            # Continue from the same buffered reader: discovery
-                            # may have prefetched subsequent client messages.
-                            for pending in sys.stdin.buffer:
-                                child.stdin.write(pending)
-                                child.stdin.flush()
-                        except (BrokenPipeError, OSError):
-                            pass
-                        finally:
-                            try:
-                                child.stdin.close()
-                            except OSError:
-                                pass
-                    threading.Thread(target=forward_input, daemon=True).start()
-                    for output in child.stdout:
-                        sys.stdout.buffer.write(output)
-                        sys.stdout.buffer.flush()
-                    return child.wait()
+                    if reset_reason:
+                        reason, reset_reason = reset_reason, None
+                        raise PoolError("desktop_reset", reason)
+                    if child is None:
+                        desc = (request(root, "acquire", name=args.name, wait=args.wait) if automatic else
+                                request(root, "resolve", lease=os.environ["CUA_POOL_LEASE"]))
+                        child = start_mcp(config, args, desc)
+                        started_at = time.monotonic()
+                        native_initialize = dict(initialize, id="cua-pool-initialize")
+                        child.stdin.write((json.dumps(native_initialize) + "\n").encode())
+                        child.stdin.flush()
+                        threading.Thread(target=read_stream, args=(child.stdout, child), daemon=True).start()
+                    pending[identifier] = True
+                    last_activity = time.monotonic()
+                    if ready:
+                        child.stdin.write(line)
+                        child.stdin.flush()
+                    else:
+                        waiting.append(line)
+                    continue
+                elif child is not None:
+                    if ready:
+                        child.stdin.write(line)
+                        child.stdin.flush()
+                    else:
+                        waiting.append(line)
+                    continue
                 elif identifier is None:
                     continue
                 else:
@@ -454,26 +604,14 @@ def mcp(config, root, args):
                 if identifier is not None:
                     send(dict(jsonrpc="2.0", id=identifier, result=result))
             except PoolError as error:
-                if desc is not None and automatic:
-                    if child is not None and child.poll() is None:
-                        child.terminate()
-                        child.wait(timeout=10)
-                    request(root, "release", lease=desc["lease"])
-                    desc, child = None, None
-                send(dict(jsonrpc="2.0", id=message.get("id"), result={
-                    "isError": True, "content": [{"type": "text", "text": json.dumps({"code": error.code, "error": str(error)})}],
-                }))
-        return 0
+                tool_result(identifier, json.dumps({"code": error.code, "error": str(error)}), True)
+            except (BrokenPipeError, OSError) as error:
+                # The failed call may have executed. Never replay it on a new desktop.
+                if identifier not in pending:
+                    tool_result(identifier, str(error), True)
+                dispose("desktop_lost: Native MCP connection failed. Observe fresh state before retrying.")
     finally:
-        if child is not None and child.poll() is None:
-            child.terminate()
-            try:
-                child.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                child.kill()
-                child.wait()
-        if desc is not None and automatic:
-            request(root, "release", lease=desc["lease"])
+        dispose()
 
 
 def main():

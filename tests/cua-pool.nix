@@ -10,6 +10,7 @@ in
 pkgs.runCommand "cua-pool-leases" { } ''
   ${pkgs.lib.getExe pkgs.python3} ${./cua-pool.py} ${../scripts/cua-pool.py}
   ${pkgs.lib.getExe pkgs.python3} ${./cua-pool-mcp.py} ${../scripts/cua-pool.py} ${pkgs.lib.getExe driver}
+  ${pkgs.lib.getExe pkgs.python3} ${./cua-pool-lifecycle.py} ${../scripts/cua-pool.py}
 
   # A delayed job retaining an old environment must fail before it can use
   # the new slot's bus or Xauthority, even when the display number is reused.
