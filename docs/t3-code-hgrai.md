@@ -108,6 +108,14 @@ tasks sharing `coding-agent`. ARM64 Cua remains an upstream preview; validate
 native input, screenshots, browser interactions and release/recovery on hgrai
 before assigning real desktop tasks.
 
+The host enables NixOS's AT-SPI service. Without it, NixOS injects
+`NO_AT_BRIDGE=1`, which disables GTK3 accessibility even inside a private
+desktop bus. The CUA runtime also explicitly enables the accessibility bridge
+and Chromium accessibility so existing lingering sessions do not retain a
+disabled bridge. The browser smoke check accepts a still-open GTK file chooser
+through its observed Open control or keyboard mnemonic, then requires the page
+to confirm the uploaded filename.
+
 ## Validation before activation
 
 Evaluate the host and build its ARM64 system without switching. Then apply the

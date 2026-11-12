@@ -17,6 +17,11 @@ class HgraiCua(unittest.TestCase):
                 c = f.nixosConfigurations.hgrai.config;
                 h = c.home-manager.users.coding-agent;
                 s = h.systemd.user.services;
+                runtime = import ./modules/home/cua-runtime.nix {
+                  pkgs = f.inputs.nixpkgs.legacyPackages.aarch64-linux;
+                  inherit (f.inputs.nixpkgs) lib;
+                  display = ":99";
+                };
               in {
                 linger = c.users.users.coding-agent.linger;
                 groups = c.users.users.coding-agent.extraGroups;
@@ -27,6 +32,9 @@ class HgraiCua(unittest.TestCase):
                 legacy = s.cua-agent-desktop.Install.WantedBy;
                 legacyDriver = s.cua-driver.Install.WantedBy;
                 slot = s.cua-pool-slot-1.Service;
+                accessibility = runtime.environment.ACCESSIBILITY_ENABLED;
+                bridge = runtime.environment.NO_AT_BRIDGE;
+                atspi = c.services.gnome.at-spi2-core.enable;
                 slice = h.systemd.user.slices.cua-pool.Slice;
                 slots = h.services.cua-driver.agentDesktop.pool.slots;
                 mcp = h.home.activation.configureCuaMcp.data;
@@ -47,6 +55,9 @@ class HgraiCua(unittest.TestCase):
         self.assertEqual(result["slice"]["CPUQuota"], "200%")
         self.assertEqual(result["slot"]["KillMode"], "control-group")
         self.assertEqual(result["slot"]["RuntimeDirectoryMode"], "0700")
+        self.assertEqual(result["accessibility"], "1")
+        self.assertEqual(result["bridge"], "0")
+        self.assertTrue(result["atspi"])
         self.assertIn("codex mcp add cua-driver --", result["mcp"])
         self.assertIn("/bin/cua-pool mcp", result["mcp"])
         for name in ("cua-driver", "cua-agent-desktop/SKILL.md"):
