@@ -32,6 +32,7 @@ let
       runtimeDirectory = "cua-pool";
       workspaceRoot = "${config.xdg.stateHome}/cua-pool/tasks";
       idleSeconds = cfg.idleSeconds;
+      mcpIdleSeconds = cfg.mcpIdleSeconds;
       driver = lib.getExe driver;
       guide = "${driver}/share/cua-driver/skill/SKILL.md";
       chromium = lib.getExe pkgs.chromium;
@@ -111,6 +112,11 @@ in
       type = lib.types.ints.between 10 86400;
       default = 3600;
       description = "Release a manual lease after this many seconds without use or renewal. exec and mcp renew automatically.";
+    };
+    mcpIdleSeconds = lib.mkOption {
+      type = lib.types.ints.between 10 86400;
+      default = 600;
+      description = "Release automatically owned MCP desktops after this many seconds without pending tool requests. Parent-owned exec leases are unaffected.";
     };
     memoryMax = lib.mkOption {
       type = lib.types.str;
