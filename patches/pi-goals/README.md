@@ -53,6 +53,22 @@ change does not install dependencies or adapt scripts in unrelated repositories.
 
 ## Validation and activation
 
+Review progress is persisted at preparation, each section start and validated
+completion, final head validation, and terminal success/failure. The optional
+integration pass has its own phase. `get_goal` exposes a compact `review` record
+with the attempt, commit, reviewer, failure count, phase, counts and timestamps;
+it does not repeat section verdicts. `run_goal_review` also streams these updates
+through Pi's tool update callback for the active tool display. Display delivery
+is best effort; the persisted record remains authoritative. Concurrent review
+launches are refused, and superseded attempts cannot publish progress.
+
+Counts include integration and advance only after verdict validation. All steps
+being validated still does not authorize completion until the PR head/checkout
+is checked again. Cancellation and session restoration retain progress but mark
+the attempt interrupted. Timestamps describe section starts/completions, not a
+heartbeat: they do not claim a quiet subprocess is healthy. This patch does not
+add T3 frontend components or expose private model reasoning.
+
 `nix build --no-link .#checks.aarch64-darwin.pi-goal-lifecycle` tests the packaged
 pair without an external model. The context-mode test is
 `node tests/context-mode-live-tools.mjs <built-context-mode-package-root>`;

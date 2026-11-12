@@ -1,0 +1,107 @@
+--- a/dist/goal-runtime-controller-t3bapw8t.js
++++ b/dist/goal-runtime-controller-t3bapw8t.js
+@@ -1,4 +1,4 @@
+-import { runReviewSections } from "./review-batches.mjs";
++import { formatReviewProgress, runReviewSections } from "./review-batches.mjs";
+ import {
+   AUTO_COMPACT_HARD_CONTEXT_PERCENT,
+   AUTO_COMPACT_MIN_TOKEN_ADVANCE_FRACTION,
+@@ -685,7 +685,7 @@
+       if (restored.status === "complete" || restored.reviewExecution?.status === "running")
+         restored.status = "paused";
+       if (restored.reviewExecution?.status === "running") {
+-        restored.reviewExecution = { ...restored.reviewExecution, status: "interrupted", reason: "Session restored during review." };
++        restored.reviewExecution = { ...restored.reviewExecution, status: "interrupted", progress: { ...restored.reviewExecution.progress, phase: "interrupted", finishedAt: new Date().toISOString() }, reason: "Session restored during review." };
+       }
+     }
+     authorizedWrite = true;
+@@ -2683,7 +2683,7 @@
+     async execute(_id, params, signal, _onUpdate, ctx) {
+       if (!host.runReview)
+         throwToolError("Trusted goal reviewer unavailable.");
+-      const result = await host.runReview(params.provider, params.model, ctx, signal);
++      const result = await host.runReview(params.provider, params.model, ctx, signal, _onUpdate);
+       if (!result.ok)
+         throwToolError(result.reason);
+       return textResult(result.reason, host.getGoal());
+@@ -2847,11 +2847,13 @@
+       pi.sendUserMessage(compactContinuationPrompt(result.goal), { deliverAs: "followUp" });
+       return { ok: true, goalId: result.goal.goalId };
+     },
+-    async runReview(provider, model, ctx, signal) {
++    async runReview(provider, model, ctx, signal, onUpdate) {
+       const goal = persistence.getGoal();
+       if (!goal || !isProtected(goal) || goal.status === "complete")
+         return { ok: false, reason: "No non-complete protected goal." };
+-      const execution = { attemptId: randomUUID(), goalId: goal.goalId, headSha: "", freshContext: true, status: "running" };
++      if (goal.reviewExecution?.status === "running")
++        return { ok: false, reason: "A review is already running; inspect get_goal for progress." };
++      const execution = { attemptId: randomUUID(), goalId: goal.goalId, headSha: "", freshContext: true, status: "running", progress: { phase: "preparing", completed: 0, total: null, startedAt: new Date().toISOString() } };
+       const record = () => {
+         try {
+           return persistence.recordReview(goal.goalId, execution);
+@@ -2860,7 +2862,20 @@
+           throw error;
+         }
+       };
++      const publish = (progress = {}) => {
++        const current = persistence.getGoal();
++        if (current?.goalId !== goal.goalId || current.reviewExecution?.attemptId !== execution.attemptId || current.reviewExecution.status !== "running")
++          throw new Error("Review attempt superseded.");
++        execution.progress = { ...execution.progress, ...progress, updatedAt: new Date().toISOString() };
++        if (!record()) throw new Error("Review attempt superseded.");
++        // Display delivery is best effort; persisted execution is authoritative.
++        try {
++          onUpdate?.({ content: [{ type: "text", text: formatReviewProgress(execution) }],
++            details: { review: structuredClone(execution) } });
++        } catch { /* A disconnected display must not alter review evidence. */ }
++      };
+       record();
++      publish();
+       let launched = false;
+       try {
+         if (signal?.aborted)
+@@ -2894,7 +2909,8 @@
+           throw new Error("Reviewer interrupted before launch.");
+         launched = true;
+         const result = await runReviewSections({ ...input, attemptId: execution.attemptId },
+-          prompt => runReviewer(reviewer.provider, reviewer.model, prompt, signal), signal);
++          prompt => runReviewer(reviewer.provider, reviewer.model, prompt, signal), signal, publish);
++        publish({ phase: "validating" });
+         const after = await prepare(structuredClone(goal.completionPolicy.config), execution.attemptId);
+         if (signal?.aborted || after.headSha !== input.headSha)
+           throw new Error("PR head or checkout changed during review.");
+@@ -2906,8 +2922,12 @@
+         execution.reason = error instanceof Error ? error.message : String(error);
+         execution.consecutiveFailures = (goal.reviewExecution?.consecutiveFailures ?? 0) + 1;
+       }
++      execution.progress = { ...execution.progress, phase: execution.status === "completed" ? "completed" : execution.status,
++        updatedAt: new Date().toISOString(), finishedAt: new Date().toISOString() };
+       if (!record())
+         return { ok: false, reason: "Review attempt superseded; result discarded." };
++      try { onUpdate?.({ content: [{ type: "text", text: formatReviewProgress(execution) }],
++        details: { review: structuredClone(execution) } }); } catch {}
+       if (execution.status !== "completed") {
+         // Let the parent repair setup or retry the exact reviewer before pausing.
+         // Persist the counter with the attempt so reload cannot reset the limit.
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -65,7 +65,7 @@
+     parameters: Type.Object({ provider: Type.Optional(Type.String({ minLength: 1 })), model: Type.Optional(Type.String({ minLength: 1 })) }),
+     async execute(_id, params, signal, _onUpdate, ctx) {
+       const host = await getController();
+-      const result = await host.runReview(params.provider, params.model, ctx, signal);
++      const result = await host.runReview(params.provider, params.model, ctx, signal, _onUpdate);
+       if (!result.ok)
+         throwToolError(result.reason);
+       return textResult(result.reason, host.getGoalForDisplay());
+--- a/dist/index-w1wa93ny.js
++++ b/dist/index-w1wa93ny.js
+@@ -282,6 +282,7 @@
+ function toToolGoal(goal) {
+   return {
+     goalId: goal.goalId,
++    ...goal.reviewExecution ? { review: { attemptId: goal.reviewExecution.attemptId, headSha: goal.reviewExecution.headSha, provider: goal.reviewExecution.provider, model: goal.reviewExecution.model, status: goal.reviewExecution.status, reason: goal.reviewExecution.reason, consecutiveFailures: goal.reviewExecution.consecutiveFailures ?? 0, progress: structuredClone(goal.reviewExecution.progress) } } : {},
+     ...goal.completionPolicy?.reviewer ? { reviewer: structuredClone(goal.completionPolicy.reviewer) } : {},
+     objective: goal.objective,
+     status: goal.status,
