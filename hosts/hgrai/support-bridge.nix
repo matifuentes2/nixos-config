@@ -6,7 +6,7 @@
 let
   # Pin the reviewed private support-center source. Download at enrollment
   # time using the coding account's GitHub login, never a public Nix cache.
-  revision = "2f806bfc421035dea37c422b01c567a96701229d";
+  revision = "7cdc5c11e9c893485d93e3f4bbb0213ce89d9528";
   packageDir = "/var/lib/grai-support-package/${revision}";
   secretsDir = "/var/lib/grai-support-bridge-secrets";
   evidenceDir = "/var/lib/grai-support-evidence";
