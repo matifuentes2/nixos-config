@@ -48,6 +48,7 @@ const pi = {
   exec: async (program, args) => ({ code: 0, killed: false, stderr: "", stdout:
     program === "git" && args[0] === "rev-parse" ? (args[1] === "HEAD" ? head : temporary) :
     program === "gh" && args[1] === "view" ? JSON.stringify({ baseRefName: "main", headRefOid: head, mergeable: "MERGEABLE" }) :
+    program === "gh" && args[1] === "diff" ? "diff --git a/example.ts b/example.ts\n" + "+// review fixture\n".repeat(2000) :
     program === "gh" && args[1] === "checks" ? JSON.stringify(checks) : "" }),
   appendEntry(customType, data) {
     entries.push({ type: "custom", id: `entry-${entries.length}`, customType, data,
@@ -228,6 +229,7 @@ console.log(JSON.stringify({ type: 'agent_end', messages: [message] }));
     const review = structuredClone(protectedSnapshot().reviewExecution);
     assert.equal(review.status, "completed");
     assert.equal(review.headSha, head);
+    assert.equal(review.sections.length, 3);
     assert.equal(JSON.parse(review.verdict).attemptId, review.attemptId);
     for (const blockedChecks of [
       [...mixedChecks, { name: "prerequisite", state: "FAILURE", bucket: "fail" }],

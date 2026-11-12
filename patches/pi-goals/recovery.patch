@@ -25,3 +25,14 @@
        }
        return { ok: true, reason: execution.verdict };
      },
+--- a/dist/goal-runtime-controller-t3bapw8t.js
++++ b/dist/goal-runtime-controller-t3bapw8t.js
+@@ -0,0 +1 @@
++import { runReviewSections } from "./review-batches.mjs";
+@@ -2895 +2896,2 @@
+-        const result = await runReviewer(reviewer.provider, reviewer.model, input.prompt, signal);
++        const result = await runReviewSections({ ...input, attemptId: execution.attemptId },
++          prompt => runReviewer(reviewer.provider, reviewer.model, prompt, signal), signal);
+@@ -2900 +2902,2 @@
+         execution.verdict = result.verdict;
++        execution.sections = result.sections;
