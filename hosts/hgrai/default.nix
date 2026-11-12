@@ -69,6 +69,9 @@ in
   services.fstrim.enable = true;
   zramSwap.enable = true;
 
+  programs.zoxide.enable = true;
+  environment.shellAliases.rebuild = "sudo nixos-rebuild switch --flake /etc/nixos#hgrai";
+
   nix.settings = {
     max-jobs = 2;
     cores = 2;
