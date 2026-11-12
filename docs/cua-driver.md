@@ -164,20 +164,43 @@ safe. A failed stop quarantines the slot rather than giving live apps to a new
 task. Pool exhaustion fails explicitly unless `--wait` supplies a bounded wait.
 
 Manual leases expire after one hour without a call or renewal by default.
-`exec` and active MCP proxies renew automatically. A desktop failure, restart,
+`exec` and active MCP proxies renew automatically. Automatically owned MCP
+desktops are released after ten minutes without pending requests, controlled by
+`services.cua-driver.agentDesktop.pool.mcpIdleSeconds`. Discovery and ping do
+not reset that timer. Pending tools, including long-running ones, prevent idle
+release. Use the MCP `pool_release_desktop` tool to release sooner; it refuses
+while requests are pending. Neither policy releases a lease owned by a parent
+`cua-pool exec` command.
+
+A desktop failure, restart,
 or broker restart invalidates the lease; old tokens cannot silently attach to
 a replacement desktop. Runtime launchers also check the lease generation before
 starting an app, refusing delayed jobs whose slot has been reassigned. Reacquire
 and observe new state rather than replaying
 old actions or handles. The broker stops all pool slices at shutdown and clears
-orphaned runtimes at startup. These are GUI/cgroup boundaries, not a security
+orphaned runtimes at startup. Startup also removes disposable profiles, caches,
+configuration and app data from abandoned task directories, preserving `work/`
+and `downloads/`. All old slices must stop successfully before recovery cleanup
+or new allocations proceed. Cleanup errors fail startup or quarantine a slot;
+they are never silently ignored. These are GUI/cgroup boundaries, not a security
 sandbox against other processes with the same Unix identity. Shared-file edits
 and intentional human takeover still need coordination.
 
 Pi's tracked MCP configuration uses `cua-pool mcp`. Initialization, tool-schema
 discovery and ping require no desktop. The first tool call acquires one, then a
-transparent proxy forwards the pinned native MCP server's responses, including
-images, for that connection. EOF or termination releases it. `end_session`
+proxy forwards the pinned native MCP server's responses, including images, for
+that connection. EOF, termination, idle expiry or `pool_release_desktop` releases
+an automatically owned lease. The connection remains usable after release.
+Following idle expiry or native-process loss, the first subsequent GUI call
+reports that desktop state was lost without executing the action. Only a later
+call acquires a fresh desktop; start with window discovery and never reuse old
+window or session handles. Explicit release permits fresh acquisition on the
+next GUI call. If the broker cannot confirm cleanup, the proxy reports that
+failure and keeps the MCP connection available. A later GUI call reports lost
+state before reacquisition; the broker still owns quarantine and restart
+cleanup. CLI jobs also validate their lease and desktop invocation before
+accepting a successful exit, so an external stop cannot silently count as task
+completion. `end_session`
 ends a native Cua session, not the connection's desktop lease. An MCP proxy
 started inside `cua-pool exec` reuses that command's lease. Restart existing MCP
 connections after activation to pick up this configuration. Do not combine an
