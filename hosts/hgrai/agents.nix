@@ -36,6 +36,11 @@ in
     ];
   };
 
+  # Software-rendered applications on the private X11 desktops need fonts,
+  # even though this host has no physical display or graphical login manager.
+  fonts.fontconfig.enable = true;
+  fonts.packages = [ pkgs.dejavu_fonts ];
+
   # A user service provides a user bus and the same HOME as interactive T3
   # commands. ConditionUser prevents its global unit from running for admins.
   systemd.user.services.t3-server = {
