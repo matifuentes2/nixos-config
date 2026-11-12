@@ -46,7 +46,7 @@
 +      if (sections.length > 1) prompts.push(prefix +
 +        `Integration review: inspect cross-file contracts, shared types, API callers and regression coverage across this manifest. ` +
 +        `Individual diffs have separate source reviews; focus on interactions, not repeating those reviews.\n${manifest}`);
-+      return { headSha: before.headRefOid, cwd: config.repoRoot, prompt: prompts[0], prompts };
++      return { headSha: before.headRefOid, cwd: config.repoRoot, prompt: prompts[0], prompts, integrationIndex: sections.length > 1 ? sections.length : null };
 +
      });
      return registered;

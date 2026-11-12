@@ -29,3 +29,23 @@ await assert.rejects(runReviewSections(input, async () => { throw Error('launch 
 const abort = new AbortController();
 await assert.rejects(runReviewSections(input, async () => { abort.abort(); return verdict(); }, abort.signal), /interrupted/);
 console.log('Section coverage, sequential execution, aggregation, malformed/stale verdicts, launch failure and interruption passed.');
+const progress = [];
+await runReviewSections({ ...input, integrationIndex: sections.length - 1 }, async () => verdict(), undefined,
+  update => progress.push(update));
+assert.equal(progress.length, sections.length * 2);
+assert.equal(progress[0].completed, 0);
+assert.equal(progress[0].total, sections.length);
+assert.equal(progress.at(-2).phase, 'integration');
+assert.equal(progress.at(-1).completed, sections.length);
+assert(progress.at(-1).lastCompletedAt);
+const invalidProgress = [];
+await assert.rejects(runReviewSections(input, async () => ({ verdict: '{}' }), undefined,
+  update => invalidProgress.push(update)));
+assert.equal(invalidProgress.length, 1, 'Malformed verdict must not advance progress');
+const cancelledProgress = [];
+const cancelled = new AbortController();
+await assert.rejects(runReviewSections({ ...input, prompts: ['only'] }, async () => {
+  cancelled.abort(); return verdict();
+}, cancelled.signal, update => cancelledProgress.push(update)), /interrupted/);
+assert.equal(cancelledProgress.length, 1, 'Cancellation during final section must not advance progress');
+console.log('Progress counts, integration phase, invalid verdict and final-section cancellation passed.');

@@ -78,9 +78,9 @@ async function emit(type, fields = {}) {
   assert(handlers.has(type), `Missing lifecycle handler: ${type}`);
   for (const handler of handlers.get(type)) await handler({ type, ...fields }, ctx);
 }
-async function call(name, params = {}) {
+async function call(name, params = {}, onUpdate, signal) {
   assert(tools.has(name), `Shipped extension must expose ${name}`);
-  return tools.get(name).execute("smoke-call", params, undefined, undefined, ctx);
+  return tools.get(name).execute("smoke-call", params, signal, onUpdate, ctx);
 }
 const goal = async () => (await call("get_goal")).details.goal;
 const assistant = (input, output) => ({
@@ -179,6 +179,9 @@ try {
     ctx.modelRegistry.find = () => undefined;
     await assert.rejects(() => call("run_goal_review"), /Unknown exact reviewer model/);
     assert.equal(protectedSnapshot().reviewExecution.status, "launch_failed");
+    assert.equal((await goal()).review.progress.phase, "launch_failed");
+    assert.equal((await goal()).review.progress.completed, 0);
+    assert((await goal()).review.progress.finishedAt);
     await emit("session_start", { reason: "resume" });
     await assert.rejects(() => call("update_goal", { status: "complete" }), /review-failed/);
     assert.equal((await goal()).status, "paused");
@@ -225,11 +228,48 @@ console.log(JSON.stringify({ type: 'agent_end', messages: [message] }));
     process.env.PATH = `${temporary}:${originalPath || ""}`;
     ctx.modelRegistry.find = (provider, model) => provider === "smoke" && model === "review-model" ? ctx.model : undefined;
     await call("resume_goal");
-    await call("run_goal_review");
+    const cancellation = new AbortController();
+    await assert.rejects(() => call("run_goal_review", {}, update => {
+      if (update.details.review.progress.phase === "section") cancellation.abort();
+    }, cancellation.signal), /interrupted/i);
+    assert.equal((await goal()).review.progress.phase, "interrupted");
+    assert.equal((await goal()).review.progress.completed, 0);
+    await call("resume_goal");
+    const updates = [];
+    let sectionStarted;
+    const firstSection = new Promise(resolve => { sectionStarted = resolve; });
+    const reviewRun = call("run_goal_review", {}, update => {
+      const saved = protectedSnapshot().reviewExecution;
+      updates.push({ update: structuredClone(update), saved: structuredClone(saved) });
+      if (update.details.review.progress.phase === "section") sectionStarted();
+    });
+    await firstSection;
+    const activeReview = (await goal()).review;
+    assert.equal(activeReview.status, "running");
+    assert.equal(activeReview.progress.completed, 0);
+    await assert.rejects(() => call("run_goal_review"), /already running/);
+    await reviewRun;
+    for (const { update, saved } of updates) {
+      assert.equal(saved.attemptId, update.details.review.attemptId);
+      assert.deepEqual(saved.progress, update.details.review.progress);
+    }
+    const displayedUpdates = updates.map(({ update }) => update);
     const review = structuredClone(protectedSnapshot().reviewExecution);
     assert.equal(review.status, "completed");
     assert.equal(review.headSha, head);
     assert.equal(review.sections.length, 3);
+    assert.equal(displayedUpdates[0].details.review.progress.phase, "preparing");
+    assert(displayedUpdates.some(u => u.details.review.progress.phase === "integration"));
+    assert(displayedUpdates.some(u => u.details.review.progress.phase === "validating"));
+    assert.equal(displayedUpdates.at(-1).details.review.progress.phase, "completed");
+    assert.equal(review.progress.completed, 3);
+    assert.equal(review.progress.total, 3);
+    assert(review.progress.lastCompletedAt);
+    assert(review.progress.finishedAt);
+    const displayedReview = (await goal()).review;
+    assert.equal(displayedReview.attemptId, review.attemptId);
+    assert.deepEqual(displayedReview.progress, review.progress);
+    assert.equal(displayedReview.sections, undefined, "Status must not duplicate all section verdicts");
     assert.equal(JSON.parse(review.verdict).attemptId, review.attemptId);
     for (const blockedChecks of [
       [...mixedChecks, { name: "prerequisite", state: "FAILURE", bucket: "fail" }],
