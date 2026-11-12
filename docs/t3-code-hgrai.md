@@ -70,6 +70,10 @@ or the Nix store. Enrollment obtains a scoped 30-day T3 OAuth session at
 `auto-accept-edits` and discovers exact project mappings at runtime. It uses the
 coding account's existing T3 login; no pairing code is printed or stored in Git.
 The bridge drains before refreshing credentials with seven days remaining.
+Fresh repository registration uses the local coding account's administrative
+T3 CLI during enrollment; the running OAuth client cannot change projects.
+The host explicitly selects Codex `gpt-6.1-sol` with high reasoning effort,
+so an empty project model preference cannot leave a claimed job unlaunchable.
 
 Codex and CUA run as `coding-agent`, which cannot read bridge credentials or
 its SQLite state. Evidence is writable only by the bridge and readable by the
