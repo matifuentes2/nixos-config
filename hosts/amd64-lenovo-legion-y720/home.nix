@@ -25,6 +25,13 @@ in
   # Run computer use on a headless X11 desktop; Cua Driver cannot type on
   # Hyprland. See docs/cua-driver.md.
   services.cua-driver.agentDesktop.enable = true;
+  services.cua-driver.agentDesktop.pool = {
+    enable = true;
+    slots = 4;
+    memoryMax = "8G";
+    slotMemoryMax = "3G";
+    cpuQuota = "400%";
+  };
 
   # Codex and Claude Code are already provided by modules/home/common.nix.
   home.packages = [

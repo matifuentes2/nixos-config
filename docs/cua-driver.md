@@ -16,9 +16,14 @@ and `modules/home/darwin.nix`, then:
   `~/.pi/agent/skills/cua-driver`;
 - on Linux, runs `cua-driver serve` as a systemd user service bound to
   `graphical-session.target`. Pi's MCP server and the `cua-driver call` CLI
-  share that one runtime through `~/.cache/cua-driver/cua-driver.sock`. With
+  share that one runtime through `~/.cache/cua-driver/cua-driver.sock` when
+  pooling is disabled. With
   the agent-desktop option (below), the service operates a headless X11
   desktop instead of the graphical session.
+
+The Lenovo enables a separate on-demand desktop pool. Its Pi MCP connections
+lease their own desktop on first tool use. Shared legacy use remains available
+explicitly through `CUA_LEGACY_DESKTOP=1`. See the concurrency section below.
 
 The driver runs in upstream's default `standard` permission mode: observing,
 clicking, and typing into any app is allowed without prompts. Treat it as
@@ -103,6 +108,87 @@ remain limited by each application's accessibility support. Apps started
 through `launch_app` inherit the daemon's environment. Single-instance
 browsers and Electron apps still need isolated profiles.
 
+### Concurrent desktop pool
+
+`services.cua-driver.agentDesktop.pool.enable` adds the private lease broker
+`cua-pool-manager` and a bounded set of on-demand desktop services. The Lenovo
+declares four slots on displays `:48` through `:51`, an aggregate 8 GiB memory
+limit and four CPUs of quota, with a 3 GiB memory limit per slot. The limits
+include desktop processes and apps launched through pool commands; aggregate
+swap is capped at 512 MiB. No slot
+processes run until leased; the small broker is tied to the graphical session
+(or the lingering manager on hosts using the headless option). Other hosts
+retain the legacy desktop unless pooling is explicitly enabled.
+
+Each lease gets its own X server, window manager, D-Bus/AT-SPI bus, Xauthority
+cookie, clipboard, driver socket, browser profile and XDG directories. Sockets
+include the lease identity and are never reused by a subsequent task. There is
+no global lock on GUI actions or ordinary coding work. Allocation reserves one
+slot briefly under a mutex and starts it outside that mutex, so slow startup
+does not serialize other slots.
+
+Wrap a GUI command or agent process to manage its lease automatically:
+
+```sh
+cua-pool exec --name browser-task --wait 60 -- cua-agent-browser-smoke --require-context-menu
+```
+
+Inside that command, normal `cua-driver`, `cua-agent-run`, browser and editor
+commands route to the leased desktop. Each task belongs to its slot's systemd
+slice, including app descendants. Closing or cancelling the command stops the
+desktop and its apps. Explicitly wrapping a whole agent keeps its desktop for
+the agent's lifetime; ordinary coding-only agents do not need this wrapper.
+Unleased driver `call` commands require a lease or an explicit socket. Use
+`CUA_LEGACY_DESKTOP=1` for intentional shared-desktop work on `:47`; the legacy
+browser/editor/view helpers remain available. Both smoke commands automatically
+lease a desktop when invoked without a lease, unless the legacy flag is set.
+
+For GUI work spread across separate shell/tool calls, acquire explicitly:
+
+```sh
+cua-pool acquire --name research --wait 60
+cua-pool call LEASE list_windows '{}'
+cua-pool browser LEASE https://example.com
+cua-pool run LEASE -- mousepad
+cua-pool renew LEASE
+cua-pool release LEASE
+```
+
+Replace `LEASE` with the `lease` value in the acquisition JSON and keep it for
+the complete task. Browser and run commands stay attached to their process;
+background them explicitly when a persistent app should outlive that shell
+call. Returned task and download paths are private runtime data, never files
+to commit. Release removes profiles and caches after stopping the slice while
+preserving `work/` and `downloads/` under the task directory. Releasing twice is
+safe. A failed stop quarantines the slot rather than giving live apps to a new
+task. Pool exhaustion fails explicitly unless `--wait` supplies a bounded wait.
+
+Manual leases expire after one hour without a call or renewal by default.
+`exec` and active MCP proxies renew automatically. A desktop failure, restart,
+or broker restart invalidates the lease; old tokens cannot silently attach to
+a replacement desktop. Runtime launchers also check the lease generation before
+starting an app, refusing delayed jobs whose slot has been reassigned. Reacquire
+and observe new state rather than replaying
+old actions or handles. The broker stops all pool slices at shutdown and clears
+orphaned runtimes at startup. These are GUI/cgroup boundaries, not a security
+sandbox against other processes with the same Unix identity. Shared-file edits
+and intentional human takeover still need coordination.
+
+Pi's tracked MCP configuration uses `cua-pool mcp`. Initialization, tool-schema
+discovery and ping require no desktop. The first tool call acquires one, then a
+transparent proxy forwards the pinned native MCP server's responses, including
+images, for that connection. EOF or termination releases it. `end_session`
+ends a native Cua session, not the connection's desktop lease. An MCP proxy
+started inside `cua-pool exec` reuses that command's lease. Restart existing MCP
+connections after activation to pick up this configuration. Do not combine an
+unleased CLI with a pooled MCP connection and expect the same windows.
+
+Use `cua-pool status` to see task names and occupied slots. From the human's
+graphical terminal, `cua-pool view --slot 2` opens that slot's private VNC socket;
+no VNC or X11 TCP listener is enabled. `cua-pool-smoke` acquires two free slots
+and verifies concurrent input, distinct clipboard values, discovery isolation,
+stale-token refusal and cleanup without touching other tasks.
+
 ### Validation and recovery
 
 After activating the configuration:
@@ -111,6 +197,8 @@ After activating the configuration:
 systemctl --user status cua-agent-desktop cua-driver
 cua-driver call health_report
 cua-agent-smoke
+cua-agent-browser-smoke
+cua-pool-smoke # when pooling is enabled; needs two free slots
 cua-agent-browser "file://$PWD/tests/cua-browser.html"
 ```
 
@@ -119,6 +207,24 @@ and drop, and a scroll target. Verify each visible result; successful input
 acknowledgements alone do not prove delivery. Also test window resize,
 right-click menus and any advertised recording tools.
 Unsupported tools remain limitations rather than being marked passed.
+
+`cua-agent-browser-smoke` automates the local fixture with a disposable Chromium
+profile and download directory. It checks exact form results, Unicode, select
+and checkbox input, uploaded filename, downloaded bytes, window geometry,
+drag/drop, scrolling and repeated input after those actions. It inspects the
+context popup separately from the main window and prints `LIMIT` when menu
+items are unavailable; `--require-context-menu` makes that limitation a failure.
+Use `--artifacts /path/outside/the/repository` to keep diagnostic screenshots,
+states and the browser log on failure. They can contain file-chooser directory
+names and must never be committed. The test cleans up its browser and profile.
+
+The desktop supervisor keeps `NOTIFY_SOCKET` out of every child's environment:
+both Xvnc and the private D-Bus daemon can announce readiness prematurely.
+Only the supervisor signals readiness, after the window manager and AT-SPI
+registry respond and the session publishes its bus address atomically. App
+launchers also wait boundedly for a live private bus. The x86-64 flake check
+`cua-readiness` exercises real X11/AT-SPI startup with a delayed session bus and
+checks that a failed bus never announces readiness.
 
 Repeat the smoke check after `systemctl --user restart cua-agent-desktop`,
 after an unexpected X-server exit, while Hyprland is locked, and after a
@@ -131,7 +237,7 @@ Targeted development builds avoid evaluating a full host:
 
 ```sh
 nix build --impure --no-link --max-jobs 1 --cores 1 --expr \
-  'let t = import ./tests/cua-desktop.nix; in [ t.desktop t.run t.smoke t.browser t.editor t.t3 ]'
+  'let t = import ./tests/cua-desktop.nix; in [ t.desktop t.run t.smoke t.browserSmoke t.browser t.editor t.t3 ]'
 ```
 
 On the Pi, full flake checks and host builds remain subject to the repository's

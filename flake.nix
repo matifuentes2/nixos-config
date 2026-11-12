@@ -234,6 +234,10 @@
           '';
         }
         // nixpkgs.lib.optionalAttrs (system == amd64System) {
+          cua-readiness = import ./tests/cua-readiness.nix {
+            inherit pkgs home-manager;
+          };
+          cua-pool-leases = import ./tests/cua-pool.nix { inherit pkgs; };
           ci-cd-local-worker-module = import ./tests/ci-cd-local-worker-module.nix {
             inherit nixpkgs sops-nix;
           };
