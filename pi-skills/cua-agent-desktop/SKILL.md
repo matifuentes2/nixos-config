@@ -25,10 +25,15 @@ Cua operates private X11 desktops, **not** the user's Hyprland session.
   for an entire command/agent process, renews it automatically and releases it
   on exit. Wrap only work that needs GUI access so idle coding tasks need no slot.
 - The configured Pi MCP server leases lazily on its first tool call. Discovery
-  does not consume a desktop. Its tools stay on that desktop until the MCP
-  connection closes. Native `end_session` does not release the desktop lease.
+  does not consume a desktop. Call `pool_release_desktop` when GUI work is done.
+  An automatically owned desktop also expires after ten idle minutes with no
+  pending requests; ping and discovery do not keep it alive. After expiry the
+  next GUI call reports lost state without acting. Retry with fresh window
+  discovery, never stale window/session handles. Explicit release allows fresh
+  acquisition on the next call. Native `end_session` does not release the lease.
   Use `launch_app` for apps on that MCP desktop; do not mix its tools with
-  unleased CLI calls. Starting MCP inside `cua-pool exec` reuses the existing lease.
+  unleased CLI calls. Starting MCP inside `cua-pool exec` reuses the existing lease;
+  MCP idle expiry and release never release that parent-owned lease.
 - Manual leases expire after the configured idle interval (one hour by default).
   Each call renews it; use `cua-pool renew <lease>` during long pauses. Expired
   tokens and restarted desktops refuse further actions: acquire a fresh lease
