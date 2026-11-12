@@ -6,7 +6,7 @@
 let
   # Pin the reviewed private support-center source. Download at enrollment
   # time using the coding account's GitHub login, never a public Nix cache.
-  revision = "46def8aabb00143f9f84826f231745351f46d8a4";
+  revision = "2f806bfc421035dea37c422b01c567a96701229d";
   packageDir = "/var/lib/grai-support-package/${revision}";
   secretsDir = "/var/lib/grai-support-bridge-secrets";
   evidenceDir = "/var/lib/grai-support-evidence";
@@ -21,6 +21,11 @@ let
       workspaceRoot = workspace;
       baseRef = "origin/master";
       runtimeMode = "auto-accept-edits";
+      modelSelection = {
+        instanceId = "codex";
+        model = "gpt-6.1-sol";
+        options.reasoningEffort = "high";
+      };
       pollMs = 10000;
       maxRunMs = 1800000;
     }
@@ -135,7 +140,7 @@ in
     };
     script = ''
       ${lib.getExe pkgs.nodejs} ${packageDir}/bridge/bootstrap-t3.mjs ${secretsDir}/t3-session.json ${lib.getExe t3} coding-agent
-      ${lib.getExe pkgs.nodejs} ${packageDir}/bridge/enroll.mjs ${template} ${secretsDir}
+      ${lib.getExe pkgs.nodejs} ${packageDir}/bridge/enroll.mjs ${template} ${secretsDir} ${lib.getExe t3} coding-agent
     '';
   };
   systemd.services.grai-support-bridge = {
