@@ -230,26 +230,21 @@ let
       '';
     });
 
-  # Run the unmodified upstream CLI with its supported Bun runtime. This avoids
-  # Node's large ESM startup cost without maintaining a Pi fork.
+  # context-mode uses node:sqlite. Bun 1.4.0 passes its API probe but fails
+  # database migrations with disk I/O errors; use the pinned Node 24 runtime.
   pi = pkgs.writeShellApplication {
     name = "pi";
     runtimeInputs = [
       pkgs.fd
-      # pi-subagents launches background runners with Node even when Pi uses Bun.
-      pkgs.nodejs
+      # Use the same runtime for Pi and extension-launched background runners.
+      pkgs.nodejs_24
       pkgs.ripgrep
     ];
     text = ''
       export PI_SKIP_VERSION_CHECK="''${PI_SKIP_VERSION_CHECK-1}"
       export PI_TELEMETRY="''${PI_TELEMETRY-0}"
 
-      if [[ -z "''${BUN_RUNTIME_TRANSPILER_CACHE_PATH+x}" ]]; then
-        cache_root="''${XDG_CACHE_HOME:-$HOME/.cache}"
-        export BUN_RUNTIME_TRANSPILER_CACHE_PATH="$cache_root/bun/runtime-transpiler"
-      fi
-
-      exec -a "$0" ${lib.getExe bun} \
+      exec -a "$0" ${lib.getExe pkgs.nodejs_24} \
         ${upstreamPi}/lib/node_modules/pi-monorepo/dist/bundle/cli.js "$@"
     '';
   };
@@ -273,6 +268,7 @@ let
     buildCommand = old.buildCommand + ''
       chmod -R u+w "$out/dist"
       patch -d "$out" -p1 < ${../patches/pi-goals/recovery.patch}
+      cp ${../patches/pi-goals/review-batches.mjs} "$out/dist/review-batches.mjs"
     '';
   });
   piPrReviewGoalPackage =
@@ -281,6 +277,7 @@ let
         buildCommand = old.buildCommand + ''
           chmod -R u+w "$out/src" "$out/extensions"
           patch -d "$out" -p1 < ${../patches/pi-goals/pr-review.patch}
+          cp ${../patches/pi-goals/review-batches.mjs} "$out/src/review-batches.mjs"
         '';
       });
   piParallelGoPrHerdrPackage = mkPiExtensionPackage "pi-parallel-go-pr-herdr" pi-parallel-go-pr-herdr;

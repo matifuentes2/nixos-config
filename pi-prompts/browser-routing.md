@@ -26,3 +26,11 @@
   actions beyond the user's request.
 - This default applies to ordinary browser work; OS-level native-app control
   requires an appropriate dedicated tool.
+
+- Extension mode supports Playwright page APIs, not browser-level CDP sessions.
+  For runtime QA use page.locator, page.route, page.addInitScript, viewport and
+  keyboard APIs directly. A script using newCDPSession or a debugging-port
+  WebSocket needs a compatible test harness; do not keep retrying denied CDP
+  commands or silently translate assertions into weaker checks. Distinguish a
+  harness failure from a demonstrated product defect, and preserve assertions
+  when adapting scripts. Keep temporary QA artifacts outside the tracked tree.

@@ -44,6 +44,16 @@ extension declaration is macOS-only; Linux/WSL users need a compatible local
 browser/extension setup before this server can connect. It does not automatically
 bridge a WSL process to Windows Chrome or a remote host to the Mac.
 
+## Runtime test harnesses
+
+Extension mode provides Playwright page APIs but rejects browser-level CDP
+attachment (`Target.attachToBrowserTarget: Not allowed`). Do not run scripts
+requiring `newCDPSession` or a raw debugging-port WebSocket against this
+connection. Use a harness written for the available page APIs and preserve its
+assertions. A failed adapter is not evidence of a product defect. The agent can
+choose the appropriate test approach without changing the default authenticated
+browser connection or weakening validation.
+
 ## Specialized diagnostics
 
 Keep `chrome-devtools` lazy and reserve it for performance traces, CPU/memory

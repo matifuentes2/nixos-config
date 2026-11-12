@@ -1,14 +1,89 @@
 --- a/pi/index.js
 +++ b/pi/index.js
-@@ -59165,0 +59166 @@
+@@ -23971,6 +23971,20 @@
+       return false;
+     }
+     const cur = readHostConfig(row5.id, file2);
++    if (row5.id === "pi") {
++      const settings = JSON.parse(cur.text);
++      const fs = process.getBuiltinModule("node:fs");
++      const path = process.getBuiltinModule("node:path");
++      const own = fs.realpathSync(new URL(import.meta.url));
++      if ((settings.packages ?? []).some(pkg => {
++        if (typeof pkg !== "string" || !path.isAbsolute(pkg)) return false;
++        try {
++          const manifest = JSON.parse(fs.readFileSync(path.join(pkg, "package.json"), "utf8"));
++          return (manifest.pi?.extensions ?? []).some(entry =>
++            fs.realpathSync(path.resolve(pkg, entry)) === own);
++        } catch { return false; }
++      })) return false;
++    }
+     return mergeOwnEntries(row5.id, cur.text, cur.format, row5, { nodePath: true, listEntries: [opencodePluginFile()] }).edits.length > 0;
+   } catch {
+     return true;
+@@ -25234,7 +25248,7 @@
+   return { text, isError: false, sandboxBytes: bytes5 };
+ }
+ async function handler2(_input, ctx) {
+-  return doctorReply(ctx, { env: process.env, bundleDir: dirname8(process.argv[1]), piCwd: void 0 });
++  return doctorReply(ctx, { env: process.env, bundleDir: dirname8(process.argv[1]), piCwd: ctx.project.worktree });
+ }
+ var ctxDoctor = Object.freeze({
+   name: "ctx_doctor",
+@@ -59163,6 +59177,7 @@
+   await startServer(cliArgs, process.env);
+ }
+
 +import { createContextModeCallRenderer, createContextModeResultRenderer, createContextModeExecutor } from "./live-tools.mjs";
-@@ -59231 +59232,3 @@
+ // src/entries/pi.ts
+ function str3(v) {
+   return typeof v === "string" ? v : "";
+@@ -59190,8 +59205,16 @@
+   const journal = ownJournal();
+   let toolsRegistered = false;
+   function identify(ctx) {
+-    if (sessionId === "") sessionId = str3(ctx?.sessionManager?.getSessionId());
+-    if (cwd === "") cwd = str3(ctx?.cwd);
++    const nextSession = str3(ctx?.sessionManager?.getSessionId());
++    const nextCwd = str3(ctx?.cwd);
++    if ((nextSession && nextSession !== sessionId) || (nextCwd && nextCwd !== cwd)) {
++      project = undefined;
++      payload = "";
++      turn = 0;
++      compactPending = false;
++    }
++    if (nextSession) sessionId = nextSession;
++    if (nextCwd) cwd = nextCwd;
+   }
+   function hook(raw, atTurn) {
+     return handleHook("pi", { ...raw, sessionId, cwd, turn: atTurn }, env);
+@@ -59228,7 +59251,9 @@
+       label: tool.name,
+       description: tool.description,
+       parameters: external_exports.toJSONSchema(tool.schema),
 -      execute: async (_toolCallId, params, signal) => toPi(await runTool(tool, params, signal))
 +      renderCall: createContextModeCallRenderer(tool.name),
 +      renderResult: createContextModeResultRenderer(tool.name),
 +      execute: createContextModeExecutor(tool.name, async (_name, params, signal) => toPi(await runTool(tool, params, signal)))
-@@ -59274,0 +59278,4 @@
+     };
+   }
+   function registerTools() {
+@@ -59239,6 +59264,7 @@
+     } catch {
+     }
+   }
++  pi.on("session_start", (_event, ctx) => { identify(ctx); registerTools(); });
+   pi.on("before_agent_start", async (event, ctx) => {
+     identify(ctx);
+     turn += 1;
+@@ -59272,6 +59298,10 @@
+   });
+   pi.on("tool_result", async (event, ctx) => {
+     identify(ctx);
 +    // Goal state is control data: excerpts can hide the objective or corrupt JSON.
 +    // Nested codemode results must remain intact for programmatic consumers too.
 +    if (["get_goal", "create_goal", "update_goal", "pause_goal", "resume_goal", "run_goal_review", "codemode"].includes(event.toolName))
 +      return;
+     const out = await hook({
+       type: "tool_result",
+       toolName: event.toolName,
