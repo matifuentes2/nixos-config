@@ -6,6 +6,8 @@ on:
       - main
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '23 4 * * 1'
 
 permissions:
   contents: read
@@ -15,8 +17,145 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  plan:
+    name: Select affected checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      flake: ${{ steps.select.outputs.flake }}
+      macbook: ${{ steps.select.outputs.macbook }}
+      linux: ${{ steps.select.outputs.linux }}
+      raspberry_pi: ${{ steps.select.outputs.raspberry_pi }}
+      legion: ${{ steps.select.outputs.legion }}
+      wsl2: ${{ steps.select.outputs.wsl2 }}
+      hgrai: ${{ steps.select.outputs.hgrai }}
+    steps:
+      - name: Check out the exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Select checks from the PR diff, or the full suite
+        id: select
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+            python3 scripts/ci-validation.py plan --base "$base" --head "$HEAD_SHA" | tee -a "$GITHUB_OUTPUT"
+          else
+            python3 scripts/ci-validation.py plan --full | tee -a "$GITHUB_OUTPUT"
+          fi
+
+  quick:
+    name: Formatting, scripts, and public-repository safety
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Test CI routing and required gate
+        run: python3 tests/test-ci-validation.py
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@2126ae7fc54c9df00dd18f7f18754393182c73cd # v31.9.1
+
+      - name: Restore and save the Nix store
+        uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ hashFiles('flake.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-prefixes-first-match: |
+            nix-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ hashFiles('flake.lock') }}-
+            nix-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-
+          gc-max-store-size: 2G
+
+      - name: Check workflow syntax, formatting, scripts, and repository safety
+        run: |
+          nix shell --no-write-lock-file .#ci-tools --command bash -euo pipefail -c '
+            actionlint
+            git ls-files -z "*.nix" | xargs -0 nixfmt --check
+            shellcheck scripts/*.sh
+            bash scripts/check-public-repo.sh
+          '
+
+  flake:
+    name: Full flake checks
+    needs: plan
+    if: needs.plan.outputs.flake == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out the exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@2126ae7fc54c9df00dd18f7f18754393182c73cd # v31.9.1
+
+      - name: Restore and save the Nix store
+        uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ hashFiles('flake.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-prefixes-first-match: |
+            nix-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ hashFiles('flake.lock') }}-
+            nix-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-
+          gc-max-store-size: 2G
+
+      - name: Check flake outputs
+        run: nix flake check --no-write-lock-file
+
+  linux:
+    name: Evaluate affected NixOS hosts
+    needs: plan
+    if: needs.plan.outputs.linux == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@2126ae7fc54c9df00dd18f7f18754393182c73cd # v31.9.1
+
+      - name: Restore and save the Nix store
+        uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ hashFiles('flake.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-prefixes-first-match: |
+            nix-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ hashFiles('flake.lock') }}-
+            nix-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-
+          gc-max-store-size: 2G
+
+      - name: Evaluate Raspberry Pi configuration
+        if: needs.plan.outputs.raspberry_pi == 'true'
+        run: nix eval --raw --no-write-lock-file .#nixosConfigurations.nixos.config.system.build.toplevel.drvPath
+
+      - name: Evaluate physical x86-64 configuration
+        if: needs.plan.outputs.legion == 'true'
+        run: nix eval --raw --no-write-lock-file .#nixosConfigurations.amd64-lenovo-legion-y720.config.system.build.toplevel.drvPath
+
+      - name: Evaluate NixOS-WSL configuration
+        if: needs.plan.outputs.wsl2 == 'true'
+        run: nix eval --raw --no-write-lock-file .#nixosConfigurations.wsl2.config.system.build.toplevel.drvPath
+
+      - name: Evaluate ARM64 cloud server configuration
+        if: needs.plan.outputs.hgrai == 'true'
+        run: nix eval --raw --no-write-lock-file .#nixosConfigurations.hgrai.config.system.build.toplevel.drvPath
+
   macbook:
     name: Build macOS activation
+    needs: plan
+    if: needs.plan.outputs.macbook == 'true'
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -31,50 +170,32 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@2126ae7fc54c9df00dd18f7f18754393182c73cd # v31.9.1
 
+      - name: Restore and save the Nix store
+        uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ hashFiles('flake.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-prefixes-first-match: |
+            nix-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ hashFiles('flake.lock') }}-
+            nix-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-
+          gc-max-store-size: 2G
+
       - name: Build macOS activation
         run: nix build --no-link --no-write-lock-file --max-jobs 1 --cores 2 .#darwinConfigurations.macbook.system
 
   repository:
+    # Keep this name stable: main's existing protection requires this check.
     name: Flake, shell, and public-repository checks
-    needs: macbook
+    needs: [plan, quick, flake, linux, macbook]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Require successful macOS activation build
-        env:
-          MACOS_BUILD_RESULT: ${{ needs.macbook.result }}
-        run: test "$MACOS_BUILD_RESULT" = success
-
-      - name: Check out the exact revision with full history
+      - name: Check out the exact revision
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Install Nix
-        uses: cachix/install-nix-action@2126ae7fc54c9df00dd18f7f18754393182c73cd # v31.9.1
-
-      - name: Check flake outputs
-        run: nix flake check --no-write-lock-file
-
-      - name: Evaluate physical x86-64 NixOS configuration
-        run: nix eval --raw --no-write-lock-file .#nixosConfigurations.amd64-lenovo-legion-y720.config.system.build.toplevel.drvPath
-
-      - name: Evaluate x86-64 NixOS-WSL configuration
-        run: nix eval --raw --no-write-lock-file .#nixosConfigurations.wsl2.config.system.build.toplevel.drvPath
-
-      - name: Evaluate ARM64 cloud server configuration
-        run: nix eval --raw --no-write-lock-file .#nixosConfigurations.hgrai.config.system.build.toplevel.drvPath
-
-      - name: Check workflow syntax
-        run: nix shell .#ci-tools --command actionlint
-
-      - name: Check Nix formatting
-        run: nix shell .#ci-tools --command sh -c 'git ls-files -z "*.nix" | xargs -0 nixfmt --check'
-
-      - name: Check repository scripts
-        run: nix shell .#ci-tools --command shellcheck scripts/*.sh
-
-      - name: Check public-repository safety
-        run: nix shell .#ci-tools --command bash scripts/check-public-repo.sh
-
+      - name: Require all selected checks to succeed
+        env:
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: python3 scripts/ci-validation.py gate
