@@ -8,6 +8,7 @@ in
     ../../modules/system/common.nix
     ./hardware.nix
     ./disko.nix
+    ./agents.nix
   ];
 
   networking = {
