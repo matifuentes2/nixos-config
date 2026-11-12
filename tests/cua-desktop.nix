@@ -37,6 +37,7 @@ in
   browser = package "cua-agent-browser";
   editor = package "cua-agent-editor";
   smoke = package "cua-agent-smoke";
+  browserSmoke = package "cua-agent-browser-smoke";
   t3 = pkgs.callPackage ../packages/t3-cli.nix { };
   units = home.systemd.user.services;
   graphicalUnits = (makeHome false).config.systemd.user.services;

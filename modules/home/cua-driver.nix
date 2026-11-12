@@ -112,9 +112,34 @@ let
       gdbus call --address "$atspi_address" --dest org.a11y.atspi.Registry \
         --object-path /org/a11y/atspi/accessible/root \
         --method org.a11y.atspi.Accessible.GetChildren >/dev/null
-      printf '%s\n' "$DBUS_SESSION_BUS_ADDRESS" > "$dir/bus-address"
-      systemd-notify --ready
+      printf '%s\n' "$DBUS_SESSION_BUS_ADDRESS" > "$dir/bus-address.tmp"
+      mv "$dir/bus-address.tmp" "$dir/bus-address"
       wait -n
+      exit 1
+    '';
+  };
+
+  waitForAgentSession = pkgs.writeShellApplication {
+    name = "cua-agent-session-wait";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.glib
+    ];
+    text = ''
+      file="$XDG_RUNTIME_DIR/${agent.runtimeDir}/bus-address"
+      for _ in $(seq 50); do
+        if [[ -s "$file" ]]; then
+          address="$(< "$file")"
+          if timeout 0.2 gdbus call --address "$address" \
+            --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus \
+            --method org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1; then
+            printf '%s\n' "$address"
+            exit 0
+          fi
+        fi
+        sleep 0.1
+      done
+      echo "agent session bus is not ready; check cua-agent-desktop.service" >&2
       exit 1
     '';
   };
@@ -131,8 +156,13 @@ let
       pkgs.util-linux
       pkgs.coreutils
       pkgs.dbus
+      pkgs.systemd
     ];
     text = ''
+      # dbus-daemon also sends READY=1. Keep the notification endpoint out of
+      # every child environment; only this supervisor declares full readiness.
+      service_notify_endpoint="$NOTIFY_SOCKET"
+      unset NOTIFY_SOCKET
       dir="$XDG_RUNTIME_DIR/${agent.runtimeDir}"
       rm -f -- "$dir/bus-address"
       export XAUTHORITY="${agent.xauthority}"
@@ -144,10 +174,11 @@ let
 
       # Xvnc can notify systemd itself; only our full-session readiness probe
       # may release the dependent driver.
-      env -u NOTIFY_SOCKET Xvnc "${agent.display}" -auth "$XAUTHORITY" \
+      Xvnc "${agent.display}" -auth "$XAUTHORITY" \
         -geometry ${agent.geometry} -depth 24 -nolisten tcp \
         -rfbport -1 -rfbunixpath "$dir/vnc.sock" -rfbunixmode 0600 \
         -SecurityTypes None -AlwaysShared &
+      xserver_pid=$!
 
       ${lib.getExe waitForAgentDisplay} --server-only
 
@@ -155,9 +186,21 @@ let
       # Supply the AT-SPI D-Bus activation file even before any desktop login.
       export XDG_DATA_DIRS="${pkgs.at-spi2-core}/share:''${XDG_DATA_DIRS:-/run/current-system/sw/share}"
       dbus-run-session -- ${lib.getExe agentSession} &
+      session_pid=$!
 
-      # Restart the whole desktop if any part exits.
-      wait -n
+      # agentSession publishes this only after the WM and AT-SPI registry
+      # answer. Fail startup if either supervised child exits or times out.
+      for _ in $(seq 200); do
+        kill -0 "$xserver_pid"
+        kill -0 "$session_pid"
+        if [[ -s "$dir/bus-address" ]]; then
+          NOTIFY_SOCKET="$service_notify_endpoint" systemd-notify --ready
+          wait -n
+          exit 1
+        fi
+        sleep 0.1
+      done
+      echo "agent desktop session did not become ready" >&2
       exit 1
     '';
   };
@@ -184,12 +227,7 @@ let
         lib.mapAttrsToList (name: value: "export ${name}=${lib.escapeShellArg value}\n") agentEnvironment
       )}
       export XAUTHORITY="${agent.xauthority}"
-      dir="$XDG_RUNTIME_DIR/${agent.runtimeDir}"
-      if [[ ! -r "$dir/bus-address" ]]; then
-        echo "agent desktop is not ready; check cua-agent-desktop.service" >&2
-        exit 1
-      fi
-      DBUS_SESSION_BUS_ADDRESS="$(< "$dir/bus-address")"
+      DBUS_SESSION_BUS_ADDRESS="$(${lib.getExe waitForAgentSession})"
       export DBUS_SESSION_BUS_ADDRESS
       unset AT_SPI_BUS_ADDRESS
       exec "$@"
@@ -223,6 +261,18 @@ let
     text = ''
       exec ${lib.getExe pkgs.python3} ${../../scripts/cua-smoke.py} \
         --zenity ${lib.getExe pkgs.zenity} "$@"
+    '';
+  };
+  agentBrowserSmoke = pkgs.writeShellApplication {
+    name = "cua-agent-browser-smoke";
+    runtimeInputs = [
+      cuaDriver
+      agentRun
+    ];
+    text = ''
+      exec ${lib.getExe pkgs.python3} ${../../scripts/cua-browser-smoke.py} \
+        --chromium ${lib.getExe pkgs.chromium} \
+        --fixture ${../../tests/cua-browser.html} "$@"
     '';
   };
 in
@@ -305,6 +355,7 @@ in
         agentBrowser
         agentEditor
         agentSmoke
+        agentBrowserSmoke
       ];
 
       # Tells agents that computer use here targets the agent desktop rather

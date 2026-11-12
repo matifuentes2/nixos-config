@@ -33,6 +33,13 @@ On this host, cua-driver operates a dedicated, headless X11 desktop
   instance. `cua-agent-smoke` checks discovery, accessible editing, keyboard
   delivery, capture and submission in a disposable dialog.
 - `set_window_frame` works for moving and sizing windows (screen 1920x1080).
+- `cua-agent-browser-smoke` checks the local browser fixture with a disposable
+  profile, verified file transfers and repeated input. Context-menu accessibility
+  is reported separately; use `--require-context-menu` to make it mandatory.
+- After opening a popup, inspect its returned `popup.window_id`, or call
+  `get_window_state` with the browser pid and no window id to discover it.
+  The main window's tree can omit the popup. If its controls remain absent,
+  use a fresh popup screenshot; never treat an input acknowledgement as proof.
 - The user can watch or take over with `cua-agent-view`.
 - Native Cua and T3 preview are separate browser environments. Use the one
   requested by the user; a T3 preview tab does not appear on this desktop.

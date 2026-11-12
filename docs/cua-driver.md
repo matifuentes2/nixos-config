@@ -111,6 +111,7 @@ After activating the configuration:
 systemctl --user status cua-agent-desktop cua-driver
 cua-driver call health_report
 cua-agent-smoke
+cua-agent-browser-smoke
 cua-agent-browser "file://$PWD/tests/cua-browser.html"
 ```
 
@@ -119,6 +120,24 @@ and drop, and a scroll target. Verify each visible result; successful input
 acknowledgements alone do not prove delivery. Also test window resize,
 right-click menus and any advertised recording tools.
 Unsupported tools remain limitations rather than being marked passed.
+
+`cua-agent-browser-smoke` automates the local fixture with a disposable Chromium
+profile and download directory. It checks exact form results, Unicode, select
+and checkbox input, uploaded filename, downloaded bytes, window geometry,
+drag/drop, scrolling and repeated input after those actions. It inspects the
+context popup separately from the main window and prints `LIMIT` when menu
+items are unavailable; `--require-context-menu` makes that limitation a failure.
+Use `--artifacts /path/outside/the/repository` to keep diagnostic screenshots,
+states and the browser log on failure. They can contain file-chooser directory
+names and must never be committed. The test cleans up its browser and profile.
+
+The desktop supervisor keeps `NOTIFY_SOCKET` out of every child's environment:
+both Xvnc and the private D-Bus daemon can announce readiness prematurely.
+Only the supervisor signals readiness, after the window manager and AT-SPI
+registry respond and the session publishes its bus address atomically. App
+launchers also wait boundedly for a live private bus. The x86-64 flake check
+`cua-readiness` exercises real X11/AT-SPI startup with a delayed session bus and
+checks that a failed bus never announces readiness.
 
 Repeat the smoke check after `systemctl --user restart cua-agent-desktop`,
 after an unexpected X-server exit, while Hyprland is locked, and after a
@@ -131,7 +150,7 @@ Targeted development builds avoid evaluating a full host:
 
 ```sh
 nix build --impure --no-link --max-jobs 1 --cores 1 --expr \
-  'let t = import ./tests/cua-desktop.nix; in [ t.desktop t.run t.smoke t.browser t.editor t.t3 ]'
+  'let t = import ./tests/cua-desktop.nix; in [ t.desktop t.run t.smoke t.browserSmoke t.browser t.editor t.t3 ]'
 ```
 
 On the Pi, full flake checks and host builds remain subject to the repository's
