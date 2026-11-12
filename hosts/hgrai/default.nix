@@ -63,7 +63,8 @@ in
   services.tailscale = {
     enable = true;
     openFirewall = true;
-    extraSetFlags = [ "--operator=matif" ];
+    # T3 runs under this account and publishes pairing URLs through Serve.
+    extraSetFlags = [ "--operator=coding-agent" ];
   };
   services.qemuGuest.enable = true;
   services.fstrim.enable = true;
