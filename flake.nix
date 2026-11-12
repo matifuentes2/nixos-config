@@ -227,8 +227,23 @@
           homeTools = homeToolsFor system;
         in
         {
+          pi-runtime = pkgs.runCommand "pi-runtime" { } ''
+            export HOME="$TMPDIR/home"
+            mkdir -p "$HOME"
+            ${nixpkgs.lib.getExe homeTools.pi} --version
+            touch "$out"
+          '';
+          review-batches = pkgs.runCommand "review-batches" { } ''
+            ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/review-batches.mjs} ${./patches/pi-goals/review-batches.mjs}
+            touch "$out"
+          '';
+          pi-context-state = pkgs.runCommand "pi-context-state" { } ''
+            ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/context-mode-state.mjs} \
+              ${homeTools.piExtensionPackages.context-mode}/${homeTools.piExtensionPackages.context-mode.packageRoot}
+            touch "$out"
+          '';
           pi-goal-lifecycle = pkgs.runCommand "pi-goal-lifecycle" { } ''
-            ${nixpkgs.lib.getExe homeTools.bun} ${./tests/pi-goal-lifecycle-smoke.mjs} \
+            ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/pi-goal-lifecycle-smoke.mjs} \
               ${homeTools.piCodexGoalPackage} ${homeTools.piPrReviewGoalPackage}
             touch "$out"
           '';
