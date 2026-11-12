@@ -304,6 +304,12 @@
         modules = [
           disko.nixosModules.disko
           ./hosts/hgrai
+          home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.coding-agent = import ./hosts/hgrai/home.nix;
+          }
         ];
       };
 

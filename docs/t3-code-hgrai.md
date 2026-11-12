@@ -66,6 +66,48 @@ T3 executable's CLI/API schema and verify submit, status, cancellation, and
 restart recovery against that exact release. Do not rely on guessed HTTP paths
 or substitute a direct Codex process while reporting the job as T3-managed.
 
+## Desktop work with CUA
+
+`hosts/hgrai/home.nix` reuses the existing Cua Driver desktop pool for
+`coding-agent`, without importing a physical desktop environment. The broker
+starts with the lingering user manager. Two desktop slots start only when
+leased; the shared legacy desktop does not start automatically. Each slot has
+its own X11 display, Openbox session, accessibility bus, driver socket,
+clipboard and disposable Chromium profile. The pool limits all desktop work
+to 4 GiB RAM, 512 MiB swap and two CPUs of quota, with 2 GiB per slot.
+
+Codex discovers the pinned CUA skills under `~/.agents/skills`. Home Manager
+registers `cua-pool mcp` as its `cua-driver` MCP server using `codex mcp add`,
+preserving other settings in the writable Codex config. New Codex sessions
+launched by T3 inherit that configuration. Restart an existing Codex session
+to discover the newly registered server; do not restart unrelated active work.
+See [the official Codex MCP documentation](https://developers.openai.com/codex/mcp).
+
+An MCP connection leases a desktop on its first GUI tool call and releases it
+on disconnect or idle expiry. Coding-only sessions consume no desktop slot.
+The installed desktop skill explains how to use manual leases across shell
+calls; do not mix an unleased CLI with an MCP-owned desktop. Run commands as
+the same service account:
+
+```sh
+sudo -iu coding-agent
+export XDG_RUNTIME_DIR=/run/user/$(id -u)
+codex mcp list
+cua-pool status
+cua-agent-smoke
+cua-agent-browser-smoke --require-context-menu
+cua-pool-smoke
+```
+
+These smoke checks use disposable local fixtures and release their own
+desktops. No X11 or VNC TCP listener is opened: human viewing requires a
+separate connection to the private VNC Unix socket, as described in
+[the shared CUA guide](cua-driver.md). A T3 browser preview is separate from
+this desktop. Pool slots isolate GUI state, not filesystem permissions between
+tasks sharing `coding-agent`. ARM64 Cua remains an upstream preview; validate
+native input, screenshots, browser interactions and release/recovery on hgrai
+before assigning real desktop tasks.
+
 ## Validation before activation
 
 Evaluate the host and build its ARM64 system without switching. Then apply the
