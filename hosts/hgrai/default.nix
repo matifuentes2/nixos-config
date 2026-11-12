@@ -63,11 +63,15 @@ in
   services.tailscale = {
     enable = true;
     openFirewall = true;
-    extraSetFlags = [ "--operator=matif" ];
+    # T3 runs under this account and publishes pairing URLs through Serve.
+    extraSetFlags = [ "--operator=coding-agent" ];
   };
   services.qemuGuest.enable = true;
   services.fstrim.enable = true;
   zramSwap.enable = true;
+
+  programs.zoxide.enable = true;
+  environment.shellAliases.rebuild = "sudo nixos-rebuild switch --flake /etc/nixos#hgrai";
 
   nix.settings = {
     max-jobs = 2;

@@ -33,6 +33,14 @@ mapping can replace the SSH tunnel later; retain the loopback listener and
 pairing requirement. Keep client/server versions compatible with the pinned
 `packages/t3-cli.nix` release.
 
+For tailnet pairing, run `t3 pair --tailscale` as `coding-agent`. NixOS makes
+that account the Tailscale operator so T3 can configure Serve HTTPS on port 443
+and proxy to its loopback listener. This grants Tailscale management access to
+the service account, not sudo. `matif` can still administer Tailscale using
+`sudo tailscale ...`. Serve is tailnet-only; this setup does not enable Funnel.
+The tailnet must permit HTTPS certificates and Serve. Pairing still requires
+the short-lived token generated in your terminal; do not paste it into chat.
+
 Authenticate Codex and GitHub as `coding-agent` using their supported login
 flows. Never copy the administrator's complete home or credentials. Headless
 credential storage and provider login must be validated on this host before
