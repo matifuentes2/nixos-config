@@ -49,30 +49,57 @@ Secret Service keyring.
 
 ## Support-center integration
 
-The support-center runner currently invokes `codex exec` directly. This module
-does not change it into a T3 client. A separate adapter is required:
+`hosts/hgrai/support-bridge.nix` runs the support-center T3 bridge under a
+separate `support-bridge` account. It pulls queued work over HTTPS, validates
+the enrolled repository, and launches a T3-managed worktree per claim. The
+support Worker needs no inbound path to this host. One active claim is allowed
+per project token. Completed investigations return to human review; the bridge
+never requests automatic resolution, merges, or deployments.
 
-1. Poll support-center using a project-scoped token and atomically claim a job.
-2. Resolve the registered repository against a host-controlled allowlist. Treat
-   ticket text and repository URLs as data, never as provisioning authority.
-3. Submit the ticket to T3 using its supported automation interface, with an
-   isolated task worktree. Persist the support job ID, T3 run/thread identity,
-   and attempt so a process restart can reconcile existing work.
-4. Renew the support lease every minute while the T3 run is active. A submitted
-   task is not a completed job. On cancellation or lease loss, stop its T3 run
-   and retain the worktree for inspection; never post a stale completion.
-5. Return the final report, changed-file and test evidence, and any PR link to
-   support-center. Default to human review. Do not automatically merge or deploy.
+The private bridge source is pinned to a reviewed support-center commit. A
+root enrollment unit fetches only its bridge files using `coding-agent`'s
+existing GitHub login and installs an immutable versioned directory. No private
+source or credentials enter the public Nix cache. Updating the bridge means
+reviewing a new support-center commit and updating the pin here.
 
-Start with one active ticket across the VPS. Increase concurrency only after
-measuring memory, disk, and repository build costs. Keep a separate credential
-and repository allowlist entry for each enrolled project. The adapter's token
-should not be included in agent prompts or child process environments.
+Provision a project-scoped support token with `tickets:read`, `tickets:write`,
+and `jobs:claim` in `/var/lib/grai-support-bridge-secrets/support-token` (root,
+0600; parent directory 0700). Keep its backup in the team's secret manager.
+The units stay gated until that file exists. Do not put it in a Nix expression
+or the Nix store. Enrollment obtains a scoped 30-day T3 OAuth session at
+`auto-accept-edits` and discovers exact project mappings at runtime. It uses the
+coding account's existing T3 login; no pairing code is printed or stored in Git.
+The bridge drains before refreshing credentials with seven days remaining.
 
-The adapter is not implemented yet. Before implementing it, inspect the pinned
-T3 executable's CLI/API schema and verify submit, status, cancellation, and
-restart recovery against that exact release. Do not rely on guessed HTTP paths
-or substitute a direct Codex process while reporting the job as T3-managed.
+Codex and CUA run as `coding-agent`, which cannot read bridge credentials or
+its SQLite state. Evidence is writable only by the bridge and readable by the
+coding account. Both use the existing repository and CUA configuration;
+filesystem isolation between coding tasks remains at the worktree level.
+
+The support API and bundled CLI require the fresh `claim_id` for every lease
+renewal, handoff, and completion. Persistent SQLite launch intent plus T3's
+idempotency key recovers lost launch replies. The bridge renews leases each
+ten-second cycle and limits a claim to thirty minutes. Cancellation, lease
+loss, or a support outage stops the remote thread before proceeding. An
+unconfirmed stop or ambiguous launch blocks new claims for operator review.
+Human-input pauses remain leased and appear in the internal support timeline.
+Worktrees, evidence, and reports remain available for review and archival.
+
+Deploy the matching support Worker migration before activating this host:
+
+```sh
+sudo systemctl restart grai-support-bridge
+sudo systemctl status grai-support-{repository,enrollment,bridge}
+sudo journalctl -u grai-support-bridge -n 50 --no-pager
+```
+
+A graceful restart stops outstanding work and returns it to review. Crash
+recovery resumes the persisted claim. Never delete the SQLite state or rotate
+the T3 credential to bypass an ambiguous submission; reconcile the existing
+thread first. Revoke the support token in Workspace settings to disable new
+claims, stop the service to quiesce existing work, and retain artifacts for
+review. The repository checkout and model/GitHub credentials stay in the
+coding account's home; no credentials are passed in ticket prompts.
 
 ## Desktop work with CUA
 
@@ -130,5 +157,5 @@ Evaluate the host and build its ARM64 system without switching. Then apply the
 reviewed configuration through the repository's usual deployment process.
 Confirm service startup, loopback-only listening, SSH access, pairing, provider
 authentication, persistence across a service restart, and one synthetic task
-before enabling ticket intake. This setup has not been deployed by adding these
-files.
+before enabling ticket intake. Adding these files alone does not activate enrollment; a scoped support token
+and authenticated coding account are required.

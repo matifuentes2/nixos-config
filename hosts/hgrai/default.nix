@@ -9,6 +9,7 @@ in
     ./hardware.nix
     ./disko.nix
     ./agents.nix
+    ./support-bridge.nix
   ];
 
   networking = {

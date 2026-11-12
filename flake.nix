@@ -253,6 +253,7 @@
             inherit pkgs home-manager;
           };
           cua-pool-leases = import ./tests/cua-pool.nix { inherit pkgs; };
+          hgrai-support-bridge = import ./tests/hgrai-support-bridge.nix { inherit nixpkgs; };
           ci-cd-local-worker-module = import ./tests/ci-cd-local-worker-module.nix {
             inherit nixpkgs sops-nix;
           };
