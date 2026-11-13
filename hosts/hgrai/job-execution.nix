@@ -199,7 +199,7 @@ in
     ];
     serviceConfig = {
       ExecStart = "${lib.getExe pkgs.python3} ${./job-supervisor.py} ${supervisorConfig}";
-      ExecStopPost = "${pkgs.systemd}/bin/systemctl stop grai-job-*.service";
+      ExecStopPost = "${pkgs.systemd}/bin/systemctl stop grai-job-run-*.service";
       Restart = "always";
       RestartSec = 2;
       RuntimeDirectory = "grai-job-supervisor";

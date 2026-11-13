@@ -238,7 +238,8 @@ Failure injection confirmed that a lost renewal kills a detached child and
 that systemd's absolute deadline kills it even with the temporary supervisor
 paused. Restarting the proxy preserved its mounted socket and connectivity.
 
-Nine Python regression tests cover lease/revocation invariants, protocol
+Ten Python regression tests cover execution/control-plane unit separation,
+lease/revocation invariants, protocol
 credential stripping, reviewed-only retention, sparse export limits, and lazy
 desktop startup/release with MCP stdin kept separate. Three Node tests cover
 egress validation, upstream path restrictions, and credential expiry admission.

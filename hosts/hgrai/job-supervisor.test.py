@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import tempfile
 import hashlib
+import fnmatch
 import io
 import json
 import os
@@ -29,6 +30,13 @@ client = module('job-client')
 
 
 class JobSecurity(unittest.TestCase):
+    def test_execution_cleanup_never_matches_control_plane_services(self):
+        pattern = supervisor_module.JOB_UNIT_PATTERN
+        for key in ('grai:job:claim', 'probe:claim'):
+            self.assertTrue(fnmatch.fnmatch(self.supervisor.unit(key), pattern))
+        for name in ('grai-job-supervisor.service','grai-job-proxy.service','grai-job-broker.service','grai-support-bridge.service'):
+            self.assertFalse(fnmatch.fnmatch(name,pattern),name)
+
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)

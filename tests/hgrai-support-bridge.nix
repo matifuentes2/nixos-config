@@ -25,6 +25,7 @@ let
     (cfg.users.users.support-job.isSystemUser)
     (cfg.systemd.slices.grai-jobs.sliceConfig.MemoryMax == "3G")
     (builtins.elem "grai-job-supervisor.service" bridge.requires)
+    (nixpkgs.lib.hasSuffix " stop grai-job-run-*.service" cfg.systemd.services.grai-job-supervisor.serviceConfig.ExecStopPost)
     (builtins.length bridge.serviceConfig.LoadCredential == 3)
     (bridge.unitConfig.ConditionPathExists == "/var/lib/grai-support-bridge-secrets/support-token")
     (builtins.elem "grai-support-enrollment.service" bridge.requires)
