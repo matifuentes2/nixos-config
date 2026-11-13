@@ -25,14 +25,24 @@ export function reviewSections(diff, limit = 32000) {
 
 // Counts include the optional integration pass. Only validated verdicts advance
 // completed; diagnostics never grant completion or expose model reasoning.
+export function reviewForDisplay(execution) {
+  const { attemptId, headSha, provider, model, status, reason, failurePhase, progress } = execution;
+  return { attemptId, headSha, provider, model, status, reason, failurePhase,
+    consecutiveFailures: execution.consecutiveFailures ?? 0, progress: structuredClone(progress) };
+}
+
 export function formatReviewProgress(execution) {
   const p = execution.progress;
   return `Review ${p.phase}: ${p.completed}/${p.total ?? '?'} validated` +
     (p.current ? ` · step ${p.current}` : '') +
-    ` · ${execution.provider ?? '?'}/${execution.model ?? '?'}` +
+    ` · attempt ${execution.attemptId} · ${execution.provider ?? '?'}/${execution.model ?? '?'}` +
     ` · head ${execution.headSha || 'pending'} · started ${p.startedAt}` +
     (p.sectionStartedAt ? ` · step started ${p.sectionStartedAt}` : '') +
     (p.lastCompletedAt ? ` · last completed ${p.lastCompletedAt}` : '') +
+    (p.subprocess ? ` · process ${p.subprocess.exitCode === undefined ? (execution.status === 'running' ? 'running' : 'unobserved') : 'exited'} ${Math.floor(p.subprocess.elapsedMs / 1000)}s` +
+      ` · events ${p.subprocess.events} · last ${p.subprocess.lastEvent ?? 'none'}` +
+      (p.subprocess.lastEventAt ? ` at ${p.subprocess.lastEventAt}` : '') +
+      ` · stdout ${p.subprocess.stdoutBytes}B · stderr ${p.subprocess.stderrBytes}B` : '') +
     (execution.reason ? ` · ${execution.reason}` : '');
 }
 
@@ -46,10 +56,11 @@ export async function runReviewSections(input, run, signal, onProgress = () => {
     if (signal?.aborted) throw new Error('Reviewer interrupted.');
     onProgress({ phase: index === input.integrationIndex ? 'integration' : 'section',
       current: index + 1, total: prompts.length, completed: verdicts.length,
-      sectionStartedAt: new Date().toISOString() });
-    const result = await run(prompt);
+      subprocess: null, sectionStartedAt: new Date().toISOString() });
+    const result = await run(prompt, onProgress);
     if (signal?.aborted) throw new Error('Reviewer interrupted.');
-    const v = JSON.parse(result.verdict);
+    let v;
+    try { v = JSON.parse(result.verdict); } catch { throw new Error("Malformed section verdict; review remains incomplete."); }
     if (!v || Object.keys(v).sort().join(',') !== 'attemptId,decision,findings,headSha,schemaVersion' ||
         v.schemaVersion !== 1 || v.attemptId !== input.attemptId || v.headSha !== input.headSha ||
         !['clean', 'changes_requested'].includes(v.decision) || !Array.isArray(v.findings) ||

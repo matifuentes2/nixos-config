@@ -269,6 +269,8 @@ let
       chmod -R u+w "$out/dist"
       patch -d "$out" -p1 < ${../patches/pi-goals/recovery.patch}
       patch -d "$out" -p1 < ${../patches/pi-goals/progress.patch}
+      patch -d "$out" -p1 < ${../patches/pi-goals/observability.patch}
+      cp ${../patches/pi-goals/review-runner.mjs} "$out/dist/review-runner.mjs"
       cp ${../patches/pi-goals/review-batches.mjs} "$out/dist/review-batches.mjs"
     '';
   });

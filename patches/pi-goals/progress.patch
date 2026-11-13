@@ -101,7 +101,7 @@
  function toToolGoal(goal) {
    return {
      goalId: goal.goalId,
-+    ...goal.reviewExecution ? { review: { attemptId: goal.reviewExecution.attemptId, headSha: goal.reviewExecution.headSha, provider: goal.reviewExecution.provider, model: goal.reviewExecution.model, status: goal.reviewExecution.status, reason: goal.reviewExecution.reason, consecutiveFailures: goal.reviewExecution.consecutiveFailures ?? 0, progress: structuredClone(goal.reviewExecution.progress) } } : {},
++    ...goal.reviewExecution ? { review: { attemptId: goal.reviewExecution.attemptId, headSha: goal.reviewExecution.headSha, provider: goal.reviewExecution.provider, model: goal.reviewExecution.model, status: goal.reviewExecution.status, reason: goal.reviewExecution.reason, failurePhase: goal.reviewExecution.failurePhase, consecutiveFailures: goal.reviewExecution.consecutiveFailures ?? 0, progress: structuredClone(goal.reviewExecution.progress) } } : {},
      ...goal.completionPolicy?.reviewer ? { reviewer: structuredClone(goal.completionPolicy.reviewer) } : {},
      objective: goal.objective,
      status: goal.status,
