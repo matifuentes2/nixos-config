@@ -21,6 +21,8 @@ import tempfile
 import uuid
 import urllib.request
 
+JOB_UNIT_PATTERN = "grai-job-run-*.service"
+
 
 class Supervisor:
     def __init__(self, config, clock=time.monotonic):
@@ -34,7 +36,7 @@ class Supervisor:
         self.controller_uid = pwd.getpwnam("coding-agent").pw_uid
 
     def unit(self, key):
-        return "grai-job-" + hashlib.sha256(key.encode()).hexdigest()[:24] + ".service"
+        return "grai-job-run-" + hashlib.sha256(key.encode()).hexdigest()[:24] + ".service"
 
     def revoked_path(self, key):
         return Path(self.config["state"]) / "revoked" / hashlib.sha256(key.encode()).hexdigest()
@@ -426,7 +428,7 @@ class Supervisor:
     def serve(self):
         # A supervisor restart revokes every surviving execution. Never adopt
         # orphan processes or recover a lease from stale wall-clock state.
-        subprocess.run(["systemctl", "stop", "grai-job-*.service"], check=True, timeout=30)
+        subprocess.run(["systemctl", "stop", JOB_UNIT_PATTERN], check=True, timeout=30)
         for claim in Path(self.config["state"]).glob("*/claim"):
             self.retire(claim.read_text())
         path = self.config["socket"]
