@@ -221,3 +221,27 @@ filesystem. Deploy the matching support-center bridge pin and this module
 together, after draining any old worker. Verify credential denial, public/private
 egress, CUA, lease expiry with the bridge unavailable, and report delivery before
 enabling new automatic intake.
+
+### Hardening acceptance checks
+
+The 2026-11-13 implementation was exercised in temporary services on hgrai
+before production activation. Native ARM64 checks covered credential and host
+socket denial (including the Nix daemon), read-only current-job evidence,
+blocked metadata/private egress, public HTTPS, Unicode file export, and model
+requests through the credential proxy. A real Codex turn discovered the 67 CUA
+tools and successfully checked the private desktop.
+
+The browser fixture passed Unicode editing, select/checkbox submission,
+byte-verified downloads, native file-chooser uploads, accessible context menus,
+window movement/resizing, drag and drop, scrolling, and desktop release.
+Failure injection confirmed that a lost renewal kills a detached child and
+that systemd's absolute deadline kills it even with the temporary supervisor
+paused. Restarting the proxy preserved its mounted socket and connectivity.
+
+Nine Python regression tests cover lease/revocation invariants, protocol
+credential stripping, reviewed-only retention, sparse export limits, and lazy
+desktop startup/release with MCP stdin kept separate. Three Node tests cover
+egress validation, upstream path restrictions, and credential expiry admission.
+The hgrai system was built without switching. Production activation and an
+actual support-ticket handoff remain separate rollout checks after required CI
+and merge; these development tests do not replace them.

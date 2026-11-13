@@ -7,6 +7,11 @@ import tempfile
 import hashlib
 import io
 import json
+import os
+import select
+import signal
+import subprocess
+import sys
 import time
 import unittest
 from unittest.mock import patch
@@ -106,6 +111,64 @@ class JobSecurity(unittest.TestCase):
             file.truncate(3 * 1024**3)
         with self.assertRaisesRegex(RuntimeError, 'Export budget'):
             self.supervisor.export(archive, Path(self.directory.name))
+
+    def test_lazy_desktop_readiness_does_not_consume_mcp_stdin(self):
+        root = Path(self.directory.name)
+        def executable(name, source):
+            path = root / name
+            path.write_text('#!' + sys.executable + '\n' + source)
+            path.chmod(0o700)
+            return str(path)
+        desktop = executable('desktop', '''import os,socket,sys,time
+from pathlib import Path
+Path(os.environ['HOME']).parent.joinpath('desktop.pid').write_text(str(os.getpid()))
+sys.stdin.buffer.read()
+s=socket.socket(socket.AF_UNIX,socket.SOCK_DGRAM)
+s.sendto(b'READY=1',os.environ['NOTIFY_SOCKET'])
+time.sleep(60)
+''')
+        driver = executable('driver', '''import json,sys
+for line in sys.stdin:
+ value=json.loads(line)
+ if 'id' in value:
+  print(json.dumps(dict(jsonrpc='2.0',id=value['id'],result=dict(content=[dict(type='text',text='healthy')]))),flush=True)
+''')
+        run = executable('run', 'import os,sys\nos.execv(sys.argv[1],sys.argv[1:])\n')
+        schemas = root / 'schemas.json'
+        schemas.write_text('[]')
+        config = root / 'cua.json'
+        config.write_text(json.dumps(dict(desktop=desktop,driver=driver,run=run,schemasFile=str(schemas))))
+        env = {**os.environ, 'HOME':str(root), 'XDG_RUNTIME_DIR':str(root)}
+        process = subprocess.Popen([sys.executable,str(Path(__file__).with_name('job-cua.py')),str(config)],env=env,stdin=subprocess.PIPE,stdout=subprocess.PIPE,text=True)
+        try:
+            def rpc(identifier, method, params):
+                process.stdin.write(json.dumps(dict(jsonrpc='2.0',id=identifier,method=method,params=params))+'\n')
+                process.stdin.flush()
+                self.assertTrue(select.select([process.stdout],[],[],5)[0], 'Desktop readiness blocked on MCP input')
+                value = json.loads(process.stdout.readline())
+                self.assertEqual(value['id'],identifier)
+                self.assertFalse(value.get('result',{}).get('isError'),value)
+                return value
+            rpc(1,'initialize',dict(protocolVersion='2024-11-05'))
+            rpc(2,'tools/list',{})
+            self.assertFalse(list(root.glob('cua-profile-*')))
+            rpc(3,'tools/call',dict(name='health_report',arguments={}))
+            self.assertTrue(list(root.glob('cua-profile-*')))
+            rpc(4,'tools/call',dict(name='pool_release_desktop',arguments={}))
+            self.assertFalse(list(root.glob('cua-profile-*')))
+            process.stdin.close()
+            self.assertEqual(process.wait(timeout=5),0)
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait()
+            pidfile = root / 'desktop.pid'
+            if pidfile.exists():
+                try:
+                    os.killpg(int(pidfile.read_text()),signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            process.stdout.close()
 
 
 if __name__ == '__main__':
