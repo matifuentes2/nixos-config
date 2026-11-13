@@ -65,8 +65,19 @@ launches are refused, and superseded attempts cannot publish progress.
 Counts include integration and advance only after verdict validation. All steps
 being validated still does not authorize completion until the PR head/checkout
 is checked again. Cancellation and session restoration retain progress but mark
-the attempt interrupted. Timestamps describe section starts/completions, not a
-heartbeat: they do not claim a quiet subprocess is healthy. This patch does not
+the attempt interrupted. Each section also publishes subprocess diagnostics on launch, every ten seconds,
+and exit: elapsed time, PID, transport byte counts, parsed event count, last event
+kind/time, stop reason, exit code/signal and the ten-minute timeout. A pulse only
+shows that the host is observing the process; the separate last-event timestamp
+shows whether the reviewer has emitted activity. It does not establish reviewer
+health or advance validated counts. Subprocess diagnostics reset at each section.
+
+Failures retain their phase, section and attempt ID in the tool error, plus
+bounded stderr/provider error text with common credential and URL redaction.
+Malformed transport/verdict errors omit payload excerpts. Diagnostics survive in
+`get_goal` and terminal streamed updates, including zero-exit provider errors.
+Streamed summaries omit accumulated verdicts, prompts, reasoning, tool arguments
+and tool results. Error redaction is best effort: keep session journals private. This patch does not
 add T3 frontend components or expose private model reasoning.
 
 `nix build --no-link .#checks.aarch64-darwin.pi-goal-lifecycle` tests the packaged

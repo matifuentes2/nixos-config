@@ -220,6 +220,11 @@ let prompt = '';
 for await (const chunk of process.stdin) prompt += chunk;
 const verdict = JSON.parse(prompt.match(/exactly these keys: (\\{.*?\\})\\. Use/)[1]);
 const args = process.argv;
+if (process.env.PI_REVIEW_FIXTURE_FAILURE) {
+  console.log(JSON.stringify({ type: 'message_end', message: { role: 'assistant', stopReason: 'error', errorMessage: 'fixture provider unavailable' } }));
+  console.log(JSON.stringify({ type: 'agent_end' }));
+  process.exit(0);
+}
 const message = { role: 'assistant', provider: args[args.indexOf('--provider') + 1], model: args[args.indexOf('--model') + 1],
   stopReason: 'stop', content: [{ type: 'text', text: JSON.stringify(verdict) }] };
 console.log(JSON.stringify({ type: 'message_end', message }));
@@ -235,6 +240,19 @@ console.log(JSON.stringify({ type: 'agent_end', messages: [message] }));
     assert.equal((await goal()).review.progress.phase, "interrupted");
     assert.equal((await goal()).review.progress.completed, 0);
     await call("resume_goal");
+    process.env.PI_REVIEW_FIXTURE_FAILURE = '1';
+    const failureUpdates = [];
+    try {
+      await assert.rejects(() => call("run_goal_review", {}, update => failureUpdates.push(update)),
+        /step 1\/3.*exit=0, stop=error.*fixture provider unavailable/);
+    } finally { delete process.env.PI_REVIEW_FIXTURE_FAILURE; }
+    const failedReview = (await goal()).review;
+    assert.equal(failedReview.status, "runtime_failed");
+    assert.equal(failedReview.failurePhase, "section");
+    assert.equal(failedReview.progress.completed, 0);
+    assert.equal(failedReview.progress.subprocess.stopReason, "error");
+    assert.equal(failedReview.progress.subprocess.error, "fixture provider unavailable");
+    assert.deepEqual(failureUpdates.at(-1).details.review, failedReview);
     const updates = [];
     let sectionStarted;
     const firstSection = new Promise(resolve => { sectionStarted = resolve; });
@@ -262,6 +280,10 @@ console.log(JSON.stringify({ type: 'agent_end', messages: [message] }));
     assert(displayedUpdates.some(u => u.details.review.progress.phase === "integration"));
     assert(displayedUpdates.some(u => u.details.review.progress.phase === "validating"));
     assert.equal(displayedUpdates.at(-1).details.review.progress.phase, "completed");
+    assert.equal(review.progress.subprocess.exitCode, 0);
+    assert.equal(review.progress.subprocess.events, 2);
+    assert.equal(displayedUpdates.at(-1).details.review.sections, undefined);
+    assert.equal(displayedUpdates.at(-1).details.review.verdict, undefined);
     assert.equal(review.progress.completed, 3);
     assert.equal(review.progress.total, 3);
     assert(review.progress.lastCompletedAt);

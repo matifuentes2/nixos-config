@@ -245,6 +245,7 @@
           pi-goal-lifecycle = pkgs.runCommand "pi-goal-lifecycle" { } ''
             ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/pi-goal-lifecycle-smoke.mjs} \
               ${homeTools.piCodexGoalPackage} ${homeTools.piPrReviewGoalPackage}
+            ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/review-runner.mjs} ${homeTools.piCodexGoalPackage}
             touch "$out"
           '';
         }
