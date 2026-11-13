@@ -39,16 +39,21 @@ const allowedModelPaths = new Set([
   "/model/responses/compact",
   "/model/models",
 ]);
+function tokenExpiry(tokens) {
+  if (typeof tokens?.access_token !== "string")
+    throw new Error("Missing model credential");
+  const expiry = JSON.parse(
+    Buffer.from(tokens.access_token.split(".")[1], "base64url"),
+  ).exp;
+  if (typeof expiry !== "number" || !Number.isFinite(expiry))
+    throw new Error("Invalid model credential expiry");
+  return expiry * 1000;
+}
 export function createProxy({ authFile }) {
   let refresh;
   async function credentials() {
     let value = JSON.parse(await readFile(authFile, "utf8"));
-    const token = value.tokens?.access_token;
-    if (!token) throw new Error("Missing model credential");
-    const expiry = JSON.parse(
-      Buffer.from(token.split(".")[1], "base64url"),
-    ).exp;
-    if (expiry * 1000 < Date.now() + 60000) {
+    if (tokenExpiry(value.tokens) < Date.now() + 60000) {
       refresh ??= (async () => {
         const response = await fetch("https://auth.openai.com/oauth/token", {
           method: "POST",
@@ -77,6 +82,8 @@ export function createProxy({ authFile }) {
       await refresh;
       value = JSON.parse(await readFile(authFile, "utf8"));
     }
+    if (tokenExpiry(value.tokens) <= Date.now())
+      throw new Error("Model credential is expired");
     return value.tokens;
   }
   const server = http.createServer(async (request, response) => {

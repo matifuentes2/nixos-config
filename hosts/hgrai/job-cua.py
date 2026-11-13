@@ -84,7 +84,10 @@ def start():
     notification = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
     notification.bind(str(runtime / "notify.sock"))
     env = {**os.environ, "NOTIFY_SOCKET": str(runtime / "notify.sock"), "CUA_POOL_LEASE": "job", "XDG_RUNTIME_DIR":str(runtime), "HOME":profile, "XDG_CONFIG_HOME":profile+"/.config", "XDG_CACHE_HOME":profile+"/.cache", "XDG_DATA_HOME":profile+"/.local/share"}
-    desktop = subprocess.Popen([config["desktop"]], env=env, stdout=sys.stderr, start_new_session=True)
+    # Readiness probes must see EOF on stdin. Inheriting the MCP input pipe
+    # makes native CLI probes wait for a JSON argument forever.
+    with (Path(os.environ["HOME"]) / "cua-desktop.log").open("wb") as log:
+        desktop = subprocess.Popen([config["desktop"]], env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
     notification.settimeout(30)
     try:
         notification.recv(4096)
