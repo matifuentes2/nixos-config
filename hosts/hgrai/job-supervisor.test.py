@@ -137,7 +137,8 @@ for line in sys.stdin:
         schemas = root / 'schemas.json'
         schemas.write_text('[]')
         config = root / 'cua.json'
-        config.write_text(json.dumps(dict(desktop=desktop,driver=driver,run=run,schemasFile=str(schemas))))
+        display_lock = root / 'display-lock'
+        config.write_text(json.dumps(dict(desktop=desktop,driver=driver,run=run,schemasFile=str(schemas),displayFiles=[str(display_lock)])))
         env = {**os.environ, 'HOME':str(root), 'XDG_RUNTIME_DIR':str(root)}
         process = subprocess.Popen([sys.executable,str(Path(__file__).with_name('job-cua.py')),str(config)],env=env,stdin=subprocess.PIPE,stdout=subprocess.PIPE,text=True)
         try:
@@ -154,8 +155,11 @@ for line in sys.stdin:
             self.assertFalse(list(root.glob('cua-profile-*')))
             rpc(3,'tools/call',dict(name='health_report',arguments={}))
             self.assertTrue(list(root.glob('cua-profile-*')))
+            display_lock.touch()
             rpc(4,'tools/call',dict(name='pool_release_desktop',arguments={}))
             self.assertFalse(list(root.glob('cua-profile-*')))
+            self.assertFalse(display_lock.exists())
+            rpc(5,'tools/call',dict(name='health_report',arguments={}))
             process.stdin.close()
             self.assertEqual(process.wait(timeout=5),0)
         finally:

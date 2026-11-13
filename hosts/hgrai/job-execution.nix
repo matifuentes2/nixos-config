@@ -10,6 +10,10 @@ let
     driver = lib.getExe driver;
     desktop = lib.getExe desktop.desktop;
     run = lib.getExe desktop.run;
+    displayFiles = [
+      "/tmp/.X47-lock"
+      "/tmp/.X11-unix/X47"
+    ];
   };
   cuaBaseConfig = pkgs.writeText "support-cua-schema-config.json" (builtins.toJSON cuaBase);
   schemas = pkgs.runCommand "support-cua-tools.json" { } ''

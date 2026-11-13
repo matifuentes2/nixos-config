@@ -44,6 +44,10 @@ def release():
             except (ProcessLookupError, subprocess.TimeoutExpired):
                 pass
     child = desktop = None
+    # SIGKILL cannot let Xvnc unlink these. PID reuse in the private namespace
+    # can otherwise make a stale display lock look live on the next lease.
+    for file in config.get("displayFiles", []):
+        Path(file).unlink(missing_ok=True)
     if profile:
         shutil.rmtree(profile, ignore_errors=True)
         profile = None
