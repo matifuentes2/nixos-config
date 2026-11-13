@@ -9,6 +9,7 @@ in
     ./hardware.nix
     ./disko.nix
     ./agents.nix
+    ./job-execution.nix
     ./support-bridge.nix
   ];
 

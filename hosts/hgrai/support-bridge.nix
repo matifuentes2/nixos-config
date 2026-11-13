@@ -6,7 +6,7 @@
 let
   # Pin the reviewed private support-center source. Download at enrollment
   # time using the coding account's GitHub login, never a public Nix cache.
-  revision = "64476cd27499dad0a462121684ad3507de50796f";
+  revision = "973e7a14372c99036a999f302a148c772e03dec5";
   packageDir = "/var/lib/grai-support-package/${revision}";
   secretsDir = "/var/lib/grai-support-bridge-secrets";
   evidenceDir = "/var/lib/grai-support-evidence";
@@ -22,12 +22,14 @@ let
       baseRef = "origin/master";
       runtimeMode = "auto-accept-edits";
       modelSelection = {
-        instanceId = "codex";
+        instanceId = "support-sandbox";
         model = "gpt-6.1-sol";
         options.reasoningEffort = "high";
       };
       pollMs = 10000;
       maxRunMs = 1800000;
+      storageBudgetBytes = 1073741824;
+      supervisorSocket = "/run/grai-job-supervisor/control.sock";
     }
   );
   configured = {
@@ -139,6 +141,7 @@ in
       UMask = "0077";
     };
     script = ''
+      runuser --login coding-agent --command '${lib.getExe pkgs.python3} ${./job-register.py}'
       ${lib.getExe pkgs.nodejs} ${packageDir}/bridge/bootstrap-t3.mjs ${secretsDir}/t3-session.json ${lib.getExe t3} coding-agent
       ${lib.getExe pkgs.nodejs} ${packageDir}/bridge/enroll.mjs ${template} ${secretsDir} ${lib.getExe t3} coding-agent
     '';
@@ -147,10 +150,14 @@ in
     description = "Dispatch Grai Support jobs to T3 Code";
     wantedBy = [ "multi-user.target" ];
     wants = [ "network-online.target" ];
-    requires = [ "grai-support-enrollment.service" ];
+    requires = [
+      "grai-support-enrollment.service"
+      "grai-job-supervisor.service"
+    ];
     after = [
       "network-online.target"
       "grai-support-enrollment.service"
+      "grai-job-supervisor.service"
     ];
     unitConfig = configured;
     serviceConfig = {
@@ -169,6 +176,10 @@ in
       Restart = "always";
       RestartSec = 10;
       TimeoutStopSec = 120;
+      MemoryMax = "256M";
+      TasksMax = 64;
+      OOMScoreAdjust = -500;
+      LimitCORE = 0;
       UMask = "0077";
       NoNewPrivileges = true;
       PrivateTmp = true;

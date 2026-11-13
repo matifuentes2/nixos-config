@@ -75,15 +75,16 @@ T3 CLI during enrollment; the running OAuth client cannot change projects.
 The host explicitly selects Codex `gpt-6.1-sol` with high reasoning effort,
 so an empty project model preference cannot leave a claimed job unlaunchable.
 
-Codex and CUA run as `coding-agent`, which cannot read bridge credentials or
-its SQLite state. Evidence is writable only by the bridge and readable by the
+T3 runs as `coding-agent`; support Codex and CUA processes run as `support-job`
+in a supervised filesystem/network namespace and cannot read bridge credentials
+or its SQLite state. Evidence is writable only by the bridge and readable by the
 coding account. Both use the existing repository and CUA configuration;
-filesystem isolation between coding tasks remains at the worktree level.
+support execution isolation is enforced by the host supervisor described below.
 
 The support API and bundled CLI require the fresh `claim_id` for every lease
 renewal, handoff, and completion. Persistent SQLite launch intent plus T3's
-idempotency key recovers lost launch replies. The bridge renews leases each
-ten-second cycle and limits a claim to thirty minutes. Cancellation, lease
+idempotency key recovers lost launch replies. The bridge renews leases independently of slow polling operations; the host
+enforces a thirty-minute absolute execution deadline. Cancellation, lease
 loss, or a support outage stops the remote thread before proceeding. An
 unconfirmed stop or ambiguous launch blocks new claims for operator review.
 Human-input pauses remain leased and appear in the internal support timeline.
@@ -163,3 +164,84 @@ Confirm service startup, loopback-only listening, SSH access, pairing, provider
 authentication, persistence across a service restart, and one synthetic task
 before enabling ticket intake. Adding these files alone does not activate enrollment; a scoped support token
 and authenticated coding account are required.
+
+## Support execution isolation
+
+Support jobs use the managed `support-sandbox` provider, separate from the
+interactive Codex provider. `grai-job-supervisor` accepts lease operations only
+from `support-bridge` and provider launches only from the T3 controller account.
+It validates the live claim's exact Git worktree before admitting execution.
+The provider pipe removes T3 MCP credentials and enforces the external sandbox
+policy before forwarding protocol messages.
+
+`support-job` receives a private filesystem/network namespace, a per-claim
+2 GiB ext4 job disk, its own persistent Codex home, and read-only current-job
+evidence. CUA desktops and their apps run inside the same service/cgroup. They
+cannot access the controller's home, user bus, T3 state, other jobs, or GitHub
+credentials. Their minimal root exposes the Nix store and explicitly required
+public runtime files, but no host Nix daemon or other host filesystem sockets.
+Model authentication stays in `grai-job-proxy`; jobs reach it and
+public HTTP/HTTPS sites through a constrained Unix-socket proxy. Private,
+loopback, metadata, and tailnet destinations are denied. Keep the proxy socket
+restricted to the execution group; it must never be publicly exposed.
+
+The independent execution lease expires after 60 seconds without bridge
+renewal, with a 30-minute absolute ceiling. systemd enforces the deadline and
+kills the entire process cgroup. Confirmed stop is required before copying
+working files back for review or admitting another claim. The isolated Git
+history remains in the archive; publishing, merging, and deploying require a
+human with the appropriate credentials. Revocations survive supervisor restarts;
+restarting the supervisor terminates surviving job services and revokes their
+claims instead of adopting them. Failed exports retain the full job disk and
+return an explicit warning for human review.
+
+The shared execution slice has a 3 GiB memory limit, 256 MiB swap limit,
+768-task limit, and 200% CPU quota; each job is further limited to 512 tasks
+and 150% CPU. Job storage admission requires at least 10 GiB free and fewer
+than 16 retained disks. Evidence admission is capped separately at 1 GiB.
+The interactive controller user slice is capped separately at 3 GiB, keeping
+the combined budgets below the host's 8 GiB memory capacity. The proxy uses a
+systemd-owned socket so restarting it preserves existing namespace mounts.
+Artifacts are retained while under review. Cleanup removes completed local
+artifacts after seven days only after confirming that the ticket is resolved
+or closed. T3 messages are retained. Do not delete unresolved archives or
+SQLite state to bypass an admission or reconciliation failure.
+
+Observe the boundary with:
+
+```sh
+sudo systemctl status grai-job-{supervisor,proxy} grai-support-bridge
+sudo systemctl list-units 'grai-job-*.service'
+sudo journalctl -u grai-job-supervisor -u grai-support-bridge -n 50 --no-pager
+```
+
+The proxy uses the controller's existing model login; reauthentication still
+belongs to that account. Do not copy model credentials into the execution
+filesystem. Deploy the matching support-center bridge pin and this module
+together, after draining any old worker. Verify credential denial, public/private
+egress, CUA, lease expiry with the bridge unavailable, and report delivery before
+enabling new automatic intake.
+
+### Hardening acceptance checks
+
+The 2026-11-13 implementation was exercised in temporary services on hgrai
+before production activation. Native ARM64 checks covered credential and host
+socket denial (including the Nix daemon), read-only current-job evidence,
+blocked metadata/private egress, public HTTPS, Unicode file export, and model
+requests through the credential proxy. A real Codex turn discovered the 67 CUA
+tools and successfully checked the private desktop.
+
+The browser fixture passed Unicode editing, select/checkbox submission,
+byte-verified downloads, native file-chooser uploads, accessible context menus,
+window movement/resizing, drag and drop, scrolling, and desktop release.
+Failure injection confirmed that a lost renewal kills a detached child and
+that systemd's absolute deadline kills it even with the temporary supervisor
+paused. Restarting the proxy preserved its mounted socket and connectivity.
+
+Nine Python regression tests cover lease/revocation invariants, protocol
+credential stripping, reviewed-only retention, sparse export limits, and lazy
+desktop startup/release with MCP stdin kept separate. Three Node tests cover
+egress validation, upstream path restrictions, and credential expiry admission.
+The hgrai system was built without switching. Production activation and an
+actual support-ticket handoff remain separate rollout checks after required CI
+and merge; these development tests do not replace them.
