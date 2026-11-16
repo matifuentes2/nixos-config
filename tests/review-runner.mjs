@@ -21,21 +21,42 @@ try {
   assert.equal(updates.at(-1).subprocess.exitCode, 0);
   assert.equal(updates.at(-1).subprocess.events, 2);
   assert(!JSON.stringify(updates).includes('private prompt'));
+  const assistant = value => ({ type: 'message_end', message: value });
+  const failedTurn = stopReason => assistant({ ...message, stopReason, errorMessage: 'Request timed out.' });
+  const agentEnd = { type: 'agent_end' };
+  const retryStart = attempt => ({ type: 'auto_retry_start', attempt, maxAttempts: 3 });
+  const retryEnd = attempt => ({ type: 'auto_retry_end', attempt, success: true });
+  const toolTurn = assistant({ ...message, stopReason: 'toolUse', content: [] });
+  // Real Pi ordering: a failed agent ends before retrying; success is reported
+  // after the retry's first assistant turn, which may itself request a tool.
+  const recovered = [failedTurn('error'), agentEnd, retryStart(1), toolTurn,
+    retryEnd(1), assistant(message), agentEnd];
+  assert.equal((await run(output(...recovered))).verdict, '{}');
+  assert.equal((await run(output(failedTurn('error'), agentEnd, retryStart(1),
+    assistant(message), retryEnd(1), agentEnd))).verdict, '{}');
+  assert.equal((await run(output(failedTurn('error'), agentEnd, retryStart(1),
+    failedTurn('error'), agentEnd, retryStart(2), toolTurn, retryEnd(2),
+    assistant(message), agentEnd))).verdict, '{}');
+  for (const [name, events] of [
+    ['later verdict without retry', [failedTurn('error'), assistant(message), agentEnd]],
+    ['unpaired recovery', [failedTurn('error'), toolTurn, retryEnd(1), assistant(message), agentEnd]],
+    ['wrong recovery attempt', [failedTurn('error'), retryStart(1), toolTurn, retryEnd(2), assistant(message), agentEnd]],
+    ['missing attempt', [failedTurn('error'), { type: 'auto_retry_start' }, toolTurn, retryEnd(1), assistant(message), agentEnd]],
+    ['unfinished retry', [failedTurn('error'), retryStart(1), assistant(message), agentEnd]],
+    ['no successful retry turn', [failedTurn('error'), retryStart(1), retryEnd(1), assistant(message), agentEnd]],
+    ['exhausted retry', [failedTurn('error'), retryStart(1), toolTurn, { ...retryEnd(1), success: false }, assistant(message), agentEnd]],
+    ['malformed retry result', [failedTurn('error'), retryStart(1), toolTurn, { type: 'auto_retry_end', attempt: 1 }, assistant(message), agentEnd]],
+    ['subsequent error', [...recovered, failedTurn('error'), assistant(message), agentEnd]],
+    ['missing final agent end', recovered.slice(0, -1)],
+    ['cancellation is permanent', [{ ...recovered[0], message: { ...message, stopReason: 'aborted' } }, ...recovered.slice(1)]],
+    ['truncation is permanent', [{ ...recovered[0], message: { ...message, stopReason: 'length' } }, ...recovered.slice(1)]],
+    ['extension failure is permanent', [{ type: 'extension_error' }, ...recovered]],
+    ['intermediate model substitution', [assistant({ ...message, model: 'other', stopReason: 'toolUse' }), assistant(message), agentEnd]],
+    ['intermediate provider substitution', [assistant({ ...message, provider: 'other', stopReason: 'toolUse' }), assistant(message), agentEnd]],
+  ]) {
+    await assert.rejects(run(output(...events)), /exact requested/, name);
+  }
   const transient = { type: 'message_end', message: { ...message, stopReason: 'error', errorMessage: 'HTTP 503 service unavailable' } };
-  const start = { type: 'auto_retry_start' }, success = { type: 'auto_retry_end', success: true };
-  // Pi transports may end the retry before or after its successful response.
-  for (const recovered of [
-    output(transient, start, success) + ending,
-    output(transient, start, { type: 'message_end', message }, success, { type: 'agent_end' }),
-  ]) assert.equal((await run(recovered)).verdict, '{}');
-  for (const invalid of [
-    output(transient) + ending, // An unrelated later response is not recovery.
-    output(transient, start, { type: 'auto_retry_end', success: false }) + ending,
-    output({ type: 'message_end', message: { ...message, stopReason: 'aborted' } }, start, success) + ending,
-    output({ type: 'message_end', message: { ...message, stopReason: 'length' } }, start, success) + ending,
-    output({ type: 'extension_error' }, start, success) + ending,
-    output(transient, start) + ending,
-  ]) await assert.rejects(run(invalid));
   await assert.rejects(run(output(transient, { type: 'agent_end' })), error =>
     error.category === 'transient_provider' && error.retryable === true);
   await assert.rejects(run(output({ ...transient, message: { ...transient.message, errorMessage: 'HTTP 401 unauthorized' } },

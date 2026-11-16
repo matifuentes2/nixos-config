@@ -142,46 +142,63 @@ export async function runReviewer(provider, model, prompt, signal, executable = 
   }
 }
 export function parseReviewerOutput(output, provider, model) {
-  let final, pendingError = false, retrying = false, recovered = false, recoveryResponse = false;
-  let ended = false, terminal;
+  let final;
+  let ended = false;
+  let terminal;
   const reject = (message, category = 'invalid_output') => {
     const error = new Error(message); error.category = category; throw error;
   };
-  for (const line of output.split(/\r?\n/).filter(line => line.trim())) {
+  let pendingError = false;
+  let retryAttempt;
+  let retryProducedMessage = false;
+  for (const line of output.split(/\r?\n/).filter((line2) => line2.trim())) {
     let event;
     try { event = JSON.parse(line); } catch { reject("Reviewer emitted malformed JSON event."); }
     if (!event || typeof event !== 'object' || typeof event.type !== 'string') reject("Reviewer emitted malformed JSON event.");
-    if (event.type === 'extension_error') terminal ??= 'extension_failure';
-    if (event.type === 'auto_retry_start') { retrying = true; recovered = false; recoveryResponse = false; ended = false; }
-    if (event.type === 'auto_retry_end') {
-      if (!retrying || event.success !== true) terminal ??= 'retry_exhausted';
-      recovered = retrying && event.success === true;
-      if (recovered && recoveryResponse) pendingError = false;
-      retrying = false;
-    }
-    if (event.type === 'message_end' && event.message?.role === 'assistant') {
+    if (event.type === "message_end" && event.message?.role === "assistant") {
       final = event.message;
       ended = false;
-      if (final.stopReason === 'error') { pendingError = true; recovered = false; recoveryResponse = false; }
-      else if (pendingError && (retrying || recovered)) {
-        recoveryResponse = true;
-        if (recovered) { pendingError = false; recovered = false; }
+      // No intermediate turn may silently switch the bound reviewer either.
+      if (final.provider !== provider || final.model !== model) terminal ??= 'model_mismatch';
+      if (final.stopReason === "error") {
+        pendingError = true;
+        retryAttempt = undefined;
+        retryProducedMessage = false;
+      } else if (["stop", "toolUse"].includes(final.stopReason)) {
+        if (retryAttempt !== undefined) retryProducedMessage = true;
+      } else {
+        // Cancellation, truncation and unknown terminal states are never recovered.
+        terminal ??= final.stopReason === 'aborted' ? 'interrupted' : final.stopReason === 'length' ? 'incomplete_output' : 'invalid_output';
       }
-      if (final.stopReason === 'aborted') terminal ??= 'interrupted';
-      if (final.stopReason === 'length') terminal ??= 'incomplete_output';
-      if ((final.provider !== undefined && final.provider !== provider) ||
-          (final.model !== undefined && final.model !== model)) terminal ??= 'model_mismatch';
     }
-    if (event.type === 'agent_end') ended = true;
+    if (event.type === "auto_retry_start" && pendingError) {
+      retryAttempt = Number.isSafeInteger(event.attempt) && event.attempt > 0 ? event.attempt : undefined;
+      retryProducedMessage = false;
+      ended = false;
+    }
+    if (event.type === "auto_retry_end") {
+      if (event.success !== true) {
+        terminal ??= 'retry_exhausted';
+      } else if (pendingError) {
+        // Only Pi's matching successful retry, after a new successful assistant
+        // turn, can recover its preceding provider error. A later verdict alone
+        // or an unpaired success event cannot clear a failure.
+        if (retryAttempt === undefined || event.attempt !== retryAttempt || !retryProducedMessage) terminal ??= 'retry_exhausted';
+        else pendingError = false;
+      }
+      retryAttempt = undefined;
+      retryProducedMessage = false;
+    }
+    if (event.type === "extension_error") terminal ??= 'extension_failure';
+    if (event.type === "agent_end") ended = true;
   }
-  if (terminal || retrying || pendingError || !ended || !final || final.stopReason !== 'stop' ||
-      final.provider !== provider || final.model !== model || !Array.isArray(final.content) ||
-      final.content.some(part => !part || !['text', 'thinking'].includes(part.type))) {
+  if (terminal || pendingError || retryAttempt !== undefined || !ended || !final || final.stopReason !== "stop" || final.provider !== provider || final.model !== model || !Array.isArray(final.content) || final.content.some((part) => !part || !["text", "thinking"].includes(part.type))) {
     reject("Reviewer did not finish successfully on the exact requested provider/model.",
-      terminal ?? (pendingError ? failureCategory(final?.errorMessage ?? '', {}) : final && (final.provider !== provider || final.model !== model) ? 'model_mismatch' : 'incomplete_execution'));
+      terminal ?? (pendingError ? failureCategory(final?.errorMessage ?? '', {}) : 'incomplete_execution'));
   }
-  const verdict = final.content.filter(part => part.type === 'text').map(part => part.text).join('');
-  if (!verdict.trim()) reject("Reviewer produced no final verdict.");
+  const verdict = final.content.filter((part) => part.type === "text").map((part) => part.text).join("");
+  if (!verdict.trim())
+    reject("Reviewer produced no final verdict.");
   return { verdict };
 }
 
