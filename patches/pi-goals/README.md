@@ -10,6 +10,15 @@ JavaScript bundle because that is the entrypoint Pi actually loads.
   parent to diagnose setup, repair the checkout or retry the same reviewer. The
   third consecutive failure pauses the goal. Cancellation pauses immediately.
   The counter persists in the execution record and resets after success.
+- A transient provider `error` is recoverable only when Pi emits a matching
+  `auto_retry_start` / successful `auto_retry_end` pair and the retry produces a
+  new successful assistant turn on the exact bound provider/model. Pi can emit
+  `agent_end` before starting that retry; that intermediate end is not approval.
+  A final successful assistant verdict and final `agent_end` are still required.
+  Unpaired, mismatched, unfinished or exhausted retries remain failures, as do
+  cancellation, truncation, extension errors and intermediate model substitution.
+  This fixes false failures after Pi successfully recovers a request timeout;
+  it never treats an interrupted or incomplete review as clean evidence.
 - Preparation errors retain exit/timeout/truncation information and bounded
   stderr instead of hiding the cause behind a command name.
 - Automatic Codex PR-review inspection and connector-specific replies are removed.

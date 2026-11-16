@@ -139,21 +139,50 @@ function parseReviewerOutput(output, provider, model) {
   let final;
   let ended = false;
   let failed = false;
+  let pendingError = false;
+  let retryAttempt;
+  let retryProducedMessage = false;
   for (const line of output.split(/\r?\n/).filter((line2) => line2.trim())) {
     let event;
     try { event = JSON.parse(line); } catch { throw new Error("Reviewer emitted malformed JSON event."); }
     if (event.type === "message_end" && event.message?.role === "assistant") {
       final = event.message;
       ended = false;
-      if (["error", "aborted", "length"].includes(event.message.stopReason))
+      // No intermediate turn may silently switch the bound reviewer either.
+      if (final.provider !== provider || final.model !== model) failed = true;
+      if (final.stopReason === "error") {
+        pendingError = true;
+        retryAttempt = undefined;
+        retryProducedMessage = false;
+      } else if (["stop", "toolUse"].includes(final.stopReason)) {
+        if (retryAttempt !== undefined) retryProducedMessage = true;
+      } else {
+        // Cancellation, truncation and unknown terminal states are never recovered.
         failed = true;
+      }
     }
-    if (event.type === "auto_retry_end" && event.success === false || event.type === "extension_error")
-      failed = true;
-    if (event.type === "agent_end")
-      ended = true;
+    if (event.type === "auto_retry_start" && pendingError) {
+      retryAttempt = Number.isSafeInteger(event.attempt) && event.attempt > 0 ? event.attempt : undefined;
+      retryProducedMessage = false;
+      ended = false;
+    }
+    if (event.type === "auto_retry_end") {
+      if (event.success !== true) {
+        failed = true;
+      } else if (pendingError) {
+        // Only Pi's matching successful retry, after a new successful assistant
+        // turn, can recover its preceding provider error. A later verdict alone
+        // or an unpaired success event cannot clear a failure.
+        if (retryAttempt === undefined || event.attempt !== retryAttempt || !retryProducedMessage) failed = true;
+        else pendingError = false;
+      }
+      retryAttempt = undefined;
+      retryProducedMessage = false;
+    }
+    if (event.type === "extension_error") failed = true;
+    if (event.type === "agent_end") ended = true;
   }
-  if (failed || !ended || !final || final.stopReason !== "stop" || final.provider !== provider || final.model !== model || !Array.isArray(final.content) || final.content.some((part) => !part || part.type === "toolCall")) {
+  if (failed || pendingError || retryAttempt !== undefined || !ended || !final || final.stopReason !== "stop" || final.provider !== provider || final.model !== model || !Array.isArray(final.content) || final.content.some((part) => !part || part.type === "toolCall")) {
     throw new Error("Reviewer did not finish successfully on the exact requested provider/model.");
   }
   const verdict = final.content.filter((part) => part.type === "text").map((part) => part.text).join("");
