@@ -11,7 +11,55 @@ in
 
   home.file.".XCompose".source = ./XCompose;
 
+  # Omarchy's default applications: imv for images, mpv for audio and video,
+  # Papers for documents, Thunar for folders, and Firefox for the web.
+  xdg.mimeApps = {
+    enable = true;
+    defaultApplications =
+      let
+        associate = app: types: lib.genAttrs types (_: app);
+      in
+      associate "imv.desktop" [
+        "image/avif"
+        "image/bmp"
+        "image/gif"
+        "image/heic"
+        "image/jpeg"
+        "image/png"
+        "image/svg+xml"
+        "image/tiff"
+        "image/webp"
+      ]
+      // associate "mpv.desktop" [
+        "audio/aac"
+        "audio/flac"
+        "audio/mpeg"
+        "audio/ogg"
+        "audio/opus"
+        "audio/wav"
+        "video/mp4"
+        "video/mpeg"
+        "video/ogg"
+        "video/quicktime"
+        "video/webm"
+        "video/x-matroska"
+        "video/x-msvideo"
+      ]
+      // associate "org.gnome.Papers.desktop" [ "application/pdf" ]
+      // associate "thunar.desktop" [ "inode/directory" ]
+      // associate "firefox.desktop" [
+        "text/html"
+        "x-scheme-handler/http"
+        "x-scheme-handler/https"
+      ];
+  };
+  # Applications sometimes write their own mimeapps.list; Home Manager owns it.
+  xdg.configFile."mimeapps.list".force = true;
+
   home.packages = [
+    pkgs.imv
+    pkgs.mpv
+    pkgs.papers
     pkgs.satty
     pkgs.nmgui
     pkgs.overskride

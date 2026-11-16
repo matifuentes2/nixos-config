@@ -4,7 +4,6 @@ let
   palette = import ./palette.nix;
 
   terminal = lib.getExe pkgs.kitty;
-  launcher = lib.getExe pkgs.fuzzel;
   pavucontrol = lib.getExe pkgs.pavucontrol;
   nmConnectionEditor = lib.getExe' pkgs.networkmanagerapplet "nm-connection-editor";
   networkManager = lib.getExe pkgs.nmgui;
@@ -35,6 +34,18 @@ let
       fi
     '';
   };
+
+  screenrecordIndicator = pkgs.writeShellApplication {
+    name = "waybar-screenrecord-indicator";
+    runtimeInputs = [ pkgs.procps ];
+    text = ''
+      if pgrep -x wf-recorder >/dev/null; then
+        printf '{"text": "󰑊", "tooltip": "Stop screen recording", "class": "active"}\n'
+      else
+        printf '{"text": ""}\n'
+      fi
+    '';
+  };
 in
 {
   programs.waybar = {
@@ -56,6 +67,7 @@ in
         "clock"
         "custom/idle-indicator"
         "custom/silencing-indicator"
+        "custom/screenrecord-indicator"
       ];
       modules-right = [
         "group/tray-expander"
@@ -69,9 +81,9 @@ in
 
       "custom/nixos" = {
         format = "";
-        on-click = launcher;
+        on-click = "hypr-menu";
         on-click-right = terminal;
-        tooltip-format = "Launch apps\n\nSuper + Space";
+        tooltip-format = "Menu\n\nSuper + M";
       };
 
       "hyprland/workspaces" = {
@@ -119,6 +131,14 @@ in
         return-type = "json";
         interval = 30;
         signal = 10;
+      };
+
+      "custom/screenrecord-indicator" = {
+        exec = lib.getExe screenrecordIndicator;
+        return-type = "json";
+        interval = 30;
+        signal = 8;
+        on-click = "hypr-screenrecord stop";
       };
 
       "group/tray-expander" = {
@@ -238,7 +258,7 @@ in
         tooltip-format-discharging = "{power:>1.0f}W↓ {capacity}%";
         tooltip-format-charging = "{power:>1.0f}W↑ {capacity}%";
         interval = 5;
-        on-click = "hypr-power-menu";
+        on-click = "hypr-menu power";
         states = {
           warning = 20;
           critical = 10;
@@ -319,7 +339,8 @@ in
       }
 
       #custom-idle-indicator,
-      #custom-silencing-indicator {
+      #custom-silencing-indicator,
+      #custom-screenrecord-indicator {
         min-width: 12px;
         margin-left: 5px;
         margin-right: 0;
@@ -329,6 +350,7 @@ in
 
       #custom-idle-indicator.active,
       #custom-silencing-indicator.active,
+      #custom-screenrecord-indicator.active,
       #battery.warning,
       #battery.critical {
         color: #${palette.red};

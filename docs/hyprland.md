@@ -93,6 +93,7 @@ hosts. Arrow-key navigation is preserved, and automatic history sync is disabled
 
 | Keybind | Action |
 | --- | --- |
+| `Super+M` | Open the menu: apps, learn, capture, toggle, setup, and system |
 | `Super+Escape` | Open the system menu: lock, suspend, log out, restart, or shut down |
 | `Super+/` | Show the keybindings |
 | `Super+Ctrl+V` | Pick an entry from the clipboard history |
@@ -103,6 +104,14 @@ hosts. Arrow-key navigation is preserved, and automatic history sync is disabled
 | `Super+Ctrl+L` | Lock the session |
 | `Super+Shift+Space` | Toggle the top bar |
 | `Super+Shift+E` | Log out immediately without confirmation |
+
+The menu follows Omarchy's: each entry opens a submenu in Walker, and
+`Escape` in a submenu returns to the main menu. **Learn** lists the keybindings
+and opens the Hyprland, NixOS, and Home Manager references. **Capture** takes
+screenshots, records the screen, and picks colors. **Toggle** hides the top bar,
+toggles idle locking, or silences notifications. **Setup** opens the audio,
+Wi-Fi, and Bluetooth controls, plus power profiles and displays on hosts that
+have them. Click the NixOS logo in the top bar to open the menu too.
 
 Click the Wi-Fi icon in the top bar to browse networks, connect, disconnect, or
 forget a network in NM GUI. Right-click it to open the advanced NetworkManager
@@ -175,9 +184,22 @@ silenced.
 | `Ctrl+Print` | Copy and save the current display |
 | `Super+Print` | Pick a color from the screen |
 | `Super+Shift+Print` | Select an area and annotate it in Satty |
+| `Alt+Print` | Start a screen recording of an area or the display, or stop the current one |
 
 In Satty, copy the annotated image to the clipboard before closing the editor.
 The temporary source screenshot is removed when the editor exits.
+
+Screen recordings use wf-recorder and are saved as MP4 files in `~/Videos`.
+A red dot next to the clock shows while recording; click it to stop. Recordings
+do not include audio.
+
+## Default applications
+
+Files open in the same applications as on Omarchy: imv for images, mpv for audio
+and video, Papers for PDFs, Thunar for folders, and Firefox for web links. Home
+Manager owns `~/.config/mimeapps.list`, so changes made from an application's
+"Open with" dialog are replaced on the next rebuild. Change the associations in
+[`modules/home/linux.nix`](../modules/home/linux.nix) instead.
 
 ## Media keys
 
@@ -199,3 +221,10 @@ sudo nixos-rebuild switch --flake /etc/nixos#nixos
 # Lenovo Legion Y720
 sudo nixos-rebuild switch --flake /etc/nixos#amd64-lenovo-legion-y720
 ```
+
+## Lenovo power management
+
+The Lenovo runs `power-profiles-daemon`. Click the battery in the top bar, or
+open **Setup → Power profile** from the menu, to switch between power-saver,
+balanced, and performance. A critical notification appears once per discharge
+when the battery reaches 10%.

@@ -90,6 +90,57 @@ in
     ${externalMonitor} = map toString (lib.range 1 5);
   };
 
+  # T3 Code registers this handler itself. Keep it, because Home Manager now
+  # owns mimeapps.list.
+  xdg.mimeApps.defaultApplications."x-scheme-handler/t3code" = "com.t3tools.T3Code.desktop";
+
+  # Omarchy's low-battery warning: one critical notification per discharge
+  # once the charge reaches 10%.
+  systemd.user.services.battery-monitor = {
+    Unit.Description = "Warn when the battery is low";
+    Service = {
+      Type = "oneshot";
+      ExecStart = lib.getExe (
+        pkgs.writeShellApplication {
+          name = "battery-monitor";
+          runtimeInputs = [
+            pkgs.coreutils
+            pkgs.libnotify
+          ];
+          text = ''
+            threshold=10
+            notified="''${XDG_RUNTIME_DIR:-/tmp}/battery-monitor-notified"
+
+            for battery in /sys/class/power_supply/BAT*; do
+              [ -r "$battery/capacity" ] || continue
+              capacity="$(cat "$battery/capacity")"
+              status="$(cat "$battery/status")"
+
+              if [ "$status" != Discharging ]; then
+                rm -f "$notified"
+              elif [ "$capacity" -le "$threshold" ] && [ ! -e "$notified" ]; then
+                notify-send -u critical -i battery-caution 'Battery low' "$capacity% remaining. Plug in the charger."
+                touch "$notified"
+              fi
+              exit 0
+            done
+          '';
+        }
+      );
+    };
+  };
+  systemd.user.timers.battery-monitor = {
+    Unit = {
+      Description = "Check the battery level every 30 seconds";
+      PartOf = [ "graphical-session.target" ];
+    };
+    Timer = {
+      OnActiveSec = "10s";
+      OnUnitActiveSec = "30s";
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
+  };
+
   home.shellAliases.rebuild = "sudo nixos-rebuild switch --flake ${config.home.homeDirectory}/dev/nixos-config#amd64-lenovo-legion-y720";
   home.shellAliases.rebuild-gaming = "sudo nixos-rebuild switch --flake ${config.home.homeDirectory}/dev/nixos-config#amd64-lenovo-legion-y720 --specialisation steam";
   home.shellAliases.refresh-apps = "${lib.getExe' pkgs.systemd "systemctl"} --user restart elephant.service";

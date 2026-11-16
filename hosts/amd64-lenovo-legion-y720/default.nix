@@ -184,6 +184,10 @@ in
     ];
   };
 
+  # Switch between power-saver, balanced, and performance from the menu
+  # (Super+M, then Setup) or by clicking the battery in the top bar.
+  services.power-profiles-daemon.enable = true;
+
   services.blueman.enable = true;
 
   services.tailscale = {
