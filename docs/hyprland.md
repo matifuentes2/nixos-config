@@ -228,3 +228,10 @@ The Lenovo runs `power-profiles-daemon`. Click the battery in the top bar, or
 open **Setup → Power profile** from the menu, to switch between power-saver,
 balanced, and performance. A critical notification appears once per discharge
 when the battery reaches 10%.
+
+## Lenovo Caps Lock
+
+On the Lenovo, keyd turns Caps Lock into a dual-function key: tap it for
+`Escape`, or hold it with another key for `Control`. The remap works in every
+application, on the login screen, and on the text console. Caps Lock itself is
+no longer available.
