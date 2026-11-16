@@ -56,11 +56,23 @@ try {
   ]) {
     await assert.rejects(run(output(...events)), /exact requested/, name);
   }
+  const transient = { type: 'message_end', message: { ...message, stopReason: 'error', errorMessage: 'HTTP 503 service unavailable' } };
+  await assert.rejects(run(output(transient, { type: 'agent_end' })), error =>
+    error.category === 'transient_provider' && error.retryable === true);
+  await assert.rejects(run(output({ ...transient, message: { ...transient.message, errorMessage: 'HTTP 401 unauthorized' } },
+    { type: 'agent_end' })), error => error.category === 'authentication' && error.retryable === false);
+  for (const [stopReason, category] of [['aborted', 'interrupted'], ['length', 'incomplete_output']]) {
+    await assert.rejects(run(output({ type: 'message_end', message: { ...message, stopReason } }, { type: 'agent_end' })),
+      error => error.category === category && !error.retryable);
+  }
+  await assert.rejects(run(output({ type: 'message_end', message: { ...message, model: 'wrong' } }, { type: 'agent_end' })),
+    error => error.category === 'model_mismatch' && !error.retryable);
   for (const [script, expected] of [
     [output({ type: 'message_end', message: { ...message, stopReason: 'error', errorMessage: 'provider rate limit' } }, { type: 'agent_end' }), /stop=error.*provider rate limit/],
     [output({ type: 'message_end', message }), /stop=stop/],
     [output({ type: 'message_end', message: { ...message, model: 'wrong' } }, { type: 'agent_end' }), /exact requested/],
     ["console.log('not-json');", /JSON/],
+    ["console.log('null');", /JSON/],
     ["console.error('service unavailable'); process.exitCode = 7;", /exit=7.*service unavailable/],
     [ending + output({ type: 'auto_retry_end', success: false }), /exact requested/],
   ]) {
@@ -76,6 +88,10 @@ try {
     assert(!JSON.stringify(error.reviewDiagnostics).includes('example.invalid'));
     return true;
   });
+  for (const diagnostic of ['password="fixture-private-value"', '{"token":"fixture-private-value"}', "api_key='fixture-private-value'"]) {
+    await assert.rejects(run(`console.error(${JSON.stringify(diagnostic)}); process.exitCode = 1;`), error =>
+      !JSON.stringify(error.reviewDiagnostics).includes('fixture-private-value'));
+  }
   const cancellation = new AbortController();
   const cancelled = run('setInterval(() => {}, 1000);', cancellation.signal);
   setTimeout(() => cancellation.abort(), 100);
