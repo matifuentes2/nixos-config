@@ -20,6 +20,7 @@ const commands = new Map();
 const bus = new Map();
 let aborts = 0;
 const head = "a".repeat(40);
+let base = "b".repeat(40);
 const mixedChecks = [
   ...Array.from({ length: 22 }, (_, i) => ({ name: `passing-${i}`, state: "SUCCESS", bucket: "pass" })),
   ...Array.from({ length: 11 }, (_, i) => ({ name: `conditional-${i}`, state: "SKIPPED", bucket: "skipping" })),
@@ -47,7 +48,7 @@ const pi = {
   },
   exec: async (program, args) => ({ code: 0, killed: false, stderr: "", stdout:
     program === "git" && args[0] === "rev-parse" ? (args[1] === "HEAD" ? head : temporary) :
-    program === "gh" && args[1] === "view" ? JSON.stringify({ baseRefName: "main", headRefOid: head, mergeable: "MERGEABLE" }) :
+    program === "gh" && args[1] === "view" ? JSON.stringify({ baseRefName: "main", baseRefOid: base, headRefOid: head, mergeable: "MERGEABLE" }) :
     program === "gh" && args[1] === "diff" ? "diff --git a/example.ts b/example.ts\n" + "+// review fixture\n".repeat(2000) :
     program === "gh" && args[1] === "checks" ? JSON.stringify(checks) : "" }),
   appendEntry(customType, data) {
@@ -163,6 +164,12 @@ try {
     const reviewRoot = resolve(process.argv[3]);
     const reviewManifest = JSON.parse(readFileSync(join(reviewRoot, "package.json"), "utf8"));
     const { default: reviewExtension } = await import(pathToFileURL(join(reviewRoot, reviewManifest.pi.extensions[0], "pr-review-goal.ts")));
+    const { getGuardedHost } = await import(pathToFileURL(join(reviewRoot, 'src/goal-host.ts')));
+    assert.equal(getGuardedHost({ events: { emit(_event, payload) { payload.provide({
+      apiVersion: 1, reviewerSelectionVersion: 1,
+      registerPolicy() { assert.fail('Old host must be rejected before registering policy'); },
+      startGoal() { assert.fail('Old host must not start a goal'); },
+    }); } } }), null);
     reviewExtension(pi);
     await emit("session_start", { reason: "resume" });
     // Historical generic completion stays complete; the new protected start works.
@@ -197,16 +204,16 @@ try {
     // A transient setup error must give the parent a bounded repair opportunity.
     // The first prior failure was already recorded while the goal was paused.
     await call("resume_goal");
-    await assert.rejects(() => call("run_goal_review"), /attempt 2\/3; goal remains active/);
+    await assert.rejects(() => call("run_goal_review"), /Goal remains active/);
     assert.equal((await goal()).status, "active");
     await emit("session_start", { reason: "resume" });
-    await assert.rejects(() => call("run_goal_review"), /Goal paused/);
-    assert.equal((await goal()).status, "paused");
+    await assert.rejects(() => call("run_goal_review"), /Goal remains active/);
+    assert.equal((await goal()).status, "active");
     assert.equal(protectedSnapshot().reviewExecution.consecutiveFailures, 3);
     assert.match((await goal()).objective, /CI and a clean code verdict do not substitute/);
     assert.doesNotMatch((await goal()).objective, /codex|chatgpt-codex-connector/i);
     assert.match((await goal()).objective, /fresh review -> fixes/);
-    console.log("Shipped recovery passed: bounded repair attempts survive session reload and pause after three failures.");
+    console.log("Shipped recovery passed: bounded repair attempts survive session reload and keep repair work active after repeated failures.");
     ctx.modelRegistry.find = (provider, model) => provider === "smoke" && model === "review-model" ? ctx.model : undefined;
     const successfulExec = pi.exec;
     pi.exec = async () => ({ code: 1, killed: false, truncated: false, stdout: "", stderr: "temporary GitHub API failure" });
@@ -220,7 +227,11 @@ let prompt = '';
 for await (const chunk of process.stdin) prompt += chunk;
 const verdict = JSON.parse(prompt.match(/exactly these keys: (\\{.*?\\})\\. Use/)[1]);
 const args = process.argv;
-if (process.env.PI_REVIEW_FIXTURE_FAILURE) {
+if (process.env.PI_REVIEW_FIXTURE_TRACE) {
+  const { appendFileSync } = await import('node:fs');
+  appendFileSync(process.env.PI_REVIEW_FIXTURE_TRACE, prompt.includes('Section 1/') ? 'one\\n' : prompt.includes('Section 2/') ? 'two\\n' : 'integration\\n');
+}
+if (process.env.PI_REVIEW_FIXTURE_FAILURE || (process.env.PI_REVIEW_FAIL_SECOND && prompt.includes('Section 2/'))) {
   console.log(JSON.stringify({ type: 'message_end', message: { role: 'assistant', stopReason: 'error', errorMessage: 'fixture provider unavailable' } }));
   console.log(JSON.stringify({ type: 'agent_end' }));
   process.exit(0);
@@ -253,6 +264,13 @@ console.log(JSON.stringify({ type: 'agent_end', messages: [message] }));
     assert.equal(failedReview.progress.subprocess.stopReason, "error");
     assert.equal(failedReview.progress.subprocess.error, "fixture provider unavailable");
     assert.deepEqual(failureUpdates.at(-1).details.review, failedReview);
+    process.env.PI_REVIEW_FAIL_SECOND = '1';
+    process.env.PI_REVIEW_FIXTURE_TRACE = join(temporary, 'review-trace');
+    await assert.rejects(() => call("run_goal_review"), /step 2\/3/);
+    delete process.env.PI_REVIEW_FAIL_SECOND;
+    assert.equal((await goal()).status, 'active');
+    assert.equal(protectedSnapshot().reviewExecution.checkpoint.verdicts.length, 1);
+    await emit('session_start', { reason: 'resume' });
     const updates = [];
     let sectionStarted;
     const firstSection = new Promise(resolve => { sectionStarted = resolve; });
@@ -264,13 +282,15 @@ console.log(JSON.stringify({ type: 'agent_end', messages: [message] }));
     await firstSection;
     const activeReview = (await goal()).review;
     assert.equal(activeReview.status, "running");
-    assert.equal(activeReview.progress.completed, 0);
+    assert.equal(activeReview.progress.completed, 1);
     await assert.rejects(() => call("run_goal_review"), /already running/);
     await reviewRun;
     for (const { update, saved } of updates) {
       assert.equal(saved.attemptId, update.details.review.attemptId);
       assert.deepEqual(saved.progress, update.details.review.progress);
     }
+    assert.deepEqual(readFileSync(process.env.PI_REVIEW_FIXTURE_TRACE, 'utf8').trim().split('\n'), ['one', 'two', 'two', 'integration']);
+    delete process.env.PI_REVIEW_FIXTURE_TRACE;
     const displayedUpdates = updates.map(({ update }) => update);
     const review = structuredClone(protectedSnapshot().reviewExecution);
     assert.equal(review.status, "completed");
@@ -293,6 +313,9 @@ console.log(JSON.stringify({ type: 'agent_end', messages: [message] }));
     assert.deepEqual(displayedReview.progress, review.progress);
     assert.equal(displayedReview.sections, undefined, "Status must not duplicate all section verdicts");
     assert.equal(JSON.parse(review.verdict).attemptId, review.attemptId);
+    base = 'c'.repeat(40);
+    await assert.rejects(() => call('update_goal', { status: 'complete' }), /base SHA is missing or stale/);
+    base = 'b'.repeat(40);
     for (const blockedChecks of [
       [...mixedChecks, { name: "prerequisite", state: "FAILURE", bucket: "fail" }],
       [...mixedChecks, { name: "prerequisite", state: "PENDING", bucket: "pending" }],

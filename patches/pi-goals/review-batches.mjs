@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
+
 // Host-owned partitioning. Every byte of the diff belongs to a review section.
 export function reviewSections(diff, limit = 32000) {
   if (!diff.trim()) throw new Error('PR diff is empty; cannot establish review coverage.');
@@ -28,7 +31,7 @@ export function reviewSections(diff, limit = 32000) {
 export function reviewForDisplay(execution) {
   const { attemptId, headSha, provider, model, status, reason, failurePhase, progress } = execution;
   return { attemptId, headSha, provider, model, status, reason, failurePhase,
-    consecutiveFailures: execution.consecutiveFailures ?? 0, progress: structuredClone(progress) };
+    consecutiveFailures: execution.consecutiveFailures ?? 0, recovery: execution.recovery, category: execution.category, retryable: execution.retryable, progress: structuredClone(progress) };
 }
 
 export function formatReviewProgress(execution) {
@@ -51,24 +54,48 @@ export async function runReviewSections(input, run, signal, onProgress = () => {
   if (!Array.isArray(prompts) || !prompts.length || prompts.some(p => typeof p !== 'string' || !p.trim())) {
     throw new Error('Missing trusted review sections.');
   }
-  const verdicts = [];
+  // Only the host passes checkpoints. Tool arguments cannot supply review evidence.
+  const normalize = prompt => prompt.split(input.attemptId).join('<attempt>')
+    .split(input.cwd || '\0').join('<snapshot>');
+  const key = createHash('sha256').update(JSON.stringify({ version: 2,
+    identity: input.identity, headSha: input.headSha, baseSha: input.baseSha,
+    reviewer: input.reviewer, policy: input.policy, goalId: input.goalId,
+    integrationIndex: input.integrationIndex, prompts: prompts.map(normalize) })).digest('hex');
+  const checkpoint = input.checkpoint?.key === key ? structuredClone(input.checkpoint) : { key, verdicts: [] };
+  if (!Array.isArray(checkpoint.verdicts) || checkpoint.verdicts.length > prompts.length)
+    throw new Error('Invalid host review checkpoint.');
+  const valid = (v, attemptId) => v && Object.keys(v).sort().join(',') === 'attemptId,decision,findings,headSha,schemaVersion' &&
+    v.schemaVersion === 1 && v.attemptId === attemptId && typeof attemptId === 'string' && attemptId.trim() &&
+    v.headSha === input.headSha && ['clean', 'changes_requested'].includes(v.decision) &&
+    Array.isArray(v.findings) && v.findings.every(f => typeof f === 'string' && f.trim()) &&
+    (v.decision === 'clean' ? v.findings.length === 0 : v.findings.length > 0);
+  if (checkpoint.verdicts.some(v => !valid(v, v?.attemptId))) throw new Error('Invalid host section evidence.');
+  const verdicts = checkpoint.verdicts;
+  input.onCheckpoint?.(structuredClone(checkpoint));
+  if (verdicts.length) onProgress({ phase: 'resuming', completed: verdicts.length, total: prompts.length });
   for (const [index, prompt] of prompts.entries()) {
     if (signal?.aborted) throw new Error('Reviewer interrupted.');
+    if (index < verdicts.length) continue;
     onProgress({ phase: index === input.integrationIndex ? 'integration' : 'section',
       current: index + 1, total: prompts.length, completed: verdicts.length,
-      subprocess: null, sectionStartedAt: new Date().toISOString() });
-    const result = await run(prompt, onProgress);
+      subprocess: null, retry: 0, retryCategory: null, sectionStartedAt: new Date().toISOString() });
+    let result;
+    const retryHistory = [];
+    for (let retry = 0; ; retry++) {
+      try { result = await run(prompt, onProgress); break; }
+      catch (error) {
+        if (signal?.aborted || !error.retryable || retry >= 2) throw error;
+        retryHistory.push({ retry: retry + 1, category: error.category, diagnostics: error.reviewDiagnostics });
+        onProgress({ retry: retry + 1, retryCategory: error.category, retryHistory: structuredClone(retryHistory) });
+        await delay(1000 * 2 ** retry, undefined, { signal });
+      }
+    }
     if (signal?.aborted) throw new Error('Reviewer interrupted.');
     let v;
     try { v = JSON.parse(result.verdict); } catch { throw new Error("Malformed section verdict; review remains incomplete."); }
-    if (!v || Object.keys(v).sort().join(',') !== 'attemptId,decision,findings,headSha,schemaVersion' ||
-        v.schemaVersion !== 1 || v.attemptId !== input.attemptId || v.headSha !== input.headSha ||
-        !['clean', 'changes_requested'].includes(v.decision) || !Array.isArray(v.findings) ||
-        !v.findings.every(f => typeof f === 'string' && f.trim()) ||
-        (v.decision === 'clean' ? v.findings.length !== 0 : v.findings.length === 0)) {
-      throw new Error('Invalid section verdict; review remains incomplete.');
-    }
+    if (!valid(v, input.attemptId)) throw new Error('Invalid section verdict; review remains incomplete.');
     verdicts.push(v);
+    input.onCheckpoint?.(structuredClone(checkpoint));
     onProgress({ completed: verdicts.length, lastCompletedAt: new Date().toISOString() });
   }
   const findings = verdicts.flatMap(v => v.findings);

@@ -50,14 +50,18 @@ export async function runReviewer(provider, model, prompt, signal, executable = 
           if (event.type === 'message_end' && event.message?.role === 'assistant') {
             diagnostics.stopReason = ['stop', 'toolUse', 'error', 'aborted', 'length'].includes(event.message.stopReason)
               ? event.message.stopReason : 'unknown';
-            if (event.message.errorMessage) diagnostics.error = safeDiagnostic(event.message.errorMessage);
+            if (event.message.errorMessage) {
+              diagnostics.error = safeDiagnostic(event.message.errorMessage);
+              diagnostics.failures = [...(diagnostics.failures ?? []), { stopReason: diagnostics.stopReason, error: diagnostics.error }].slice(-5);
+            }
           }
           if (event.type === 'agent_end') diagnostics.agentEnded = true;
           if (event.type === 'message_end' && event.message?.role === 'assistant') {
             diagnostics.providerMatched = event.message.provider === provider;
             diagnostics.modelMatched = event.message.model === model;
           }
-          if (event.type === 'auto_retry_end') diagnostics.retryFailed = event.success === false;
+          if (event.type === 'auto_retry_start') diagnostics.retries = (diagnostics.retries ?? 0) + 1;
+          if (event.type === 'auto_retry_end') diagnostics.retryFailed = event.success !== true;
           if (event.type === 'extension_error') diagnostics.extensionError = true;
         } catch { diagnostics.invalidEvents = (diagnostics.invalidEvents ?? 0) + 1; }
       };
@@ -113,7 +117,9 @@ export async function runReviewer(provider, model, prompt, signal, executable = 
         const rejectWithDiagnostics = (error) => {
           error.message = `${safeDiagnostic(error.message)} (exit=${code ?? exitSignal ?? 'unknown'}, stop=${diagnostics.stopReason ?? 'missing'}, events=${diagnostics.events}, elapsedMs=${diagnostics.elapsedMs})` +
             (diagnostics.error ? `: ${diagnostics.error}` : '') + (diagnostics.stderr ? `; stderr: ${diagnostics.stderr}` : '');
-          error.reviewDiagnostics = { ...diagnostics };
+          error.category ??= failureCategory(error.message, diagnostics);
+          error.retryable = error.category === 'transient_provider';
+          error.reviewDiagnostics = { ...diagnostics, category: error.category, retryable: error.retryable };
           reject(error);
         };
         try { report(); } catch (error) { failure ??= error; }
@@ -135,37 +141,65 @@ export async function runReviewer(provider, model, prompt, signal, executable = 
     await rm(cwd, { recursive: true, force: true });
   }
 }
-function parseReviewerOutput(output, provider, model) {
-  let final;
-  let ended = false;
-  let failed = false;
-  for (const line of output.split(/\r?\n/).filter((line2) => line2.trim())) {
+export function parseReviewerOutput(output, provider, model) {
+  let final, pendingError = false, retrying = false, recovered = false, recoveryResponse = false;
+  let ended = false, terminal;
+  const reject = (message, category = 'invalid_output') => {
+    const error = new Error(message); error.category = category; throw error;
+  };
+  for (const line of output.split(/\r?\n/).filter(line => line.trim())) {
     let event;
-    try { event = JSON.parse(line); } catch { throw new Error("Reviewer emitted malformed JSON event."); }
-    if (event.type === "message_end" && event.message?.role === "assistant") {
+    try { event = JSON.parse(line); } catch { reject("Reviewer emitted malformed JSON event."); }
+    if (!event || typeof event !== 'object' || typeof event.type !== 'string') reject("Reviewer emitted malformed JSON event.");
+    if (event.type === 'extension_error') terminal ??= 'extension_failure';
+    if (event.type === 'auto_retry_start') { retrying = true; recovered = false; recoveryResponse = false; ended = false; }
+    if (event.type === 'auto_retry_end') {
+      if (!retrying || event.success !== true) terminal ??= 'retry_exhausted';
+      recovered = retrying && event.success === true;
+      if (recovered && recoveryResponse) pendingError = false;
+      retrying = false;
+    }
+    if (event.type === 'message_end' && event.message?.role === 'assistant') {
       final = event.message;
       ended = false;
-      if (["error", "aborted", "length"].includes(event.message.stopReason))
-        failed = true;
+      if (final.stopReason === 'error') { pendingError = true; recovered = false; recoveryResponse = false; }
+      else if (pendingError && (retrying || recovered)) {
+        recoveryResponse = true;
+        if (recovered) { pendingError = false; recovered = false; }
+      }
+      if (final.stopReason === 'aborted') terminal ??= 'interrupted';
+      if (final.stopReason === 'length') terminal ??= 'incomplete_output';
+      if ((final.provider !== undefined && final.provider !== provider) ||
+          (final.model !== undefined && final.model !== model)) terminal ??= 'model_mismatch';
     }
-    if (event.type === "auto_retry_end" && event.success === false || event.type === "extension_error")
-      failed = true;
-    if (event.type === "agent_end")
-      ended = true;
+    if (event.type === 'agent_end') ended = true;
   }
-  if (failed || !ended || !final || final.stopReason !== "stop" || final.provider !== provider || final.model !== model || !Array.isArray(final.content) || final.content.some((part) => !part || part.type === "toolCall")) {
-    throw new Error("Reviewer did not finish successfully on the exact requested provider/model.");
+  if (terminal || retrying || pendingError || !ended || !final || final.stopReason !== 'stop' ||
+      final.provider !== provider || final.model !== model || !Array.isArray(final.content) ||
+      final.content.some(part => !part || !['text', 'thinking'].includes(part.type))) {
+    reject("Reviewer did not finish successfully on the exact requested provider/model.",
+      terminal ?? (pendingError ? failureCategory(final?.errorMessage ?? '', {}) : final && (final.provider !== provider || final.model !== model) ? 'model_mismatch' : 'incomplete_execution'));
   }
-  const verdict = final.content.filter((part) => part.type === "text").map((part) => part.text).join("");
-  if (!verdict.trim())
-    throw new Error("Reviewer produced no final verdict.");
+  const verdict = final.content.filter(part => part.type === 'text').map(part => part.text).join('');
+  if (!verdict.trim()) reject("Reviewer produced no final verdict.");
   return { verdict };
+}
+
+function failureCategory(message, diagnostics) {
+  if (/interrupted|abort/i.test(message)) return 'interrupted';
+  if (/timed out/i.test(message)) return 'timeout';
+  if (/transport limit/i.test(message)) return 'transport_limit';
+  if (/ENOENT|EACCES/i.test(message)) return 'setup';
+  if (/unauthorized|authentication|invalid.api.key|\b40[13]\b/i.test(message)) return 'authentication';
+  if (/rate.limit|\b429\b|\b50[0234]\b|service.unavailable|overloaded|ECONNRESET|ETIMEDOUT|fetch failed/i.test(message)) return 'transient_provider';
+  return diagnostics.exitCode ? 'process_failure' : 'provider_failure';
 }
 
 // Diagnostic text is bounded and redacts common credentials and terminal escapes.
 function safeDiagnostic(value) {
   return String(value).replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '')
-    .replace(/(?:Bearer\s+|(?:api[_-]?key|token|password|authorization)\s*[=:]\s*)[^\s,;"']+/gi, '[REDACTED]')
+    .replace(/["']?(?:api[_-]?key|token|password|authorization)["']?\s*[=:]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)/gi, '[REDACTED]')
+    .replace(/\bBearer\s+[^\s,;"']+/gi, 'Bearer [REDACTED]')
     .replace(/\b(?:sk-|ghp_|github_pat_)[A-Za-z0-9_-]+/g, '[REDACTED]')
     .replace(/https?:\/\/[^\s]+/g, '[URL]')
     .replace(/[\r\n\x00-\x1f]+/g, ' ').slice(-2000);
