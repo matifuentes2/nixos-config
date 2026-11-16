@@ -37,17 +37,17 @@ let
     if stdenvNoCC.hostPlatform.isAarch64 then
       {
         arch = "arm64";
-        sha256 = "2bffbf608eef736c5c35e3431a7e5261d0c909e33d8a8feb83ef26a3747cf8f4";
+        sha256 = "52023bc5728a4dee4de361ad6fef7c236f1efb2742ff25e29d5c55e2fb662eea";
       }
     else
       {
         arch = "x64";
-        sha256 = "b9c49dc00c23fbbc5961bdaff2d88e556d96c8dbd638c4501e2937c70650a9e5";
+        sha256 = "0141025335da334759cecd8db3483e09772f3600ca03674698524e7d94291362";
       };
 in
 stdenvNoCC.mkDerivation rec {
   pname = "t3-cli";
-  version = "0.1.8";
+  version = "0.1.9";
 
   src = fetchurl {
     url = "https://github.com/pingdotgg/t3code/releases/download/v${version}/t3-${version}-linux-${release.arch}.tar.gz";
