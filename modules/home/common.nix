@@ -283,6 +283,12 @@ in
     '';
   };
 
+  # Remove legacy writable MCP registrations while preserving model settings,
+  # credentials for other servers, and project trust in each harness.
+  home.activation.removeContext7 = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    run ${lib.getExe pkgs.python3} ${../../scripts/remove-context7.py}
+  '';
+
   # Start Claude Code without permission prompts; only use in trusted environments.
   home.file.".claude/settings.json" = {
     force = true;
