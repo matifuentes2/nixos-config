@@ -30,7 +30,7 @@ export function reviewSections(diff, limit = 32000) {
 // completed; diagnostics never grant completion or expose model reasoning.
 export function reviewForDisplay(execution) {
   const { attemptId, headSha, provider, model, status, reason, failurePhase, progress } = execution;
-  return { attemptId, headSha, provider, model, status, reason, failurePhase,
+  return { attemptId, headSha, provider, model, status, reason, failurePhase, commandVersion: execution.commandVersion,
     consecutiveFailures: execution.consecutiveFailures ?? 0, recovery: execution.recovery, category: execution.category, retryable: execution.retryable, progress: structuredClone(progress) };
 }
 

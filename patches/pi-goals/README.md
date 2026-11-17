@@ -6,10 +6,12 @@ are never edited imperatively. Rebase the patches and run the packaged lifecycle
 smoke test when upgrading either input. The companion patch targets its shipped
 JavaScript bundle because that is the entrypoint Pi actually loads.
 
-- Failed reviewer attempts remain failed evidence. Two failures allow the active
-  parent to diagnose setup, repair the checkout or retry the same reviewer. The
-  third consecutive failure pauses the goal. Cancellation pauses immediately.
-  The counter persists in the execution record and resets after success.
+- Failed reviewer attempts remain failed evidence and keep independent repair
+  work active. Exhausted retries never pause the goal by themselves. Cancellation
+  pauses immediately; user pauses and budget limits retain their behavior.
+  The failure counter persists and resets after success. Deterministic local
+  preparation failures carry an opaque input key; unchanged retries are refused
+  before cloning, including after session restoration.
 - A transient provider `error` is recoverable only when Pi emits a matching
   `auto_retry_start` / successful `auto_retry_end` pair and the retry produces a
   new successful assistant turn on the exact bound provider/model. Pi can emit
@@ -35,14 +37,36 @@ upstream compression hooks.
 ## Remaining boundary
 
 The host mechanically checks fresh reviewer execution, its verdict, PR head/base,
-mergeability and CI. It does **not** mechanically certify browser interactions,
-repository-specific validation. The stronger
-instructions address observed omissions but are not a new proof of those checks.
+mergeability and CI. It does **not** mechanically certify browser interactions
+or repository-specific validation. Status labels CI as requiring a current-head
+check and runtime validation as requiring parent evidence. These labels are not
+certification. Every handback must report code review, CI and runtime validation
+separately, with blockers and next actions, including after a failed tool. The
+stronger instructions address observed omissions but are not a new proof of those checks.
 Pi now runs on pinned Node 24: Bun 1.4.0 advertises node:sqlite support but
 fails context-mode migrations with disk I/O errors. The adapter identifies its
 Nix registration, passes the live worktree to doctor, and resets cached project
 and session state on a switch. Old v1 data is preserved; a D4 legacy-directory
 warning is not permission to delete session history.
+
+## Pinned local diff preparation
+
+The command never requests `gh pr diff`: GitHub can reject that endpoint for a
+PR with more than 300 files. Metadata pins the head and base commits. A private
+clone computes their unique merge base and writes the complete diff to a private
+file, avoiding tool-output truncation. Binary changes, additions and deletions
+remain represented. A 64 MiB input limit fails explicitly; it never authorizes
+review of a prefix. Missing base objects and shallow history are fetched at the
+pinned commits into the private clone using GitHub CLI credentials. Caller refs,
+configuration, index, shallow boundary and artifacts are unchanged. Fetch failures
+remain failures; no partial-history merge base is accepted.
+
+Final verification checks the PR head, base branch, base SHA and caller HEAD.
+The diff digest and merge-base SHA join the checkpoint identity. Changed inputs
+invalidate approval. The paired command/host require review-recovery protocol v2;
+`get_goal` reports the loaded host and required command versions, and each prepared
+attempt records its actual command version. Rebuild and restart both extensions;
+a journal's old objective is not proof that a new implementation is loaded.
 
 ## Large reviews without a fixed agent script
 

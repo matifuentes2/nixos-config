@@ -1,7 +1,7 @@
 // Exercise the shipped dist entry, not TypeScript sources or a model-backed session.
 // Run with the packaged Bun: bun tests/pi-goal-lifecycle-smoke.mjs <goal-package>
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync, truncateSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -21,11 +21,14 @@ const bus = new Map();
 let aborts = 0;
 const head = "a".repeat(40);
 let base = "b".repeat(40);
+let remoteHead = head;
+let checkoutHead = head;
 const mixedChecks = [
   ...Array.from({ length: 22 }, (_, i) => ({ name: `passing-${i}`, state: "SUCCESS", bucket: "pass" })),
   ...Array.from({ length: 11 }, (_, i) => ({ name: `conditional-${i}`, state: "SKIPPED", bucket: "skipping" })),
 ];
 let checks = mixedChecks;
+let objectState = "fixture objects";
 
 const originalPath = process.env.PATH;
 const pi = {
@@ -46,11 +49,16 @@ const pi = {
     },
     emit(name, payload) { for (const listener of bus.get(name) || []) listener(payload); },
   },
-  exec: async (program, args) => ({ code: 0, killed: false, stderr: "", stdout:
-    program === "git" && args[0] === "rev-parse" ? (args[1] === "HEAD" ? head : temporary) :
-    program === "gh" && args[1] === "view" ? JSON.stringify({ baseRefName: "main", baseRefOid: base, headRefOid: head, mergeable: "MERGEABLE" }) :
-    program === "gh" && args[1] === "diff" ? "diff --git a/example.ts b/example.ts\n" + "+// review fixture\n".repeat(2000) :
-    program === "gh" && args[1] === "checks" ? JSON.stringify(checks) : "" }),
+  exec: async (program, args) => {
+    if (program === 'git' && args.includes('count-objects')) return { code: 0, stdout: objectState };
+    if (program === 'git' && args.includes('merge-base')) return { code: 0, stdout: 'd'.repeat(40) };
+    const output = args.find(arg => arg.startsWith('--output='));
+    if (output) writeFileSync(output.slice('--output='.length), "diff --git a/example.ts b/example.ts\n" + "+// review fixture\n".repeat(2000));
+    return ({ code: 0, killed: false, stderr: "", stdout:
+    program === "git" && args[0] === "rev-parse" ? (args[1] === "HEAD" ? checkoutHead : args[1] === "--is-shallow-repository" ? "false" : temporary) :
+    program === "gh" && args[1] === "view" ? JSON.stringify({ baseRefName: "main", baseRefOid: base, headRefOid: remoteHead, url: "https://github.com/fixture/repository/pull/7", mergeable: "MERGEABLE" }) :
+    program === "gh" && args[1] === "diff" ? assert.fail("GitHub diff endpoint must never be used") :
+    program === "gh" && args[1] === "checks" ? JSON.stringify(checks) : "" }); },
   appendEntry(customType, data) {
     entries.push({ type: "custom", id: `entry-${entries.length}`, customType, data,
       parentId: null, timestamp: new Date().toISOString() });
@@ -166,7 +174,7 @@ try {
     const { default: reviewExtension } = await import(pathToFileURL(join(reviewRoot, reviewManifest.pi.extensions[0], "pr-review-goal.ts")));
     const { getGuardedHost } = await import(pathToFileURL(join(reviewRoot, 'src/goal-host.ts')));
     assert.equal(getGuardedHost({ events: { emit(_event, payload) { payload.provide({
-      apiVersion: 1, reviewerSelectionVersion: 1,
+      apiVersion: 1, reviewerSelectionVersion: 1, reviewRecoveryVersion: 1,
       registerPolicy() { assert.fail('Old host must be rejected before registering policy'); },
       startGoal() { assert.fail('Old host must not start a goal'); },
     }); } } }), null);
@@ -175,6 +183,8 @@ try {
     // Historical generic completion stays complete; the new protected start works.
     await commands.get("pr-review-goal").handler("7 --base main", ctx);
     assert.equal((await goal()).status, "active");
+    assert.deepEqual((await goal()).reviewImplementation, { host: 2, requiredCommand: 2, localDiff: 1 });
+    assert.equal((await goal()).validation.runtime, 'parent_evidence_required');
     const protectedSnapshot = () => entries.filter(entry => entry.data?.kind === "set").at(-1).data.goal;
     assert.equal(protectedSnapshot().completionPolicy.id, "pi-pr-review-goal/reviewer-success/v1");
     await assert.rejects(() => call("update_goal", { status: "complete" }), /No fresh reviewer execution evidence/);
@@ -213,6 +223,7 @@ try {
     assert.match((await goal()).objective, /CI and a clean code verdict do not substitute/);
     assert.doesNotMatch((await goal()).objective, /codex|chatgpt-codex-connector/i);
     assert.match((await goal()).objective, /fresh review -> fixes/);
+    assert.match((await goal()).objective, /never end silently/);
     console.log("Shipped recovery passed: bounded repair attempts survive session reload and keep repair work active after repeated failures.");
     ctx.modelRegistry.find = (provider, model) => provider === "smoke" && model === "review-model" ? ctx.model : undefined;
     const successfulExec = pi.exec;
@@ -220,6 +231,41 @@ try {
     await assert.rejects(() => call("run_goal_review"), /exit=1.*temporary GitHub API failure/);
     pi.exec = successfulExec;
     console.log("Shipped diagnostics passed: failed gh preparation preserves exit and stderr.");
+    // Even an older command that can discover the host cannot provide accepted
+    // review inputs: version validation runs before launching any reviewer.
+    const liveHost = getGuardedHost(pi);
+    assert(liveHost);
+    liveHost.registerPolicy('pi-pr-review-goal/reviewer-success/v1',
+      async () => assert.fail('Stale command must never reach completion audit'),
+      async () => ({ commandVersion: 1, headSha: head, prompt: 'old preparation', cwd: temporary }));
+    await assert.rejects(() => call('run_goal_review'), /stale command implementation/);
+    assert.equal((await goal()).review.progress.completed, 0);
+    assert(getGuardedHost(pi), 'Restore the actual command policy after the mismatch fixture');
+    // A preparation failure with unchanged inputs is refused before another
+    // clone, including after restoring the protected goal from its ledger.
+    let clones = 0;
+    pi.exec = async (program, args) => {
+      if (args.includes('clone')) clones++;
+      const output = args.find(arg => arg.startsWith('--output='));
+      if (output) { writeFileSync(output.slice(9), ''); truncateSync(output.slice(9), 64 * 1024 * 1024 + 1); return { code: 0, stdout: '' }; }
+      return successfulExec(program, args);
+    };
+    await assert.rejects(() => call('run_goal_review'), /64 MiB/);
+    assert.equal((await goal()).review.category, 'input_limit');
+    assert.equal((await goal()).review.retryable, false);
+    assert.equal(clones, 1);
+    await emit('session_start', { reason: 'resume' });
+    await assert.rejects(() => call('run_goal_review'), /Unchanged review preparation/);
+    assert.equal(clones, 1);
+    assert.equal((await goal()).status, 'active');
+    assert(protectedSnapshot().reviewExecution.repairKey);
+    objectState = 'repaired fixture objects';
+    pi.exec = successfulExec;
+    // Truncated command output must never become source or metadata evidence.
+    pi.exec = async () => ({ code: 0, killed: false, truncated: true, stdout: '{}', stderr: '' });
+    await assert.rejects(() => call('run_goal_review'), /truncated=true/);
+    pi.exec = successfulExec;
+    console.log('Shipped preparation passed: unchanged deterministic failures are refused across reload, work remains active, and truncation blocks approval.');
     // A deterministic subprocess fixture, not a paid/external model review. Exercise
     // successful execution and actual protected persistence in the shipped pair.
     writeFileSync(join(temporary, "pi"), `#!${process.execPath}
@@ -292,8 +338,9 @@ console.log(JSON.stringify({ type: 'agent_end', messages: [message] }));
     assert.deepEqual(readFileSync(process.env.PI_REVIEW_FIXTURE_TRACE, 'utf8').trim().split('\n'), ['one', 'two', 'two', 'integration']);
     delete process.env.PI_REVIEW_FIXTURE_TRACE;
     const displayedUpdates = updates.map(({ update }) => update);
-    const review = structuredClone(protectedSnapshot().reviewExecution);
+    let review = structuredClone(protectedSnapshot().reviewExecution);
     assert.equal(review.status, "completed");
+    assert.equal(review.commandVersion, 2);
     assert.equal(review.headSha, head);
     assert.equal(review.sections.length, 3);
     assert.equal(displayedUpdates[0].details.review.progress.phase, "preparing");
@@ -313,6 +360,20 @@ console.log(JSON.stringify({ type: 'agent_end', messages: [message] }));
     assert.deepEqual(displayedReview.progress, review.progress);
     assert.equal(displayedReview.sections, undefined, "Status must not duplicate all section verdicts");
     assert.equal(JSON.parse(review.verdict).attemptId, review.attemptId);
+    await call('resume_goal');
+    for (const moving of ['base', 'head', 'checkout']) {
+      await assert.rejects(() => call('run_goal_review', {}, update => {
+        if (update.details.review.progress.phase === 'validating') {
+          if (moving === 'base') base = 'c'.repeat(40);
+          if (moving === 'head') remoteHead = 'e'.repeat(40);
+          if (moving === 'checkout') checkoutHead = 'f'.repeat(40);
+        }
+      }), /PR head, base or diff changed/);
+      assert.equal((await goal()).review.status, 'runtime_failed');
+      base = 'b'.repeat(40); remoteHead = head; checkoutHead = head;
+    }
+    await call('run_goal_review');
+    review = structuredClone(protectedSnapshot().reviewExecution);
     base = 'c'.repeat(40);
     await assert.rejects(() => call('update_goal', { status: 'complete' }), /base SHA is missing or stale/);
     base = 'b'.repeat(40);

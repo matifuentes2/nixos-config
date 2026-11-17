@@ -18,16 +18,19 @@
        try {
          if (signal?.aborted)
            throw new Error("Reviewer interrupted before launch.");
-@@ -2799,21 +2799,25 @@
+@@ -2799,21 +2799,26 @@
          if (!prepare)
            throw new Error("Trusted reviewer preparation unavailable.");
          publish();
 -        const input = await prepare(structuredClone(goal.completionPolicy.config), execution.attemptId);
-+        input = await prepare(structuredClone(goal.completionPolicy.config), execution.attemptId);
-         if (!/^[a-f0-9]{40}$/.test(input.headSha) || !input.prompt?.trim())
-           throw new Error("Invalid trusted review input.");
++        input = await prepare(structuredClone(goal.completionPolicy.config), execution.attemptId, goal.reviewExecution);
+-        if (!/^[a-f0-9]{40}$/.test(input.headSha) || !input.prompt?.trim())
+-          throw new Error("Invalid trusted review input.");
++        if (input.commandVersion !== 2 || !/^[a-f0-9]{40}$/.test(input.headSha) || !input.prompt?.trim())
++          throw new Error("Invalid trusted review input or stale command implementation; rebuild/reload the paired command and host v2.");
          execution.headSha = input.headSha;
 +        execution.baseSha = input.baseSha;
++        execution.commandVersion = input.commandVersion;
          const latest = persistence.getGoal();
          if (latest?.goalId !== goal.goalId || latest.reviewExecution?.attemptId !== execution.attemptId || latest.reviewExecution.status !== "running")
            throw new Error("Review attempt superseded.");
@@ -48,13 +51,15 @@
            throw new Error("PR head or checkout changed during review.");
          execution.status = "completed";
          execution.verdict = result.verdict;
-@@ -2821,10 +2825,19 @@
+@@ -2821,10 +2825,21 @@
        } catch (error) {
          execution.status = signal?.aborted ? "interrupted" : launched ? "runtime_failed" : "launch_failed";
          execution.reason = error instanceof Error ? error.message : String(error);
 +        execution.category = error.category ?? (signal?.aborted ? 'interrupted' : launched ? 'review_execution' : 'setup');
 +        execution.retryable = error.retryable === true;
-+        execution.recovery = signal?.aborted ? 'interrupted' : launched ? 'diagnose_runtime' : 'repair_setup';
++        execution.repairKey = error.repairKey;
++        execution.repairReason = error.repairReason;
++        execution.recovery = error.recovery ?? (signal?.aborted ? 'interrupted' : launched ? 'diagnose_runtime' : 'repair_setup');
          execution.failurePhase = execution.progress.phase;
          if (error.reviewDiagnostics) execution.progress.subprocess = error.reviewDiagnostics;
          execution.reason = `[${execution.failurePhase}, step ${execution.progress.current ?? 0}/${execution.progress.total ?? '?'}, attempt ${execution.attemptId}] ${execution.reason}`;
@@ -88,7 +93,7 @@
 -        return { ok: false, reason: `review-failed: ${execution.reason}. Goal paused after interruption or three consecutive failures. Report the blocker; /goal resume continues this goal.` };
 +        return { ok: false, reason: `review-failed: ${execution.reason}. Recovery: ${execution.recovery}; ${execution.consecutiveFailures ?? 0} consecutive failures. ` +
 +          (signal?.aborted ? "Goal paused after interruption; /goal resume continues it." :
-+          `${persistence.getGoal()?.status === "active" ? "Goal remains active" : "Goal remains paused"}; approval is blocked. Diagnose and repair the concrete cause before retrying the same reviewer. Continue independent fixes, CI repairs and validation. Do not treat exhausted review retries as a request for user permission or blindly repeat the failed call.`) };
++          `${persistence.getGoal()?.status === "active" ? "Goal remains active" : "Goal remains paused"}; approval is blocked. Diagnose and repair the concrete cause before retrying the same reviewer. Continue independent fixes, CI repairs and validation. Do not treat exhausted review retries as a request for user permission or blindly repeat the failed call. Before ending, report code review, CI and runtime validation separately, including blockers and next actions.`) };
        }
        return { ok: true, reason: execution.verdict };
      },
@@ -96,18 +101,19 @@
        payload.provide({
          apiVersion: 1,
          reviewerSelectionVersion: 1,
-+        reviewRecoveryVersion: 1,
++        reviewRecoveryVersion: 2,
          registerPolicy: controller.registerPolicy,
          startGoal: (input) => latestContext ? controller.startProtectedGoal(input, latestContext) : Promise.resolve({ ok: false, reason: "No current session context." }),
          runReview: (input, signal) => latestContext ? controller.runReview(input.provider, input.model, latestContext, signal) : Promise.resolve({ ok: false, reason: "No current session context." })
 --- a/dist/index-w1wa93ny.js
 +++ b/dist/index-w1wa93ny.js
-@@ -282,7 +282,7 @@
+@@ -282,7 +282,8 @@
  function toToolGoal(goal) {
    return {
      goalId: goal.goalId,
 -    ...goal.reviewExecution ? { review: { attemptId: goal.reviewExecution.attemptId, headSha: goal.reviewExecution.headSha, provider: goal.reviewExecution.provider, model: goal.reviewExecution.model, status: goal.reviewExecution.status, reason: goal.reviewExecution.reason, failurePhase: goal.reviewExecution.failurePhase, consecutiveFailures: goal.reviewExecution.consecutiveFailures ?? 0, progress: structuredClone(goal.reviewExecution.progress) } } : {},
-+    ...goal.reviewExecution ? { review: { attemptId: goal.reviewExecution.attemptId, headSha: goal.reviewExecution.headSha, provider: goal.reviewExecution.provider, model: goal.reviewExecution.model, status: goal.reviewExecution.status, reason: goal.reviewExecution.reason, failurePhase: goal.reviewExecution.failurePhase, consecutiveFailures: goal.reviewExecution.consecutiveFailures ?? 0, recovery: goal.reviewExecution.recovery, category: goal.reviewExecution.category, retryable: goal.reviewExecution.retryable, progress: structuredClone(goal.reviewExecution.progress) } } : {},
++    ...goal.completionPolicy ? { reviewImplementation: { host: 2, requiredCommand: 2, localDiff: 1 }, validation: { codeReview: goal.reviewExecution?.status ?? "not_started", ci: "requires_current_head_check", runtime: "parent_evidence_required" } } : {},
++    ...goal.reviewExecution ? { review: { attemptId: goal.reviewExecution.attemptId, headSha: goal.reviewExecution.headSha, provider: goal.reviewExecution.provider, model: goal.reviewExecution.model, status: goal.reviewExecution.status, reason: goal.reviewExecution.reason, failurePhase: goal.reviewExecution.failurePhase, consecutiveFailures: goal.reviewExecution.consecutiveFailures ?? 0, commandVersion: goal.reviewExecution.commandVersion, recovery: goal.reviewExecution.recovery, category: goal.reviewExecution.category, retryable: goal.reviewExecution.retryable, progress: structuredClone(goal.reviewExecution.progress) } } : {},
      ...goal.completionPolicy?.reviewer ? { reviewer: structuredClone(goal.completionPolicy.reviewer) } : {},
      objective: goal.objective,
      status: goal.status,
@@ -117,7 +123,7 @@
        payload.provide({
          apiVersion: 1,
          reviewerSelectionVersion: 1,
-+        reviewRecoveryVersion: 1,
++        reviewRecoveryVersion: 2,
          registerPolicy(id, audit, prepare) {
            if (!id || typeof audit !== "function" || typeof prepare !== "function")
              throw new Error("Invalid trusted completion policy.");
