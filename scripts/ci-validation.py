@@ -27,6 +27,15 @@ def plan(paths, full=False):
             path.startswith("docs/") and path.endswith(".md")
         ):
             continue
+        # These Python-only files are exercised by the always-required quick job.
+        if path in ("scripts/ci-validation.py", "tests/test-ci-validation.py"):
+            continue
+        # No Darwin consumers; WSL also imports the Hyprland palette.
+        if path == "modules/home/linux.nix" or path.startswith("hyprland/"):
+            selected["flake"] = True
+            for host in LINUX_HOSTS:
+                selected[host] = True
+            continue
         parts = path.split("/")
         if len(parts) >= 3 and parts[0] == "hosts" and parts[1] in HOSTS:
             selected[HOSTS[parts[1]]] = True
