@@ -242,10 +242,12 @@
               ${homeTools.piExtensionPackages.context-mode}/${homeTools.piExtensionPackages.context-mode.packageRoot}
             touch "$out"
           '';
-          pi-goal-lifecycle = pkgs.runCommand "pi-goal-lifecycle" { } ''
+          pi-goal-lifecycle = pkgs.runCommand "pi-goal-lifecycle" { nativeBuildInputs = [ pkgs.git ]; } ''
             ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/pi-goal-lifecycle-smoke.mjs} \
               ${homeTools.piCodexGoalPackage} ${homeTools.piPrReviewGoalPackage}
             ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/review-runner.mjs} ${homeTools.piCodexGoalPackage}
+            ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/review-batches.mjs} ${homeTools.piCodexGoalPackage}/dist/review-batches.mjs
+            ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/review-snapshot.mjs} ${homeTools.piPrReviewGoalPackage}
             touch "$out"
           '';
         }

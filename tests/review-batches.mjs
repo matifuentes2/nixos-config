@@ -49,3 +49,67 @@ await assert.rejects(runReviewSections({ ...input, prompts: ['only'] }, async ()
 }, cancelled.signal, update => cancelledProgress.push(update)), /interrupted/);
 assert.equal(cancelledProgress.length, 1, 'Cancellation during final section must not advance progress');
 console.log('Progress counts, integration phase, invalid verdict and final-section cancellation passed.');
+
+// Checkpoints are host evidence, survive a retry/reload, and never rebind raw
+// reviewer verdicts to a different attempt. Only the aggregate uses the new ID.
+let checkpoint;
+const durable = { ...input, prompts: ['one attempt /snapshot/old', 'two attempt /snapshot/old', 'integration attempt /snapshot/old'],
+  cwd: '/snapshot/old', reviewer: { provider: 'fixture', model: 'exact' }, policy: 'v1', goalId: 'goal', baseSha: 'c'.repeat(40),
+  integrationIndex: 2, onCheckpoint: saved => { checkpoint = saved; } };
+let calls = 0;
+await assert.rejects(runReviewSections(durable, async () => {
+  if (++calls === 2) throw Error('interrupted transport');
+  return verdict();
+}), /transport/);
+assert.equal(checkpoint.verdicts.length, 1);
+const saved = structuredClone(checkpoint);
+const resumed = { ...durable, attemptId: 'next', cwd: '/snapshot/new',
+  prompts: durable.prompts.map(p => p.replaceAll('attempt', 'next').replaceAll('/snapshot/old', '/snapshot/new')),
+  checkpoint: saved };
+const response = id => ({ verdict: JSON.stringify({ schemaVersion: 1, attemptId: id, headSha, decision: 'clean', findings: [] }) });
+calls = 0;
+const completed = await runReviewSections(resumed, async () => { calls++; return response('next'); });
+assert.equal(calls, 2);
+assert.equal(completed.sections[0].attemptId, 'attempt');
+assert.equal(JSON.parse(completed.verdict).attemptId, 'next');
+for (const change of [
+  { headSha: 'b'.repeat(40) }, { baseSha: 'd'.repeat(40) }, { reviewer: { provider: 'fixture', model: 'other' } },
+  { policy: 'v2' }, { goalId: 'other' }, { prompts: ['changed', 'two', 'integration'] },
+  { identity: { baseBranch: 'release' } }, { integrationIndex: 1 },
+]) {
+  calls = 0;
+  const altered = { ...resumed, ...change };
+  await runReviewSections(altered, async () => { calls++; return { verdict: JSON.stringify({
+    schemaVersion: 1, attemptId: 'next', headSha: altered.headSha, decision: 'clean', findings: [] }) }; });
+  assert.equal(calls, 3, 'Changed review inputs must invalidate every checkpoint');
+}
+let retries = 0;
+await runReviewSections({ ...input, prompts: ['one'] }, async () => {
+  if (++retries < 3) throw Object.assign(Error('503'), { category: 'transient_provider', retryable: true });
+  return verdict();
+});
+assert.equal(retries, 3);
+retries = 0;
+await assert.rejects(runReviewSections({ ...input, prompts: ['one'] }, async () => {
+  retries++; throw Object.assign(Error('persistent 503'), { category: 'transient_provider', retryable: true });
+}), /persistent/);
+assert.equal(retries, 3);
+console.log('Durable checkpoint resume/invalidation and bounded transient section recovery passed.');
+const corrupt = structuredClone(saved);
+corrupt.verdicts[0].findings = ['contradicts clean'];
+await assert.rejects(runReviewSections({ ...resumed, checkpoint: corrupt }, async () => assert.fail('Corrupt evidence must never be used')),
+  /Invalid host section evidence/);
+const backoffAbort = new AbortController();
+let backoffCalls = 0;
+await assert.rejects(runReviewSections({ ...input, prompts: ['one'] }, async () => {
+  backoffCalls++;
+  throw Object.assign(Error('503'), { category: 'transient_provider', retryable: true });
+}, backoffAbort.signal, progress => { if (progress.retry) backoffAbort.abort(); }), /abort/i);
+assert.equal(backoffCalls, 1, 'Cancellation during backoff must prevent the next launch');
+let authCalls = 0;
+await assert.rejects(runReviewSections({ ...input, prompts: ['one'] }, async () => {
+  authCalls++;
+  throw Object.assign(Error('authentication'), { category: 'authentication', retryable: false });
+}), /authentication/);
+assert.equal(authCalls, 1);
+console.log('Corrupt checkpoint rejection, authentication fail-fast and cancellation during backoff passed.');
