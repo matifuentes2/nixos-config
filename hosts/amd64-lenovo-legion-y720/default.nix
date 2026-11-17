@@ -184,6 +184,20 @@ in
     ];
   };
 
+  # Switch between power-saver, balanced, and performance from the menu
+  # (Super+M, then Setup) or by clicking the battery in the top bar.
+  services.power-profiles-daemon.enable = true;
+
+  # Tap Caps Lock for Escape; hold it for Control. keyd remaps at the input
+  # device level, so this applies in Hyprland, SDDM, the console, and games.
+  services.keyd = {
+    enable = true;
+    keyboards.default = {
+      ids = [ "*" ];
+      settings.main.capslock = "overload(control, esc)";
+    };
+  };
+
   services.blueman.enable = true;
 
   services.tailscale = {

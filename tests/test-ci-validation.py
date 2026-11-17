@@ -33,11 +33,33 @@ class RoutingTests(unittest.TestCase):
     def test_shared_and_unknown_files_require_everything(self):
         for path in ("flake.lock", "flake.nix", "modules/home/common.nix",
                      "modules/home/darwin.nix", "pi-prompts/delegation-policy.md",
-                     ".github/workflows/validate.yml", "scripts/ci-validation.py",
-                     "tests/test-ci-validation.py", "hosts/new-host/default.nix",
+                     ".github/workflows/validate.yml", "hosts/new-host/default.nix",
+                     "hyprland-extra/default.nix", "modules/home/linux-extra.nix",
                      "new-configuration", "docs/runtime.json"):
             with self.subTest(path=path):
                 self.assertTrue(all(CI.plan([path]).values()))
+
+    def test_linux_desktop_skips_mac_but_keeps_flake_and_linux_hosts(self):
+        for path in ("hyprland/default.nix", "hyprland/palette.nix",
+                     "modules/home/linux.nix"):
+            with self.subTest(path=path):
+                selected = CI.plan([path])
+                self.assertFalse(selected["macbook"])
+                self.assertTrue(all(value for key, value in selected.items()
+                                    if key != "macbook"))
+
+    def test_routing_code_is_covered_by_quick_checks(self):
+        self.assertFalse(any(CI.plan([
+            "scripts/ci-validation.py", "tests/test-ci-validation.py",
+        ]).values()))
+
+    def test_linux_routing_preserves_other_requirements_in_either_order(self):
+        for other in ("hosts/macbook/home.nix", "flake.lock",
+                      ".github/workflows/validate.yml"):
+            for paths in ([other, "hyprland/default.nix"],
+                          ["hyprland/default.nix", other]):
+                with self.subTest(paths=paths):
+                    self.assertTrue(all(CI.plan(paths).values()))
 
     def test_full_even_with_no_changes(self):
         self.assertTrue(all(CI.plan([], full=True).values()))
@@ -90,12 +112,13 @@ class GateTests(unittest.TestCase):
         }
 
     def test_accepts_only_expected_successes_and_skips(self):
-        for paths in (["README.md"], ["hosts/hgrai/home.nix"], ["flake.lock"]):
+        for paths in (["README.md"], ["hosts/hgrai/home.nix"], ["flake.lock"],
+                      ["hyprland/default.nix"], ["scripts/ci-validation.py"]):
             CI.check_results(self.needs(paths))
 
     def test_required_failures_cancellations_and_skips_are_rejected(self):
         for job in ("plan", "quick", "flake", "macbook", "linux"):
-            for result in ("failure", "cancelled", "skipped"):
+            for result in ("failure", "cancelled", "abandoned", "skipped"):
                 needs = self.needs(["flake.lock"])
                 needs[job]["result"] = result
                 with self.subTest(job=job, result=result), self.assertRaises(ValueError):

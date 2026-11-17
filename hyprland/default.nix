@@ -45,29 +45,229 @@ let
     '';
   };
 
-  powerMenu = pkgs.writeShellApplication {
-    name = "hypr-power-menu";
+  # Toggle screen recording with wf-recorder. Recordings are saved to ~/Videos.
+  # Hyprland's CLI must match the running compositor, so hyprctl comes from PATH.
+  screenrecord = pkgs.writeShellApplication {
+    name = "hypr-screenrecord";
     runtimeInputs = [
-      pkgs.fuzzel
-      pkgs.systemd
+      pkgs.coreutils
+      pkgs.jq
+      pkgs.libnotify
+      pkgs.procps
+      pkgs.slurp
+      pkgs.util-linux
+      pkgs.wf-recorder
     ];
     text = ''
-      choice="$(
-        printf '%s\n' \
-          '  Lock' \
-          '󰤄  Suspend' \
-          '󰍃  Log out' \
-          '󰜉  Restart' \
-          '󰐥  Shut down' \
-          | fuzzel --dmenu --prompt='System> ' --lines=5 --width=24 --only-match
-      )" || exit 0
+      state="''${XDG_RUNTIME_DIR:-/tmp}/hypr-screenrecord"
 
-      case "$choice" in
-        *Lock) loginctl lock-session ;;
-        *Suspend) systemctl suspend ;;
-        *"Log out") hyprctl dispatch 'hl.dsp.exit()' ;;
-        *Restart) systemctl reboot ;;
-        *"Shut down") systemctl poweroff ;;
+      recording() { pgrep -x wf-recorder >/dev/null; }
+      # Refresh the bar's recording indicator.
+      refresh() { pkill -RTMIN+8 waybar || true; }
+
+      start() {
+        local -a args
+        case "$1" in
+          region)
+            # Cancelling the selection must not start a recording.
+            geometry="$(slurp)" || exit 0
+            args=(-g "$geometry")
+            ;;
+          display)
+            args=(-o "$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .name')")
+            ;;
+        esac
+
+        dir="$HOME/Videos"
+        mkdir -p "$dir"
+        file="$dir/screenrecording-$(date +%Y-%m-%d_%H-%M-%S).mp4"
+        printf '%s\n' "$file" >"$state"
+        setsid -f wf-recorder "''${args[@]}" -f "$file" >/dev/null 2>&1 </dev/null
+        sleep 0.5
+        refresh
+
+        if recording; then
+          notify-send -u low 'Screen recording started' 'Press Alt+Print or click the red dot in the top bar to stop'
+        else
+          rm -f "$state"
+          notify-send -u critical 'Screen recording failed to start'
+        fi
+      }
+
+      stop() {
+        pkill -INT -x wf-recorder || true
+        # wf-recorder finishes writing the file after SIGINT.
+        for _ in $(seq 50); do
+          recording || break
+          sleep 0.1
+        done
+        refresh
+        file="$(cat "$state" 2>/dev/null || true)"
+        rm -f "$state"
+        notify-send 'Screen recording saved' "''${file:-$HOME/Videos}"
+      }
+
+      case "''${1:-}" in
+        region | display) recording || start "$1" ;;
+        stop) stop ;;
+        status) recording ;;
+        *)
+          echo 'usage: hypr-screenrecord region|display|stop|status' >&2
+          exit 2
+          ;;
+      esac
+    '';
+  };
+
+  # Omarchy-style menu in Walker's dmenu mode. Pass a submenu name to open it
+  # directly; cancelling a submenu opened from the main menu goes back to it.
+  menu = pkgs.writeShellApplication {
+    name = "hypr-menu";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.gnused
+      pkgs.libnotify
+      pkgs.mako
+      pkgs.procps
+      pkgs.systemd
+      pkgs.xdg-utils
+    ];
+    text = ''
+      pick() {
+        local prompt="$1"
+        shift
+        printf '%s\n' "$@" \
+          | ${launcher} --dmenu --width 295 --minheight 1 --maxheight 600 --placeholder "$prompt…" 2>/dev/null \
+          || true
+      }
+
+      # Let Walker close before capturing the screen.
+      settle() { sleep 0.2; }
+
+      # Each submenu returns non-zero when cancelled.
+      learn_menu() {
+        case "$(pick Learn '󰌌  Keybindings' '󰂺  Hyprland wiki' '  NixOS options' '󰋜  Home Manager options')" in
+          *Keybindings) ${lib.getExe keybindings} ;;
+          *"Hyprland wiki") xdg-open https://wiki.hypr.land/ ;;
+          *"NixOS options") xdg-open https://search.nixos.org/options ;;
+          *"Home Manager options") xdg-open https://home-manager-options.extranix.com/ ;;
+          *) return 1 ;;
+        esac
+      }
+
+      screenrecord_menu() {
+        if ${lib.getExe screenrecord} status; then
+          case "$(pick 'Screen recording' '󰓛  Stop recording')" in
+            *"Stop recording") ${lib.getExe screenrecord} stop ;;
+            *) return 1 ;;
+          esac
+        else
+          case "$(pick 'Screen recording' '󰆞  Record area' '󰍹  Record display')" in
+            *"Record area") settle && ${lib.getExe screenrecord} region ;;
+            *"Record display") settle && ${lib.getExe screenrecord} display ;;
+            *) return 1 ;;
+          esac
+        fi
+      }
+
+      capture_menu() {
+        case "$(pick Capture '󰆞  Screenshot area' '󰆓  Screenshot area to file' '󰍹  Screenshot display to file' '󰏫  Annotate screenshot' '󰑊  Screen recording' '󰈊  Color picker')" in
+          *"Screenshot area") settle && ${grimblast} --notify copy area ;;
+          *"Screenshot area to file") settle && ${grimblast} --notify copysave area ;;
+          *"Screenshot display to file") settle && ${grimblast} --notify copysave output ;;
+          *"Annotate screenshot") settle && ${lib.getExe annotateScreenshot} ;;
+          *"Screen recording") screenrecord_menu || capture_menu ;;
+          *"Color picker") settle && ${hyprpicker} -a ;;
+          *) return 1 ;;
+        esac
+      }
+
+      toggle_menu() {
+        case "$(pick Toggle '󰍜  Top bar' '󱫖  Idle locking' '󰂛  Do not disturb')" in
+          *"Top bar") pkill -SIGUSR1 waybar ;;
+          *"Idle locking") ${lib.getExe toggleIdle} ;;
+          *"Do not disturb")
+            makoctl mode -t do-not-disturb >/dev/null
+            pkill -RTMIN+10 waybar || true
+            ;;
+          *) return 1 ;;
+        esac
+      }
+
+      power_menu() {
+        local current profile
+        local -a options=()
+        command -v powerprofilesctl >/dev/null || return 1
+        current="$(powerprofilesctl get)"
+        while IFS= read -r profile; do
+          if [[ "$profile" == "$current" ]]; then
+            options+=("󰄬  $profile")
+          else
+            options+=("   $profile")
+          fi
+        done < <(powerprofilesctl list | sed -n 's/^[* ] \([a-z-]*\):$/\1/p')
+
+        profile="$(pick 'Power profile' "''${options[@]}")"
+        [[ -n "$profile" ]] || return 1
+        profile="''${profile##* }"
+        powerprofilesctl set "$profile"
+        notify-send -u low "Power profile: $profile"
+      }
+
+      setup_menu() {
+        local -a options=('󰕾  Audio' '󰖩  Wi-Fi' '󰂯  Bluetooth')
+        if command -v powerprofilesctl >/dev/null; then
+          options+=('󰓅  Power profile')
+        fi
+        if command -v nwg-displays >/dev/null; then
+          options+=('󰍹  Displays')
+        fi
+
+        case "$(pick Setup "''${options[@]}")" in
+          *Audio) ${pavucontrol} ;;
+          *Wi-Fi) ${networkManager} ;;
+          *Bluetooth) ${bluetoothManager} ;;
+          *"Power profile") power_menu || setup_menu ;;
+          *Displays) nwg-displays ;;
+          *) return 1 ;;
+        esac
+      }
+
+      system_menu() {
+        case "$(pick System '  Lock' '󰤄  Suspend' '󰍃  Log out' '󰜉  Restart' '󰐥  Shut down')" in
+          *Lock) loginctl lock-session ;;
+          *Suspend) systemctl suspend ;;
+          *"Log out") hyprctl dispatch 'hl.dsp.exit()' ;;
+          *Restart) systemctl reboot ;;
+          *"Shut down") systemctl poweroff ;;
+          *) return 1 ;;
+        esac
+      }
+
+      main_menu() {
+        case "$(pick Go '󰀻  Apps' '󰑴  Learn' '󰄀  Capture' '󰔡  Toggle' '󰒓  Setup' '󰐥  System')" in
+          *Apps) ${launcher} ;;
+          *Learn) learn_menu || main_menu ;;
+          *Capture) capture_menu || main_menu ;;
+          *Toggle) toggle_menu || main_menu ;;
+          *Setup) setup_menu || main_menu ;;
+          *System) system_menu || main_menu ;;
+        esac
+      }
+
+      case "''${1:-main}" in
+        main) main_menu ;;
+        learn) learn_menu || true ;;
+        capture) capture_menu || true ;;
+        screenrecord) screenrecord_menu || true ;;
+        toggle) toggle_menu || true ;;
+        setup) setup_menu || true ;;
+        power) power_menu || true ;;
+        system) system_menu || true ;;
+        *)
+          echo 'usage: hypr-menu [main|learn|capture|screenrecord|toggle|setup|power|system]' >&2
+          exit 2
+          ;;
       esac
     '';
   };
@@ -155,7 +355,8 @@ in
     pkgs.wl-clipboard
     clipboardHistory
     keybindings
-    powerMenu
+    menu
+    screenrecord
     toggleIdle
     windowSwitcher
   ];
@@ -364,7 +565,8 @@ in
         d.bind("SUPER + SHIFT + T", "Activity", "${terminal} --class btop -e btop")
 
         -- System menus and utilities.
-        d.bind("SUPER + ESCAPE", "System menu", "${lib.getExe powerMenu}")
+        d.bind("SUPER + M", "Menu", "${lib.getExe menu}")
+        d.bind("SUPER + ESCAPE", "System menu", "${lib.getExe menu} system")
         d.bind("SUPER + slash", "Show key bindings", "${lib.getExe keybindings}")
         d.bind("SUPER + CTRL + V", "Clipboard history", "${lib.getExe clipboardHistory}")
         d.bind("SUPER + CTRL + A", "Audio controls", "${pavucontrol}")
@@ -381,12 +583,13 @@ in
         d.bind("SUPER + ALT + comma", "Restore last notification", "${makoctl} restore")
         d.bind("SUPER + CTRL + comma", "Toggle do not disturb", "${makoctl} mode -t do-not-disturb && ${pkill} -RTMIN+10 waybar")
 
-        -- Screenshots and color picking.
+        -- Screenshots, screen recording, and color picking.
         d.bind("PRINT", "Screenshot area to clipboard", "${grimblast} --notify copy area")
         d.bind("SHIFT + PRINT", "Screenshot area to file", "${grimblast} --notify copysave area")
         d.bind("CTRL + PRINT", "Screenshot display to file", "${grimblast} --notify copysave output")
         d.bind("SUPER + PRINT", "Color picker", "${pkill} hyprpicker || ${hyprpicker} -a")
         d.bind("SUPER + SHIFT + PRINT", "Annotate screenshot", "${lib.getExe annotateScreenshot}")
+        d.bind("ALT + PRINT", "Start or stop screen recording", "${lib.getExe menu} screenrecord")
 
         -- Windows.
         d.bind("SUPER + W", "Close window", hl.dsp.window.close())

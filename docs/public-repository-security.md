@@ -67,8 +67,15 @@ Before merging, all checks selected by `scripts/ci-validation.py` must pass:
 - Changes confined to `README.md`, `AGENTS.md`, or Markdown under `docs/` need
   only the quick checks. Markdown outside those locations may be a runtime
   dependency and is not exempt.
-- Shared modules, packages, flake inputs, scripts, tests, CI configuration,
-  and all unrecognized paths select full flake checks and every host.
+- Changes under `hyprland/` or to `modules/home/linux.nix` select full flake
+  checks and every Linux host, without requiring a macOS build. WSL also reads
+  the Hyprland palette, so it remains included.
+- The Python CI selector (`scripts/ci-validation.py`) and its regression tests
+  (`tests/test-ci-validation.py`) need only the quick checks, which always run
+  those tests. Combine this with any checks selected by other changed files.
+- Other shared modules, packages, flake inputs, scripts, tests, CI workflow
+  configuration, and all unrecognized paths select full flake checks and every
+  host.
 - A PR diff uses the merge base and includes both sides of renames, deleted
   files, and added files. Multiple host changes select the union of those hosts.
 
