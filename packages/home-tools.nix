@@ -52,7 +52,7 @@ let
       mainProgram = "mise";
     };
   };
-  piVersion = "1.5.0";
+  piVersion = "1.5.2";
   bunVersion = "1.4.0";
   bunSources = {
     "aarch64-darwin" = pkgs.fetchurl {
@@ -191,7 +191,7 @@ let
         owner = "earendil-works";
         repo = "pi";
         tag = "v${piVersion}";
-        hash = "sha256-eH3RuypmXeayuZ9lEag6KW3m2LSM4bDc4ogyHxjZMNI=";
+        hash = "sha256-0dKtABQqfvCLF0WOydu5rpycMqC+N8Pc9Ex4BWKElyw=";
       };
     in
     unstable.pi-coding-agent.overrideAttrs (_old: {
@@ -199,11 +199,11 @@ let
       inherit src;
       npmDeps = pkgs.fetchNpmDeps {
         inherit src;
-        hash = "sha256-koVd02HEhEAOkcvIuUg4X1A6P6P0B+wJp4DJLwkH62w=";
+        hash = "sha256-uHehffbEB2uU9U9uSpfWojzxvQyqeicbh/esCwk4neQ=";
       };
       modelData = pkgs.fetchurl {
         url = "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-${piVersion}.tgz";
-        hash = "sha256-4yD+e9K5J3grqaN9NW/lg38aqWpGQyYQ4bO5zLdI6lw=";
+        hash = "sha256-1XFe+oNMI7/fEKBCtJ307hacyZAAvxbXmY+rLVM7Rfg=";
       };
 
       # Pi 1.x reorganized its workspaces and CLI bundle. Build offline using
@@ -220,7 +220,8 @@ let
           rm -f "$nm/$pkg"
           cp -r "packages/$ws" "$nm/$pkg"
         done
-        find "$nm" -type l -lname '*/packages/*' -delete
+        # The CLI package omits the remaining workspaces, including apps/p2.
+        find "$nm" -type l \( -lname '*/packages/*' -o -lname '*/apps/*' \) -delete
         find "$nm/.bin" -xtype l -delete
       ''
       + lib.optionalString pkgs.stdenv.isDarwin ''

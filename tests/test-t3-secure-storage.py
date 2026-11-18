@@ -72,9 +72,9 @@ class T3SecureStorage(unittest.TestCase):
         self.assertTrue(result["arm"]["url"].endswith("-arm64.AppImage"))
         self.assertTrue(result["x64"]["url"].endswith("-x86_64.AppImage"))
         self.assertEqual(result["arm"]["outputHash"],
-                         "sha256-REW+/6z5baO+LIHCgCIgIOOyYjV54zZLEPROhL/R48I=")
+                         "sha256-WS3lmBCtJGRhJb71V+R8tvEI9eGOpXDkShguQUq/EK0=")
         self.assertEqual(result["x64"]["outputHash"],
-                         "sha256-+q7kCU3KEnYFeEChpFprLQDXQYr79XNfdadQO3dOY9E=")
+                         "sha256-fN7RPBB1cVOQHt3ayaJgixVvF0Rd5Qbvn/33PAFSjXk=")
         self.assertIn("t3-code", result["homePackages"])
         self.assertIn("seahorse", result["homePackages"])
         self.assertIn("gnome-keyring", result["dbusPackages"])
