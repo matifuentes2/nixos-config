@@ -282,6 +282,7 @@ let
           chmod -R u+w "$out/src" "$out/extensions"
           patch -d "$out" -p1 < ${../patches/pi-goals/pr-review.patch}
           patch -d "$out" -p1 < ${../patches/pi-goals/review-snapshot.patch}
+          cp ${../patches/pi-goals/review-input.mjs} "$out/src/review-input.mjs"
           cp ${../patches/pi-goals/review-snapshot.mjs} "$out/src/review-snapshot.mjs"
           cp ${../patches/pi-goals/review-batches.mjs} "$out/src/review-batches.mjs"
         '';

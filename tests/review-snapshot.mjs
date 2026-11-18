@@ -144,6 +144,32 @@ try {
   assert(coverage.diff.includes('source.txt'));
   assert(coverage.diff.includes('unusual\\tname.txt'));
   await coverage.cleanup();
+  // Summaries use merge-base/head blobs, preserve the raw digest, and never
+  // inspect an uncommitted lockfile in the caller's checkout.
+  const lock = { version: 7, nodes: Object.fromEntries(Array.from({ length: 1000 }, (_, i) =>
+    ['node-' + i, { locked: { rev: 'old-' + i, narHash: 'hash-' + i }, original: { owner: 'fixture', repo: 'repo-' + i } }])) };
+  writeFileSync(join(temporary, 'flake.lock'), JSON.stringify(lock, null, 2));
+  await run('git', ['add', 'flake.lock']); await commit();
+  const lockBase = (await run('git', ['rev-parse', 'HEAD'])).trim();
+  lock.nodes['node-0'].locked.rev = 'new-revision';
+  // Reformatting the entire generated file should not inflate reviewer input.
+  writeFileSync(join(temporary, 'flake.lock'), JSON.stringify(lock, null, 4));
+  await run('git', ['add', 'flake.lock']); await commit();
+  const lockHead = (await run('git', ['rev-parse', 'HEAD'])).trim();
+  writeFileSync(join(temporary, 'flake.lock'), 'uncommitted lockfile');
+  const cappedRun = async (cmd, args) => {
+    const result = await run(cmd, args);
+    if (Buffer.byteLength(result) > 32000) throw Error('fixture stdout cap');
+    return result;
+  };
+  const compact = await reviewSnapshot(temporary, lockHead, cappedRun, { ...options, baseSha: lockBase });
+  assert(compact.reviewDiff.includes('new-revision'));
+  assert(compact.reviewDiff.includes('Structured lockfile review'));
+  assert(!compact.reviewDiff.includes('uncommitted lockfile'));
+  assert(compact.reviewDiff.length < compact.diff.length / 10);
+  assert.equal(compact.diffHash, (await import('node:crypto')).createHash('sha256').update(compact.diff).digest('hex'));
+  await compact.cleanup();
+  console.log('Pinned lockfile summarization and raw-diff identity passed.');
   console.log('317-file coverage, merge-base semantics, shallow/missing-object repair, output limits and unchanged-failure rejection passed.');
   console.log('Snapshot isolation, committed source, export-ignore coverage, artifact preservation and cleanup passed.');
 } finally { rmSync(temporary, { recursive: true, force: true }); }

@@ -1,3 +1,4 @@
+import { reviewInput } from './review-input.mjs';
 import { mkdtemp, readFile, stat, rm } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
@@ -40,7 +41,7 @@ export async function reviewSnapshot(repoRoot, headSha, run, options = {}) {
   const git = args => run('git', ['-C', cwd, '-c', 'core.hooksPath=/dev/null', ...args]);
   try {
     await run('git', ['clone', '--template=', '--no-hardlinks', '--no-checkout', '--local', '--', repoRoot, cwd]);
-    let diff, mergeBaseSha, diffHash;
+    let diff, reviewDiff, mergeBaseSha, diffHash;
     if (baseSha) {
       const shallow = (await git(['rev-parse', '--is-shallow-repository'])).trim() === 'true';
       let missing = false;
@@ -75,12 +76,23 @@ export async function reviewSnapshot(repoRoot, headSha, run, options = {}) {
       catch { throw preparationFailure('PR diff is not valid UTF-8; review input cannot be decoded without loss.', 'invalid_diff_encoding', repairKey); }
       if (!diff.trim()) throw preparationFailure('PR diff is empty; cannot establish review coverage.', 'empty_diff', repairKey);
       diffHash = digest(diff);
+      reviewDiff = await reviewInput(diff, async oid => {
+        const size = Number((await git(['cat-file', '-s', oid])).trim());
+        if (!Number.isSafeInteger(size) || size < 0 || size > MAX_DIFF_BYTES)
+          throw Error('Lockfile blob exceeds summary limit; retain raw diff.');
+        const blobPath = join(directory, 'lockfile.json');
+        // Fixed script, positional arguments: no repository text becomes shell
+        // code. File output avoids Pi's stdout cap for large lockfiles.
+        await run('sh', ['-c', 'exec git -C "$1" -c core.hooksPath=/dev/null cat-file blob "$2" > "$3"',
+          'review-blob', cwd, oid, blobPath]);
+        return new TextDecoder('utf-8', { fatal: true }).decode(await readFile(blobPath));
+      });
     }
     await git(['checkout', '--detach', headSha, '--']);
     const submodules = await git(['ls-files', '--stage']);
     if (/^160000 /m.test(submodules)) throw preparationFailure('Review snapshot requires materialized submodules; review preparation is incomplete.', 'submodules', repairKey);
     await rm(join(cwd, '.git'), { recursive: true, force: true });
-    return { cwd, cleanup, diff, mergeBaseSha, diffHash };
+    return { cwd, cleanup, diff, reviewDiff, mergeBaseSha, diffHash };
   } catch (error) {
     await cleanup();
     throw error;

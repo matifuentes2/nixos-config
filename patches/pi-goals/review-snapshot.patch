@@ -63,7 +63,7 @@
 +      const snapshot = await reviewSnapshot(config.repoRoot, head, run, {
 +        baseSha: before.baseRefOid, repositoryUrl: before.url, previousFailure });
 +      try {
-+      const diff = snapshot.diff;
++      const diff = snapshot.reviewDiff ?? snapshot.diff;
 +      const verify = async () => {
 +        const after = await metadata();
 +        const currentHead = (await run("git", ["rev-parse", "HEAD"])).trim();
