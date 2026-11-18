@@ -145,8 +145,8 @@ winget configure -f \\wsl$\NixOS\home\matif\nixos-config\hosts\wsl2\windows\conf
 ```
 
 See [`wsl2-glazewm.md`](./wsl2-glazewm.md) for key bindings, Kanata startup, and
-limitations, and [`t3-code-wsl2.md`](./t3-code-wsl2.md) to pair the T3 Code app
-with the WSL2 server.
+limitations, and [`t3-code-wsl2.md`](./t3-code-wsl2.md) to enable the Windows app’s
+WSL backend.
 
 ## Subsequent updates
 

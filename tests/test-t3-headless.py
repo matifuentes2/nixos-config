@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluate Pi headless integration and preserve the WSL release on any host."""
+"""Evaluate Pi headless integration and check WSL standalone-server removal on any host."""
 import json
 import os
 from pathlib import Path
@@ -86,7 +86,6 @@ mock_fuser() { return "${TEST_BUSY:-1}"; }
                 libraries = map (p: p.pname or p.name) c.programs.nix-ld.libraries;
                 linger = c.users.users.pi.linger;
                 firewall = c.networking.firewall.allowedTCPPorts;
-                wslService = f.nixosConfigurations.wsl2.config.home-manager.users.matif.systemd.user.services.t3-server.Service.ExecStart;
               }
             '''
         ], cwd=REPO, text=True, timeout=240))
@@ -121,7 +120,31 @@ mock_fuser() { return "${TEST_BUSY:-1}"; }
         self.assertIn("libsecret", result["libraries"])
         self.assertIn("libffi", result["libraries"])
         self.assertNotIn(3774, result["firewall"])
-        self.assertIn("--host 0.0.0.0 --port 3773", result["wslService"][0])
+
+    def test_wsl_uses_windows_managed_backend(self):
+        result = json.loads(subprocess.check_output([
+            "nix", "eval", "--impure", "--json", "--expr", '''
+              let f = builtins.getFlake (toString ./.);
+              in {
+                wsl = let c = f.nixosConfigurations.wsl2.config;
+                          h = c.home-manager.users.matif;
+                      in {
+                        services = builtins.attrNames h.systemd.user.services;
+                        packages = map (p: p.pname or p.name) h.home.packages;
+                        variables = h.home.sessionVariables;
+                        firewall = c.networking.firewall.allowedTCPPorts;
+                        linger = c.users.users.matif.linger;
+                      };
+              }
+            '''
+        ], cwd=REPO, text=True, timeout=240))
+        wsl = result["wsl"]
+        self.assertNotIn("t3-server", wsl["services"])
+        for package in ("t3-cli", "t3-code"):
+            self.assertNotIn(package, wsl["packages"])
+        self.assertNotIn("T3CODE_PORT", wsl["variables"])
+        self.assertNotIn(3773, wsl["firewall"])
+        self.assertFalse(wsl["linger"])
 
 
 if __name__ == "__main__":
