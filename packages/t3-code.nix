@@ -9,17 +9,17 @@
 
 let
   pname = "t3-code";
-  version = "0.1.9";
+  version = "0.1.10";
   release =
     if stdenv.hostPlatform.isAarch64 then
       {
         arch = "arm64";
-        hash = "sha256-m8HIZp01uUgP3v1lHE/L4eDea+FLSlBorst2MfCPCPU=";
+        hash = "sha256-WS3lmBCtJGRhJb71V+R8tvEI9eGOpXDkShguQUq/EK0=";
       }
     else
       {
         arch = "x86_64";
-        hash = "sha256-0KtW3z4zjyQoSENWISl/2WOjNxWw2CCNvwg5lllXLYE=";
+        hash = "sha256-fN7RPBB1cVOQHt3ayaJgixVvF0Rd5Qbvn/33PAFSjXk=";
       };
   desktopItem = makeDesktopItem {
     name = pname;
@@ -35,7 +35,7 @@ appimageTools.wrapType2 {
   inherit pname version;
 
   src = fetchurl {
-    url = "https://github.com/pingdotgg/t3code/releases/download/v${version}/T3-Code-${version}-${release.arch}.AppImage";
+    url = "https://github.com/pingdotgg/t3code/releases/download/v${version}/T3-Code-${release.arch}.AppImage";
     hash = release.hash;
   };
 

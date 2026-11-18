@@ -14,9 +14,10 @@ REPO = Path(__file__).resolve().parents[1]
 class T3Headless(unittest.TestCase):
     def check_migration(self, script):
         # Exercise the evaluated activation without touching real user data or
-        # systemd. Keep real mv/mktemp operations to verify backup and WAL safety.
+        # systemd. Use the test host's coreutils for real backup and WAL moves.
         script = re.sub(r'/nix/store/[^/]+/bin/systemctl', 'mock_systemctl', script)
         script = re.sub(r'/nix/store/[^/]+/bin/fuser', 'mock_fuser', script)
+        script = re.sub(r'/nix/store/[^/]+-coreutils-[^/]+/bin/(id|mktemp|mv)\b', r'\1', script)
         prelude = '''
 set -eu
 run() { if [ -z "${DRY_RUN:-}" ]; then "$@"; fi; }
@@ -91,10 +92,10 @@ mock_fuser() { return "${TEST_BUSY:-1}"; }
         ], cwd=REPO, text=True, timeout=240))
         self.assertTrue(result["arm"]["url"].endswith("-linux-arm64.tar.gz"))
         self.assertEqual(result["arm"]["outputHash"],
-                         "52023bc5728a4dee4de361ad6fef7c236f1efb2742ff25e29d5c55e2fb662eea")
+                         "5ffbd224f53d0f827279825347a7ebf5a7ac98ad5c1347d47409f30aa2a1e425")
         self.assertTrue(result["x64"]["url"].endswith("-linux-x64.tar.gz"))
         self.assertEqual(result["x64"]["outputHash"],
-                         "0141025335da334759cecd8db3483e09772f3600ca03674698524e7d94291362")
+                         "9bea9d36a217299a0af880e8c347b536ed6a9a2f5bf328a695d174d63628c5e8")
         self.assertTrue(result["arm"]["dontFixup"])
         self.assertTrue(result["x64"]["dontFixup"])
         for package in ("t3-cli", "t3-code"):

@@ -108,7 +108,7 @@ let
     # T3's health/model probes contain no ticket instructions. Serve these
     # with the installed CLI; actual thread sessions require a host lease.
     if [ "''${1:-}" = --version ]; then exec ${lib.getExe codex} --version; fi
-    exec ${lib.getExe pkgs.python3} ${./job-client.py}
+    exec ${lib.getExe pkgs.python3} ${./job-client.py} ${codex.version}
   '';
   supervisorConfig = pkgs.writeText "support-job-supervisor.json" (
     builtins.toJSON {

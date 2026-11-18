@@ -49,7 +49,7 @@ def main():
     # T3 sends the cwd on thread/start, after initialization. Delay privileged
     # launch until that identity is known; a late old session must never inherit
     # a newer claim's worktree. The pinned native response has these four fields.
-    sys.stdout.buffer.write(encode(dict(id=initialize["id"], result=dict(codexHome="/home/job/.codex", platformFamily="unix", platformOs="linux", userAgent="codex/0.167.0"))))
+    sys.stdout.buffer.write(encode(dict(id=initialize["id"], result=dict(codexHome="/home/job/.codex", platformFamily="unix", platformOs="linux", userAgent=f"codex/{sys.argv[1]}"))))
     sys.stdout.buffer.flush()
     first = read()
     while "id" not in first:
