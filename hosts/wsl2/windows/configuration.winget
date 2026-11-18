@@ -38,11 +38,11 @@ properties:
     - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: t3code
       directives:
-        description: Install the native T3 Code app, the UI for the WSL2 t3 server
+        description: Install the native T3 Code app with its managed WSL backend
         allowPrerelease: false
       settings:
         id: T3Tools.T3Code
         source: winget
         # Pinned so reapplying this configuration upgrades an existing
-        # install. Keep in step with packages/t3-cli.nix (the WSL2 server).
+        # install. The Windows app manages its own WSL backend version.
         version: 0.1.6

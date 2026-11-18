@@ -38,7 +38,7 @@ class T3SecureStorage(unittest.TestCase):
         for key in ("enabled", "sddmEnabled", "sddmKeyring", "loginKeyring"):
             self.assertTrue(result[key], key)
         self.assertTrue(result["piKeyring"])
-        self.assertTrue(result["wslKeyring"])
+        self.assertFalse(result["wslKeyring"])
         self.assertIn("gnome-keyring", result["dbusPackages"])
         self.assertIn("seahorse", result["homePackages"])
         # Pinned SDDM uses the login stack, not the default per-service rules.

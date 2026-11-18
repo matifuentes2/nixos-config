@@ -12,14 +12,6 @@
 
   networking.hostName = "wsl2";
 
-  # The headless T3 Code server (a Home Manager user service) is reachable
-  # through the Windows-to-WSL port forward.
-  networking.firewall.allowedTCPPorts = [ 3773 ];
-
-  # Start the user's systemd services, including the T3 Code server, when WSL
-  # boots rather than on the first interactive login.
-  users.users.${username}.linger = true;
-
   # NixOS-WSL supplies the Windows kernel, boot integration, the default user,
   # and Windows executable interoperability.
   wsl = {
@@ -45,9 +37,6 @@
 
   # Support dynamically linked tools such as the VS Code Remote server.
   programs.nix-ld.enable = true;
-
-  # The T3 Code wrapper uses libsecret for encrypted credential storage.
-  services.gnome.gnome-keyring.enable = true;
 
   # System administration tools belong to the host; user-facing tools are
   # shared through Home Manager.
