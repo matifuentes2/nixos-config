@@ -247,6 +247,7 @@
               ${homeTools.piCodexGoalPackage} ${homeTools.piPrReviewGoalPackage}
             ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/review-runner.mjs} ${homeTools.piCodexGoalPackage}
             ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/review-batches.mjs} ${homeTools.piCodexGoalPackage}/dist/review-batches.mjs
+            ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/review-input.mjs} ${homeTools.piPrReviewGoalPackage}
             ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/review-snapshot.mjs} ${homeTools.piPrReviewGoalPackage}
             touch "$out"
           '';

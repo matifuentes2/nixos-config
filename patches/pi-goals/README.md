@@ -68,6 +68,25 @@ invalidate approval. The paired command/host require review-recovery protocol v2
 attempt records its actual command version. Rebuild and restart both extensions;
 a journal's old objective is not proof that a new implementation is loaded.
 
+## Structured lockfile review
+
+Before batching, ordinary modified `flake.lock`, `package-lock.json` and
+`npm-shrinkwrap.json` files can use a deterministic JSON value-change summary
+when it is shorter than their raw diff. Every added, removed or changed value
+is included at its JSON Pointer path, including hashes, URLs, unknown metadata
+and ordered arrays. Only unchanged values, object key ordering and whitespace
+are omitted. Reviewers check dependency provenance and manifest consistency.
+The original full diff still supplies the checkpoint digest and size limit.
+
+Both versions come from pinned Git blobs, never the caller's working files.
+Malformed JSON, duplicate keys, lossy numbers, unavailable/capped blobs,
+non-object roots, unusual paths, mode changes, additions and deletions retain
+full diffs. Generated code, vendored files, other lock formats and unknown files
+also retain full diffs; filenames alone never authorize excluding source.
+No regeneration command or repository-provided filter is executed.
+Summaries keep the same file manifest and participate in prompt checkpoint
+identity, so old raw-diff checkpoints cannot approve changed review inputs.
+
 ## Large reviews without a fixed agent script
 
 The trusted host partitions large diffs into roughly 32,000-character sections
