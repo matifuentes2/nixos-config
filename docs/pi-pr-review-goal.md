@@ -60,6 +60,12 @@ certify browser activity. Before ending a turn, report each gate, concrete
 blockers and next actions. A failed browser harness is a setup failure, not a
 product defect or permission to skip validation.
 
+For interactive runtime checks in T3 Code, the parent tries the built-in
+browser first unless the user requests another browser. A failed Chrome
+extension connection alone does not block runtime validation. Run any
+repository-required scripted suite with its prescribed harness. See
+[Pi browser routing](browser-mcp.md) for tool selection and fallback.
+
 ## Source isolation and diagnostics
 
 Review preparation creates a private temporary clone at the committed PR head,

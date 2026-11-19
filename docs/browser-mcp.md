@@ -1,6 +1,9 @@
-# Browser MCP: Playwright first
+# Pi browser routing
 
-Pi defaults to the lazy `playwright` MCP server for ordinary browser automation.
+For browser work in T3 Code, Pi starts with the built-in browser. It checks
+`preview_status` and opens a task tab with `preview_open` when needed. This path
+works independently of the Chrome extension and uses T3 Code's own profiles.
+Outside T3 Code, Pi defaults to the lazy `playwright` MCP server.
 The shared Home Manager module installs a pinned Playwright MCP 0.0.82 with a
 locked dependency tree and launches it with `--extension`. It does not download
 browsers or launch a separate automation profile.
