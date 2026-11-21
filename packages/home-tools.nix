@@ -52,7 +52,7 @@ let
       mainProgram = "mise";
     };
   };
-  piVersion = "1.5.2";
+  piVersion = "1.6.0";
   bunVersion = "1.4.0";
   bunSources = {
     "aarch64-darwin" = pkgs.fetchurl {
@@ -191,7 +191,7 @@ let
         owner = "earendil-works";
         repo = "pi";
         tag = "v${piVersion}";
-        hash = "sha256-0dKtABQqfvCLF0WOydu5rpycMqC+N8Pc9Ex4BWKElyw=";
+        hash = "sha256-UVQnOMYikjxi7JREcxPZh/Uamy0l4rBvhawHR/MZZgo=";
       };
     in
     unstable.pi-coding-agent.overrideAttrs (_old: {
@@ -199,11 +199,11 @@ let
       inherit src;
       npmDeps = pkgs.fetchNpmDeps {
         inherit src;
-        hash = "sha256-uHehffbEB2uU9U9uSpfWojzxvQyqeicbh/esCwk4neQ=";
+        hash = "sha256-V7fRy44X50tqfFewWQ/k5UjvUt+AoMOZkTw/v0bib6o=";
       };
       modelData = pkgs.fetchurl {
         url = "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-${piVersion}.tgz";
-        hash = "sha256-1XFe+oNMI7/fEKBCtJ307hacyZAAvxbXmY+rLVM7Rfg=";
+        hash = "sha256-1oMS7FdLyVnLf+4m2k9IdtBnrtm7vnbodjWeYNIpR0c=";
       };
 
       # Pi 1.x reorganized its workspaces and CLI bundle. Build offline using

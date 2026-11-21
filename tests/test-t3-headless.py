@@ -92,10 +92,10 @@ mock_fuser() { return "${TEST_BUSY:-1}"; }
         ], cwd=REPO, text=True, timeout=240))
         self.assertTrue(result["arm"]["url"].endswith("-linux-arm64.tar.gz"))
         self.assertEqual(result["arm"]["outputHash"],
-                         "5ffbd224f53d0f827279825347a7ebf5a7ac98ad5c1347d47409f30aa2a1e425")
+                         "7d90a5af032fe0988a616403e0f51a6cb68eff7ed7a84bc40999cc3997dffd71")
         self.assertTrue(result["x64"]["url"].endswith("-linux-x64.tar.gz"))
         self.assertEqual(result["x64"]["outputHash"],
-                         "9bea9d36a217299a0af880e8c347b536ed6a9a2f5bf328a695d174d63628c5e8")
+                         "2b691c07f5bcb5adea4a863d5324aae7db21bd6d82280cec7787836dcaa013e1")
         self.assertTrue(result["arm"]["dontFixup"])
         self.assertTrue(result["x64"]["dontFixup"])
         for package in ("t3-cli", "t3-code"):
