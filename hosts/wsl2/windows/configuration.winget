@@ -45,4 +45,4 @@ properties:
         source: winget
         # Pinned so reapplying this configuration upgrades an existing
         # install. The Windows app manages its own WSL backend version.
-        version: 0.1.10
+        version: 0.1.11
