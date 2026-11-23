@@ -283,7 +283,8 @@ if (process.env.PI_REVIEW_FIXTURE_FAILURE || (process.env.PI_REVIEW_FAIL_SECOND 
   process.exit(0);
 }
 const message = { role: 'assistant', provider: args[args.indexOf('--provider') + 1], model: args[args.indexOf('--model') + 1],
-  stopReason: 'stop', content: [{ type: 'text', text: JSON.stringify(verdict) }] };
+  stopReason: 'stop', content: [{ type: 'text', text: JSON.stringify(verdict) }],
+  usage: { input: 10, output: 2, cacheRead: 0, cacheWrite: 0, totalTokens: 12, cost: { total: 0.01 } } };
 console.log(JSON.stringify({ type: 'message_end', message }));
 console.log(JSON.stringify({ type: 'agent_end', messages: [message] }));
 `, { mode: 0o755 });
@@ -331,9 +332,15 @@ console.log(JSON.stringify({ type: 'agent_end', messages: [message] }));
     assert.equal(activeReview.progress.completed, 1);
     await assert.rejects(() => call("run_goal_review"), /already running/);
     await reviewRun;
+    // Subprocess pulses are live-only; phase boundaries and evidence stay durable.
     for (const { update, saved } of updates) {
       assert.equal(saved.attemptId, update.details.review.attemptId);
-      assert.deepEqual(saved.progress, update.details.review.progress);
+    }
+    const pulses = updates.filter(({ update, saved }) =>
+      update.details.review.progress.updatedAt !== saved.progress.updatedAt);
+    assert(pulses.length > 0, 'Subprocess pulses must not each append a journal entry');
+    for (const { update, saved } of pulses) {
+      assert.equal(saved.progress.phase, update.details.review.progress.phase);
     }
     assert.deepEqual(readFileSync(process.env.PI_REVIEW_FIXTURE_TRACE, 'utf8').trim().split('\n'), ['one', 'two', 'two', 'integration']);
     delete process.env.PI_REVIEW_FIXTURE_TRACE;
@@ -360,7 +367,16 @@ console.log(JSON.stringify({ type: 'agent_end', messages: [message] }));
     assert.deepEqual(displayedReview.progress, review.progress);
     assert.equal(displayedReview.sections, undefined, "Status must not duplicate all section verdicts");
     assert.equal(JSON.parse(review.verdict).attemptId, review.attemptId);
+    assert.equal(review.progress.scope, 'full');
+    assert.equal(review.progress.usage.totalTokens, 24, 'This attempt ran the resumed section and integration');
+    assert(review.progress.usageTotal.totalTokens >= 24);
+    assert.equal(review.reviewBaseline.headSha, head);
+    assert.deepEqual(review.reviewBaseline.findings, []);
     await call('resume_goal');
+    // The next round on the same reviewer is fix-scoped, not another full pass.
+    const fixRound = await call('run_goal_review');
+    assert.match(fixRound.content[0].text, /Review scope: fixes/);
+    assert.equal(protectedSnapshot().reviewExecution.progress.scope, 'fixes');
     for (const moving of ['base', 'head', 'checkout']) {
       await assert.rejects(() => call('run_goal_review', {}, update => {
         if (update.details.review.progress.phase === 'validating') {

@@ -1,0 +1,97 @@
+--- a/dist/goal-runtime-controller-t3bapw8t.js
++++ b/dist/goal-runtime-controller-t3bapw8t.js
+@@ -1,4 +1,4 @@
+-import { reviewForDisplay, formatReviewProgress, runReviewSections } from "./review-batches.mjs";
++import { addUsage, nextReviewBaseline, reviewForDisplay, reviewResultText, formatReviewProgress, runReviewSections, usableBaseline } from "./review-batches.mjs";
+ import {
+   AUTO_COMPACT_HARD_CONTEXT_PERCENT,
+   AUTO_COMPACT_MIN_TOKEN_ADVANCE_FRACTION,
+@@ -610,7 +610,7 @@
+     flushGoalPersistence("runtime");
+     return true;
+   };
+-  const recordReview = (goalId, execution) => {
++  const recordReview = (goalId, execution, durable = true) => {
+     if (!goal || goal.goalId !== goalId || !isProtected(goal) || goal.status === "complete")
+       return false;
+     if (execution.status !== "running" && (goal.reviewExecution?.attemptId !== execution.attemptId || goal.reviewExecution.status !== "running"))
+@@ -621,7 +621,8 @@
+     } finally {
+       authorizedWrite = false;
+     }
+-    flushGoalPersistence("runtime");
++    // Subprocess pulses stay in memory; journaling each one grew sessions to ~1 GB.
++    if (durable) flushGoalPersistence("runtime");
+     return true;
+   };
+   const completeProtectedGoal = async (source, signal) => {
+@@ -2753,10 +2754,10 @@
+         return { ok: false, reason: "No non-complete protected goal." };
+       if (goal.reviewExecution?.status === "running")
+         return { ok: false, reason: "A review is already running; inspect get_goal for progress." };
+-      const execution = { checkpoint: goal.reviewExecution?.checkpoint, attemptId: randomUUID(), goalId: goal.goalId, headSha: "", freshContext: true, status: "running", progress: { phase: "preparing", completed: 0, total: null, startedAt: new Date().toISOString() } };
+-      const record = () => {
++      const execution = { checkpoint: goal.reviewExecution?.checkpoint, reviewBaseline: goal.reviewExecution?.reviewBaseline, attemptId: randomUUID(), goalId: goal.goalId, headSha: "", freshContext: true, status: "running", progress: { phase: "preparing", completed: 0, total: null, startedAt: new Date().toISOString() } };
++      const record = (durable = true) => {
+         try {
+-          return persistence.recordReview(goal.goalId, execution);
++          return persistence.recordReview(goal.goalId, execution, durable);
+         } catch (error) {
+           stateController.pauseForAbort(ctx);
+           throw error;
+@@ -2767,7 +2768,8 @@
+         if (current?.goalId !== goal.goalId || current.reviewExecution?.attemptId !== execution.attemptId || current.reviewExecution.status !== "running")
+           throw new Error("Review attempt superseded.");
+         execution.progress = { ...execution.progress, ...progress, updatedAt: new Date().toISOString() };
+-        if (!record()) throw new Error("Review attempt superseded.");
++        const pulseOnly = Object.keys(progress).length === 1 && Object.hasOwn(progress, "subprocess");
++        if (!record(!pulseOnly)) throw new Error("Review attempt superseded.");
+         // Display delivery is best effort; persisted execution is authoritative.
+         try {
+           onUpdate?.({ content: [{ type: "text", text: formatReviewProgress(execution) }],
+@@ -2799,12 +2801,13 @@
+         if (!prepare)
+           throw new Error("Trusted reviewer preparation unavailable.");
+         publish();
+-        input = await prepare(structuredClone(goal.completionPolicy.config), execution.attemptId, goal.reviewExecution);
+-        if (input.commandVersion !== 2 || !/^[a-f0-9]{40}$/.test(input.headSha) || !input.prompt?.trim())
++        input = await prepare(structuredClone(goal.completionPolicy.config), execution.attemptId, { ...goal.reviewExecution, reviewBaseline: usableBaseline(goal.reviewExecution?.reviewBaseline, reviewer) });
++        if (input.commandVersion !== 2 || !/^[a-f0-9]{40}$/.test(input.headSha) || (input.carryClean !== true && !input.prompt?.trim()))
+           throw new Error("Invalid trusted review input or stale command implementation; rebuild/reload the paired command and host v2.");
+         execution.headSha = input.headSha;
+         execution.baseSha = input.baseSha;
+         execution.commandVersion = input.commandVersion;
++        execution.progress.scope = input.reviewScope;
+         const latest = persistence.getGoal();
+         if (latest?.goalId !== goal.goalId || latest.reviewExecution?.attemptId !== execution.attemptId || latest.reviewExecution.status !== "running")
+           throw new Error("Review attempt superseded.");
+@@ -2823,6 +2826,7 @@
+         execution.status = "completed";
+         execution.verdict = result.verdict;
+         execution.sections = result.sections;
++        execution.advisories = result.advisories;
+       } catch (error) {
+         execution.status = signal?.aborted ? "interrupted" : launched ? "runtime_failed" : "launch_failed";
+         execution.reason = error instanceof Error ? error.message : String(error);
+@@ -2842,7 +2846,11 @@
+         catch { execution.status = "runtime_failed"; execution.category = "cleanup";
+           execution.recovery = "repair_setup"; execution.reason = "Unable to remove task-owned review snapshot."; }
+       }
+-      execution.progress = { ...execution.progress, phase: execution.status === "completed" ? "completed" : execution.status,
++      // Only a completed review can advance what later rounds treat as reviewed.
++      if (execution.status === "completed") execution.reviewBaseline = nextReviewBaseline(execution, input?.identity?.mergeBaseSha);
++      const usageTotal = addUsage(goal.reviewExecution?.progress?.usageTotal, execution.progress.usage);
++      execution.progress = { ...execution.progress, ...(usageTotal ? { usageTotal } : {}),
++        phase: execution.status === "completed" ? "completed" : execution.status,
+         updatedAt: new Date().toISOString(), finishedAt: new Date().toISOString() };
+       if (!record())
+         return { ok: false, reason: "Review attempt superseded; result discarded." };
+@@ -2856,7 +2864,7 @@
+           (signal?.aborted ? "Goal paused after interruption; /goal resume continues it." :
+           `${persistence.getGoal()?.status === "active" ? "Goal remains active" : "Goal remains paused"}; approval is blocked. Diagnose and repair the concrete cause before retrying the same reviewer. Continue independent fixes, CI repairs and validation. Do not treat exhausted review retries as a request for user permission or blindly repeat the failed call. Before ending, report code review, CI and runtime validation separately, including blockers and next actions.`) };
+       }
+-      return { ok: true, reason: execution.verdict };
++      return { ok: true, reason: reviewResultText(execution) };
+     },
+     ...eventHandlers
+   };

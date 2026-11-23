@@ -272,6 +272,7 @@ let
       patch -d "$out" -p1 < ${../patches/pi-goals/progress.patch}
       patch -d "$out" -p1 < ${../patches/pi-goals/observability.patch}
       patch -d "$out" -p1 < ${../patches/pi-goals/resilience.patch}
+      patch -d "$out" -p1 < ${../patches/pi-goals/focused-review-host.patch}
       cp ${../patches/pi-goals/review-runner.mjs} "$out/dist/review-runner.mjs"
       cp ${../patches/pi-goals/review-batches.mjs} "$out/dist/review-batches.mjs"
     '';
@@ -283,6 +284,7 @@ let
           chmod -R u+w "$out/src" "$out/extensions"
           patch -d "$out" -p1 < ${../patches/pi-goals/pr-review.patch}
           patch -d "$out" -p1 < ${../patches/pi-goals/review-snapshot.patch}
+          patch -d "$out" -p1 < ${../patches/pi-goals/focused-review-command.patch}
           cp ${../patches/pi-goals/review-input.mjs} "$out/src/review-input.mjs"
           cp ${../patches/pi-goals/review-snapshot.mjs} "$out/src/review-snapshot.mjs"
           cp ${../patches/pi-goals/review-batches.mjs} "$out/src/review-batches.mjs"

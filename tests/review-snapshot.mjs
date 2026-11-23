@@ -170,6 +170,62 @@ try {
   assert.equal(compact.diffHash, (await import('node:crypto')).createHash('sha256').update(compact.diff).digest('hex'));
   await compact.cleanup();
   console.log('Pinned lockfile summarization and raw-diff identity passed.');
+
+  // Fix scope comes from real history and falls back to a full pass on any doubt.
+  await run('git', ['checkout', '-q', '-f', lockHead]);
+  await run('git', ['checkout', '-qb', 'scope-base']);
+  const scopeBase = lockHead;
+  await run('git', ['checkout', '-qb', 'scope-pr']);
+  writeFileSync(join(temporary, 'scope.txt'), 'reviewed\n');
+  writeFileSync(join(temporary, 'untouched.txt'), 'reviewed\n');
+  await run('git', ['add', 'scope.txt', 'untouched.txt']); await commit();
+  const reviewedHead = (await run('git', ['rev-parse', 'HEAD'])).trim();
+  writeFileSync(join(temporary, 'scope.txt'), 'fixed\n');
+  await run('git', ['add', 'scope.txt']); await commit();
+  const fixedHead = (await run('git', ['rev-parse', 'HEAD'])).trim();
+  const scopeOptions = { ...options, baseSha: scopeBase };
+  const scopeBaseline = { version: 1, headSha: reviewedHead, baseSha: scopeBase, mergeBaseSha: scopeBase, findings: ['open'] };
+  const scoped = await reviewSnapshot(temporary, fixedHead, run, { ...scopeOptions, baseline: scopeBaseline });
+  assert(scoped.fix.diff.includes('+fixed'));
+  assert(!scoped.fix.diff.includes('untouched.txt'), 'A fix round must exclude already-reviewed files');
+  assert(scoped.diff.includes('untouched.txt'), 'The complete PR diff remains available');
+  await scoped.cleanup();
+  const sameHead = await reviewSnapshot(temporary, fixedHead, run, { ...scopeOptions, baseline: { ...scopeBaseline, headSha: fixedHead } });
+  assert.equal(sameHead.fix.diff, '');
+  await sameHead.cleanup();
+  const none = await reviewSnapshot(temporary, fixedHead, run, scopeOptions);
+  assert.equal(none.fix, null);
+  await none.cleanup();
+  // Rewritten history, a different merge base and unavailable objects are full passes.
+  await run('git', ['checkout', '-q', '--detach', reviewedHead]);
+  writeFileSync(join(temporary, 'scope.txt'), 'rewritten\n');
+  await run('git', ['add', 'scope.txt']); await commit();
+  const rewritten = (await run('git', ['rev-parse', 'HEAD'])).trim();
+  for (const [target, baselineChange] of [
+    [rewritten, { headSha: fixedHead }],
+    [fixedHead, { mergeBaseSha: common }],
+    [fixedHead, { headSha: 'e'.repeat(40) }],
+    [fixedHead, { version: 0 }],
+  ]) {
+    const fallback = await reviewSnapshot(temporary, target, run, { ...scopeOptions, baseline: { ...scopeBaseline, ...baselineChange } });
+    assert.equal(fallback.fix, null);
+    await fallback.cleanup();
+  }
+  // A moved base stays fix-scoped unless it edits a file this PR also changes.
+  await run('git', ['checkout', '-q', 'scope-base']);
+  writeFileSync(join(temporary, 'unrelated-base.txt'), 'base\n');
+  await run('git', ['add', 'unrelated-base.txt']); await commit();
+  const unrelatedBase = (await run('git', ['rev-parse', 'HEAD'])).trim();
+  const moved = await reviewSnapshot(temporary, fixedHead, run, { ...scopeOptions, baseSha: unrelatedBase, baseline: scopeBaseline });
+  assert(moved.fix.diff.includes('+fixed'));
+  await moved.cleanup();
+  writeFileSync(join(temporary, 'untouched.txt'), 'edited on base\n');
+  await run('git', ['add', 'untouched.txt']); await commit();
+  const overlappingBase = (await run('git', ['rev-parse', 'HEAD'])).trim();
+  const overlapping = await reviewSnapshot(temporary, fixedHead, run, { ...scopeOptions, baseSha: overlappingBase, baseline: scopeBaseline });
+  assert.equal(overlapping.fix, null, 'A base edit to a PR file requires a full pass');
+  await overlapping.cleanup();
+  console.log('Fix-scoped snapshots and fail-safe full-review fallbacks passed.');
   console.log('317-file coverage, merge-base semantics, shallow/missing-object repair, output limits and unchanged-failure rejection passed.');
   console.log('Snapshot isolation, committed source, export-ignore coverage, artifact preservation and cleanup passed.');
 } finally { rmSync(temporary, { recursive: true, force: true }); }

@@ -25,7 +25,7 @@ export function preparationFailure(message, category, repairKey) {
 // A private checkout includes export-ignore files, excludes caller artifacts,
 // and never changes the caller's index, refs, shallow boundary or configuration.
 export async function reviewSnapshot(repoRoot, headSha, run, options = {}) {
-  const { baseSha, repositoryUrl, previousFailure } = options;
+  const { baseSha, repositoryUrl, previousFailure, baseline } = options;
   if (!sha.test(headSha) || (baseSha !== undefined && !sha.test(baseSha)))
     throw preparationFailure('Invalid pinned review commits.', 'invalid_inputs');
   const repairKey = baseSha ? await reviewInputKey(headSha, baseSha, run) : undefined;
@@ -41,7 +41,7 @@ export async function reviewSnapshot(repoRoot, headSha, run, options = {}) {
   const git = args => run('git', ['-C', cwd, '-c', 'core.hooksPath=/dev/null', ...args]);
   try {
     await run('git', ['clone', '--template=', '--no-hardlinks', '--no-checkout', '--local', '--', repoRoot, cwd]);
-    let diff, reviewDiff, mergeBaseSha, diffHash;
+    let diff, reviewDiff, mergeBaseSha, diffHash, fix = null;
     if (baseSha) {
       const shallow = (await git(['rev-parse', '--is-shallow-repository'])).trim() === 'true';
       let missing = false;
@@ -67,8 +67,9 @@ export async function reviewSnapshot(repoRoot, headSha, run, options = {}) {
       const path = join(directory, 'review.diff');
       // Avoid Pi exec's output cap: Git writes the complete diff to a private
       // file. Reject oversize inputs explicitly, never review a truncated prefix.
-      await git(['-c', 'core.quotePath=true', 'diff', '--no-ext-diff', '--no-textconv',
-        '--no-renames', '--binary', '--full-index', '--no-color', '--no-relative', '--ignore-submodules=none',
+      const diffOptions = ['--no-ext-diff', '--no-textconv', '--no-renames', '--no-color', '--no-relative',
+        '--ignore-submodules=none'];
+      await git(['-c', 'core.quotePath=true', 'diff', ...diffOptions, '--binary', '--full-index',
         '--src-prefix=a/', '--dst-prefix=b/', '--unified=3', `--output=${path}`, mergeBaseSha, headSha, '--']);
       if ((await stat(path)).size > MAX_DIFF_BYTES)
         throw preparationFailure('Complete PR diff exceeds the 64 MiB review input limit; reduce the PR scope.', 'input_limit', repairKey);
@@ -76,7 +77,7 @@ export async function reviewSnapshot(repoRoot, headSha, run, options = {}) {
       catch { throw preparationFailure('PR diff is not valid UTF-8; review input cannot be decoded without loss.', 'invalid_diff_encoding', repairKey); }
       if (!diff.trim()) throw preparationFailure('PR diff is empty; cannot establish review coverage.', 'empty_diff', repairKey);
       diffHash = digest(diff);
-      reviewDiff = await reviewInput(diff, async oid => {
+      const readBlob = async oid => {
         const size = Number((await git(['cat-file', '-s', oid])).trim());
         if (!Number.isSafeInteger(size) || size < 0 || size > MAX_DIFF_BYTES)
           throw Error('Lockfile blob exceeds summary limit; retain raw diff.');
@@ -86,13 +87,40 @@ export async function reviewSnapshot(repoRoot, headSha, run, options = {}) {
         await run('sh', ['-c', 'exec git -C "$1" -c core.hooksPath=/dev/null cat-file blob "$2" > "$3"',
           'review-blob', cwd, oid, blobPath]);
         return new TextDecoder('utf-8', { fatal: true }).decode(await readFile(blobPath));
-      });
+      };
+      reviewDiff = await reviewInput(diff, readBlob);
+      // Any doubt about what changed since the last completed review means a
+      // full pass: merges, rebases, unavailable objects or base edits to PR files.
+      if (baseline?.version === 1 && baseline.mergeBaseSha === mergeBaseSha && sha.test(baseline.headSha) &&
+          sha.test(baseline.baseSha) && Array.isArray(baseline.findings)) {
+        try {
+          await git(['merge-base', '--is-ancestor', baseline.headSha, headSha]);
+          const changedPaths = async (from, to) => {
+            const names = join(directory, 'changed-paths');
+            await git(['diff', ...diffOptions, '--name-only', '-z', `--output=${names}`, from, to, '--']);
+            return (await readFile(names, 'utf8')).split('\0').filter(Boolean);
+          };
+          let overlap = false;
+          if (baseline.baseSha !== baseSha) {
+            const baseChanges = new Set(await changedPaths(baseline.baseSha, baseSha));
+            overlap = (await changedPaths(mergeBaseSha, headSha)).some(file => baseChanges.has(file));
+          }
+          if (!overlap) {
+            const fixPath = join(directory, 'fix.diff');
+            await git(['-c', 'core.quotePath=true', 'diff', ...diffOptions, '--binary', '--full-index',
+              '--src-prefix=a/', '--dst-prefix=b/', '--unified=3', `--output=${fixPath}`, baseline.headSha, headSha, '--']);
+            if ((await stat(fixPath)).size > MAX_DIFF_BYTES) throw Error('Fix diff exceeds input limit.');
+            const rawFix = new TextDecoder('utf-8', { fatal: true }).decode(await readFile(fixPath));
+            fix = { baseline, diff: rawFix.trim() ? await reviewInput(rawFix, readBlob) : '' };
+          }
+        } catch { fix = null; }
+      }
     }
     await git(['checkout', '--detach', headSha, '--']);
     const submodules = await git(['ls-files', '--stage']);
     if (/^160000 /m.test(submodules)) throw preparationFailure('Review snapshot requires materialized submodules; review preparation is incomplete.', 'submodules', repairKey);
     await rm(join(cwd, '.git'), { recursive: true, force: true });
-    return { cwd, cleanup, diff, reviewDiff, mergeBaseSha, diffHash };
+    return { cwd, cleanup, diff, reviewDiff, mergeBaseSha, diffHash, fix };
   } catch (error) {
     await cleanup();
     throw error;

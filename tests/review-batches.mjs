@@ -113,3 +113,61 @@ await assert.rejects(runReviewSections({ ...input, prompts: ['one'] }, async () 
 }), /authentication/);
 assert.equal(authCalls, 1);
 console.log('Corrupt checkpoint rejection, authentication fail-fast and cancellation during backoff passed.');
+
+// Later rounds cover the fix diff and every prior blocker, never just the diff.
+const { reviewPlan, usableBaseline, nextReviewBaseline, addUsage, reviewResultText } =
+  await import(process.argv[2] ?? '../patches/pi-goals/review-batches.mjs');
+const reviewer = { provider: 'fixture', model: 'exact' };
+const baseline = { version: 1, headSha, baseSha: 'c'.repeat(40), mergeBaseSha: 'd'.repeat(40), reviewer, findings: [] };
+const fullPlan = reviewPlan({ prefix: 'P ', diff, limit: 64 });
+assert.equal(fullPlan.scope, 'full');
+assert.equal(fullPlan.integrationIndex, fullPlan.prompts.length - 1);
+const fixDiff = 'diff --git a/one b/one\n+fixed\n';
+const fixPlan = reviewPlan({ prefix: 'P ', diff, baseline: { ...baseline, findings: ['other.ts:9 still broken'] }, fixDiff });
+assert.equal(fixPlan.scope, 'fixes');
+assert.equal(fixPlan.prompts.length, 1);
+assert.match(fixPlan.prompts[0], /other\.ts:9 still broken/);
+assert.match(fixPlan.prompts[0], /\+fixed/);
+assert(!fixPlan.prompts[0].includes('diff --git a/two'), 'Unchanged files must stay out of a fix round');
+const recheck = reviewPlan({ prefix: 'P ', diff, baseline: { ...baseline, findings: ['disputed'] }, fixDiff: '' });
+assert.equal(recheck.prompts.length, 1);
+assert.match(recheck.prompts[0], /disputed/);
+const manyPriors = reviewPlan({ prefix: 'P ', diff, baseline: { ...baseline, findings: ['a'.repeat(40), 'b'.repeat(40)] }, fixDiff: '', limit: 64 });
+assert.equal(manyPriors.prompts.length, 2, 'Oversized prior findings must be split, not dropped');
+const unchanged = reviewPlan({ prefix: 'P ', diff, baseline, fixDiff: '' });
+assert.equal(unchanged.carryClean, true);
+assert.equal(unchanged.prompts.length, 0);
+assert.equal(reviewPlan({ prefix: 'P ', diff, baseline: { ...baseline, findings: ['open'] }, fixDiff: '' }).carryClean, undefined,
+  'Open blockers must never carry forward as clean');
+let carriedCalls = 0;
+const carried = await runReviewSections({ ...input, prompts: [], carryClean: true }, async () => { carriedCalls++; return verdict(); });
+assert.equal(carriedCalls, 0);
+assert.equal(JSON.parse(carried.verdict).decision, 'clean');
+assert.equal(usableBaseline(baseline, reviewer), baseline);
+assert.equal(usableBaseline(baseline, { ...reviewer, model: 'other' }), undefined);
+assert.equal(usableBaseline({ ...baseline, version: 0 }, reviewer), undefined);
+assert.deepEqual(nextReviewBaseline({ headSha, baseSha: baseline.baseSha, provider: 'fixture', model: 'exact',
+  verdict: JSON.stringify({ findings: ['open'] }) }, baseline.mergeBaseSha).findings, ['open']);
+assert.equal(nextReviewBaseline({ verdict: '{}' }, undefined), undefined);
+
+// Advisories are reported but never affect the verdict or its strict aggregate.
+const advised = await runReviewSections({ ...input, prompts: ['one', 'two'] }, async () => ({
+  verdict: JSON.stringify({ schemaVersion: 1, attemptId, headSha, decision: 'clean', findings: [], advisories: ['rename x'] }),
+  usage: { input: 10, output: 2, cacheRead: 1, cacheWrite: 0, totalTokens: 13, cost: { total: 0.5 } },
+}));
+assert.deepEqual(Object.keys(JSON.parse(advised.verdict)).sort(), ['attemptId', 'decision', 'findings', 'headSha', 'schemaVersion']);
+assert.equal(JSON.parse(advised.verdict).decision, 'clean');
+assert.deepEqual(advised.advisories, ['rename x']);
+await assert.rejects(runReviewSections({ ...input, prompts: ['one'] }, async () => ({
+  verdict: JSON.stringify({ schemaVersion: 1, attemptId, headSha, decision: 'clean', findings: [], advisories: [''] }) })), /Invalid section verdict/);
+assert.deepEqual(addUsage(addUsage(undefined, { input: 1, totalTokens: 1, cost: { total: 0.25 } }), { output: 2, totalTokens: 2, cost: 0.25 }),
+  { input: 1, output: 2, cacheRead: 0, cacheWrite: 0, totalTokens: 3, cost: 0.5 });
+let reported;
+await runReviewSections({ ...input, prompts: ['one', 'two'] }, async () => ({ ...verdict(), usage: { totalTokens: 5 } }), undefined,
+  update => { if (update.usage) reported = update.usage; });
+assert.equal(reported.totalTokens, 10);
+const resultText = reviewResultText({ verdict: '{}', advisories: ['rename x'], progress: { scope: 'fixes', usage: { totalTokens: 7 } } });
+assert.match(resultText, /scope: fixes/);
+assert.match(resultText, /tokens this round: 7/);
+assert.match(resultText, /never block/);
+console.log('Fix-scoped planning, prior-blocker recheck, clean carry-forward, advisories and token accounting passed.');

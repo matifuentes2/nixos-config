@@ -4,6 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
+import { addUsage } from "./review-batches.mjs";
 var require2 = createRequire(import.meta.url);
 export async function runReviewer(provider, model, prompt, signal, executable = process.platform === "win32" ? process.execPath : "pi", onProgress = () => {}, prefix = process.platform === "win32" && executable === process.execPath ? [join(dirname(require2.resolve("@earendil-works/pi-coding-agent")), "cli.js")] : []) {
   const cwd = await mkdtemp(join(tmpdir(), "pi-goal-review-"));
@@ -48,6 +49,7 @@ export async function runReviewer(provider, model, prompt, signal, executable = 
             'auto_retry_start', 'auto_retry_end', 'extension_error'];
           diagnostics.lastEvent = known.includes(event.type) ? event.type : 'other';
           if (event.type === 'message_end' && event.message?.role === 'assistant') {
+            diagnostics.usage = addUsage(diagnostics.usage, event.message.usage);
             diagnostics.stopReason = ['stop', 'toolUse', 'error', 'aborted', 'length'].includes(event.message.stopReason)
               ? event.message.stopReason : 'unknown';
             if (event.message.errorMessage) {
@@ -131,7 +133,7 @@ export async function runReviewer(provider, model, prompt, signal, executable = 
           return;
         }
         try {
-          resolve(parseReviewerOutput(output, provider, model));
+          resolve({ ...parseReviewerOutput(output, provider, model), usage: diagnostics.usage });
         } catch (error) {
           rejectWithDiagnostics(error);
         }
