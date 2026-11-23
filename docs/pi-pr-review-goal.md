@@ -23,6 +23,28 @@ Protocol v2 rejects old hosts before policy registration. Restart both extension
 after rebuilding; preserve and resume the existing goal rather than replacing it.
 Existing stored objectives are retained and can describe older instructions.
 
+## Review scope and stopping
+
+The first completed round reviews the whole PR. Later rounds review only the
+diff since the last completed review and re-verify every prior blocking finding,
+so a clean fix diff cannot approve a blocker left in another file. There is no
+round limit: the loop ends when a review returns no blocking findings.
+
+A full pass runs again after a merge or rebase, when the merge base or reviewer
+changes, when the previous head is not an ancestor or its objects are missing,
+or when the base branch changed a file the PR also changes. If only the base tip
+moved, without touching PR files, and the head has no open findings, the prior
+clean result carries forward with no model call. CI still gates the latest head.
+
+`findings` holds only blocking defects: incorrect behavior, security or privacy
+exposure, data loss or corruption, a broken API, schema or caller contract, a
+build or test break, or a violated mandatory repository rule. Style, naming,
+documentation wording, refactors, optional tests and speculative edge cases are
+`advisories`. Advisories are reported at handback and never block completion.
+
+Each review reports its scope and reviewer tokens. `get_goal` exposes them as
+`review.progress.scope`, `usage` (this attempt) and `usageTotal` (this goal).
+
 ## Review evidence and recovery
 
 Each source section runs sequentially in a fresh, read-only reviewer context on
@@ -44,9 +66,11 @@ before starting the next section. A retry resumes this checkpoint only when the
 repository/PR, goal, head, base SHA, reviewer, policy, prompts and integration
 scope are identical. Each saved verdict retains its original attempt ID; the
 host aggregates validated evidence for the new attempt without rewriting those
-verdicts. Changes to review inputs invalidate the checkpoint. Every section and
-the integration review must finish before approval; CI remains a separate gate.
-A moving base also invalidates approval even if the PR head has not changed.
+verdicts. Changes to review inputs invalidate the checkpoint. Every section in
+the round's scope must finish before approval; CI remains a separate gate.
+A moving base requires a new review call, which applies the scope rules above.
+Subprocess pulses update live status only; section results and phase changes are
+what the session journal records.
 
 Setup or runtime failures block approval and leave an active goal available for
 diagnosis, fixes, CI repair and pending validation. The parent must investigate

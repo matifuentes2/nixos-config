@@ -103,10 +103,22 @@ validation. Missing parent runtime checks are not code defects. Browser harness
 failures must be investigated rather than accepted as product failures. This
 change does not install dependencies or adapt scripts in unrelated repositories.
 
+## Focused review rounds
+
+`focused-review-host.patch` and `focused-review-command.patch` apply after the
+patches above. Only the first round reviews the full PR. Later rounds receive the
+fix diff plus all prior blockers from a host-owned baseline, and any uncertainty
+about history falls back to a full pass. Reviewers separate blocking `findings`
+from non-blocking `advisories`; the aggregate verdict keeps its strict v1 shape
+and contains blockers only. There is deliberately no round cap. Reviewer token
+usage is recorded per attempt and per goal, and subprocess pulses no longer
+append to the session journal. See [PR review recovery](../../docs/pi-pr-review-goal.md).
+
 ## Validation and activation
 
 Review progress is persisted at preparation, each section start and validated
-completion, final head validation, and terminal success/failure. The optional
+completion, final head validation, and terminal success/failure. Subprocess
+pulses are held in memory for live status and are not journaled. The optional
 integration pass has its own phase. `get_goal` exposes a compact `review` record
 with the attempt, commit, reviewer, failure count, phase, counts and timestamps;
 it does not repeat section verdicts. `run_goal_review` also streams these updates
