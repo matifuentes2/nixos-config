@@ -53,8 +53,14 @@ assistant error only when the event stream explicitly records retry success and
 a subsequent successful response. Cancellation, truncation, extension errors,
 exhausted retries, malformed output and model mismatches cannot authorize approval.
 A transient provider failure can retry its section twice with bounded backoff.
-Authentication, setup and invalid-verdict failures require diagnosis rather than
-automatic repetition. Deterministic snapshot failures (empty/oversize diff,
+A rejected section verdict also reruns twice in a fresh reviewer, which is told
+the rule its answer broke, such as `changes_requested` with no findings or an
+unexpected key. The final error names that rule but never echoes reviewer text.
+Unambiguous slips are repaired without a rerun, never toward approval: object
+findings or advisories become JSON text, blank advisories are dropped, and a
+`clean` decision that lists findings becomes `changes_requested`. Stored section
+evidence is never repaired. Authentication and setup failures require diagnosis
+rather than automatic repetition. Deterministic snapshot failures (empty/oversize diff,
 unsupported submodules or missing/ambiguous merge base) save an opaque input key.
 The host refuses another clone for the same failed head/base and local object
 state, including after reload. Repair the prerequisite or change the PR inputs;

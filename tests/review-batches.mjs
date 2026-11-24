@@ -22,7 +22,7 @@ assert.equal(JSON.parse(result.verdict).decision, 'clean');
 count = 0;
 const findings = await runReviewSections(input, async () => ++count === 1 ? verdict('changes_requested', ['file:1 defect']) : verdict());
 assert.deepEqual(JSON.parse(findings.verdict).findings, ['file:1 defect']);
-for (const bad of [verdict('clean', ['contradiction']), verdict('changes_requested'), { verdict: '{}' }, { verdict: verdict().verdict.replace(headSha, 'b'.repeat(40)) }, { verdict: verdict().verdict.replace(attemptId, 'stale') }]) {
+for (const bad of [verdict('changes_requested'), { verdict: '{}' }, { verdict: verdict().verdict.replace(headSha, 'b'.repeat(40)) }, { verdict: verdict().verdict.replace(attemptId, 'stale') }]) {
   await assert.rejects(runReviewSections(input, async () => bad));
 }
 await assert.rejects(runReviewSections(input, async () => { throw Error('launch failed'); }), /launch failed/);
@@ -41,7 +41,8 @@ assert(progress.at(-1).lastCompletedAt);
 const invalidProgress = [];
 await assert.rejects(runReviewSections(input, async () => ({ verdict: '{}' }), undefined,
   update => invalidProgress.push(update)));
-assert.equal(invalidProgress.length, 1, 'Malformed verdict must not advance progress');
+assert(invalidProgress.every(update => !update.completed), 'Malformed verdict must not advance progress');
+assert.equal(invalidProgress.filter(update => update.retryCategory === 'invalid_verdict').length, 2);
 const cancelledProgress = [];
 const cancelled = new AbortController();
 await assert.rejects(runReviewSections({ ...input, prompts: ['only'] }, async () => {
@@ -115,7 +116,7 @@ assert.equal(authCalls, 1);
 console.log('Corrupt checkpoint rejection, authentication fail-fast and cancellation during backoff passed.');
 
 // Later rounds cover the fix diff and every prior blocker, never just the diff.
-const { reviewPlan, usableBaseline, nextReviewBaseline, addUsage, reviewResultText } =
+const { reviewPlan, usableBaseline, nextReviewBaseline, addUsage, reviewResultText, sectionVerdictProblem } =
   await import(process.argv[2] ?? '../patches/pi-goals/review-batches.mjs');
 const reviewer = { provider: 'fixture', model: 'exact' };
 const baseline = { version: 1, headSha, baseSha: 'c'.repeat(40), mergeBaseSha: 'd'.repeat(40), reviewer, findings: [] };
@@ -159,7 +160,37 @@ assert.deepEqual(Object.keys(JSON.parse(advised.verdict)).sort(), ['attemptId', 
 assert.equal(JSON.parse(advised.verdict).decision, 'clean');
 assert.deepEqual(advised.advisories, ['rename x']);
 await assert.rejects(runReviewSections({ ...input, prompts: ['one'] }, async () => ({
-  verdict: JSON.stringify({ schemaVersion: 1, attemptId, headSha, decision: 'clean', findings: [], advisories: [''] }) })), /Invalid section verdict/);
+  verdict: JSON.stringify({ schemaVersion: 1, attemptId, headSha, decision: 'clean', findings: [], advisories: [3] }) })),
+  /Invalid section verdict \(advisories\[0\] must be a non-empty string\)/);
+const blank = await runReviewSections({ ...input, prompts: ['one'] }, async () => ({
+  verdict: JSON.stringify({ schemaVersion: 1, attemptId, headSha, decision: 'clean', findings: [], advisories: [' ', 'keep'] }) }));
+assert.deepEqual(blank.advisories, ['keep']);
+
+// Rejected verdicts name the broken rule and rerun with that feedback; repairs never approve.
+const seen = [];
+const repaired = await runReviewSections({ ...input, prompts: ['one'] }, async prompt => {
+  seen.push(prompt);
+  return seen.length === 1 ? { verdict: JSON.stringify({ schemaVersion: 1, attemptId, headSha, decision: 'changes_requested', findings: [], advisories: ['nit'] }) } : verdict();
+});
+assert.equal(seen.length, 2);
+assert.equal(seen[0], 'one');
+assert.match(seen[1], /^one\n\nThe host rejected your previous answer for this section: decision is changes_requested but findings is empty/);
+assert.equal(JSON.parse(repaired.verdict).decision, 'clean');
+let stubborn = 0;
+await assert.rejects(runReviewSections({ ...input, prompts: ['one'] }, async () => {
+  stubborn++; return { verdict: JSON.stringify({ schemaVersion: 1, attemptId, headSha, decision: 'clean', findings: [], summary: 'ok' }) };
+}), error => error.category === 'invalid_verdict' && /Invalid section verdict \(unexpected keys: "summary"\)/.test(error.message));
+assert.equal(stubborn, 3);
+let fenced = 0;
+await assert.rejects(runReviewSections({ ...input, prompts: ['one'] }, async () => { fenced++; return { verdict: '```json\n{}\n```' }; }),
+  /Malformed section verdict \(the final answer is not a single JSON object\)/);
+assert.equal(fenced, 3);
+const contradiction = await runReviewSections({ ...input, prompts: ['one'] }, async () => verdict('clean', ['file:2 defect']));
+assert.equal(JSON.parse(contradiction.verdict).decision, 'changes_requested');
+const structured = await runReviewSections({ ...input, prompts: ['one'] }, async () => verdict('changes_requested', [{ file: 'a.ts', line: 3, issue: 'null deref' }]));
+assert.deepEqual(JSON.parse(structured.verdict).findings, ['{"file":"a.ts","line":3,"issue":"null deref"}']);
+assert.equal(sectionVerdictProblem({ schemaVersion: 1, attemptId, headSha, decision: 'changes_requested', findings: [''] }, attemptId, headSha),
+  'findings[0] must be a non-empty string');
 assert.deepEqual(addUsage(addUsage(undefined, { input: 1, totalTokens: 1, cost: { total: 0.25 } }), { output: 2, totalTokens: 2, cost: 0.25 }),
   { input: 1, output: 2, cacheRead: 0, cacheWrite: 0, totalTokens: 3, cost: 0.5 });
 let reported;
