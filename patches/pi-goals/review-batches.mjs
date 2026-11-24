@@ -129,6 +129,46 @@ export function formatReviewProgress(execution) {
     (execution.reason ? ` · ${execution.reason}` : '');
 }
 
+const VERDICT_KEYS = ['attemptId', 'decision', 'findings', 'headSha', 'schemaVersion'];
+const noteText = item => typeof item === 'string' ? item.trim()
+  : item && typeof item === 'object' && !Array.isArray(item) ? JSON.stringify(item) : item;
+
+// Repairs only unambiguous shapes, and never toward approval: structured notes
+// become text, blank advisories are dropped, and "clean" with findings blocks.
+export function normalizeSectionVerdict(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return v;
+  const out = { ...v };
+  if (Array.isArray(v.findings)) out.findings = v.findings.map(noteText);
+  if (Array.isArray(v.advisories)) out.advisories = v.advisories.map(noteText).filter(a => a !== '');
+  if (out.decision === 'clean' && Array.isArray(out.findings) && out.findings.length) out.decision = 'changes_requested';
+  return out;
+}
+
+// Names the first broken rule without echoing reviewer content.
+export function sectionVerdictProblem(v, attemptId, headSha) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return 'the verdict is not a JSON object';
+  const keys = Object.keys(v);
+  const missing = VERDICT_KEYS.filter(key => !keys.includes(key));
+  if (missing.length) return `missing keys: ${missing.join(', ')}`;
+  const extra = keys.filter(key => key !== 'advisories' && !VERDICT_KEYS.includes(key));
+  if (extra.length) return `unexpected keys: ${extra.slice(0, 5).map(key => JSON.stringify(key.slice(0, 40))).join(', ')}`;
+  if (v.schemaVersion !== 1) return 'schemaVersion must be 1';
+  if (typeof attemptId !== 'string' || !attemptId.trim() || v.attemptId !== attemptId) return 'attemptId does not match this review attempt';
+  if (v.headSha !== headSha) return 'headSha does not match the reviewed head';
+  if (!['clean', 'changes_requested'].includes(v.decision)) return 'decision must be "clean" or "changes_requested"';
+  for (const field of ['findings', 'advisories']) {
+    if (field === 'advisories' && v.advisories === undefined) continue;
+    if (!Array.isArray(v[field])) return `${field} must be an array`;
+    const bad = v[field].findIndex(item => typeof item !== 'string' || !item.trim());
+    if (bad >= 0) return `${field}[${bad}] must be a non-empty string`;
+  }
+  // Fresh verdicts are normalized first; stored evidence is never repaired.
+  if (v.decision === 'clean' && v.findings.length) return 'decision is clean but findings is nonempty';
+  if (v.decision === 'changes_requested' && !v.findings.length)
+    return 'decision is changes_requested but findings is empty; non-blocking notes belong in advisories with decision clean';
+  return null;
+}
+
 export async function runReviewSections(input, run, signal, onProgress = () => {}) {
   if (input.carryClean === true) {
     // Same reviewed content with no open blockers: no model call is needed.
@@ -150,13 +190,8 @@ export async function runReviewSections(input, run, signal, onProgress = () => {
   const checkpoint = input.checkpoint?.key === key ? structuredClone(input.checkpoint) : { key, verdicts: [] };
   if (!Array.isArray(checkpoint.verdicts) || checkpoint.verdicts.length > prompts.length)
     throw new Error('Invalid host review checkpoint.');
-  const valid = (v, attemptId) => v && Object.keys(v).filter(key => key !== 'advisories').sort().join(',') === 'attemptId,decision,findings,headSha,schemaVersion' &&
-    (v.advisories === undefined || (Array.isArray(v.advisories) && v.advisories.every(a => typeof a === 'string' && a.trim()))) &&
-    v.schemaVersion === 1 && v.attemptId === attemptId && typeof attemptId === 'string' && attemptId.trim() &&
-    v.headSha === input.headSha && ['clean', 'changes_requested'].includes(v.decision) &&
-    Array.isArray(v.findings) && v.findings.every(f => typeof f === 'string' && f.trim()) &&
-    (v.decision === 'clean' ? v.findings.length === 0 : v.findings.length > 0);
-  if (checkpoint.verdicts.some(v => !valid(v, v?.attemptId))) throw new Error('Invalid host section evidence.');
+  if (checkpoint.verdicts.some(v => sectionVerdictProblem(v, v?.attemptId, input.headSha)))
+    throw new Error('Invalid host section evidence.');
   const verdicts = checkpoint.verdicts;
   let spent;
   const recordUsage = usage => {
@@ -172,22 +207,34 @@ export async function runReviewSections(input, run, signal, onProgress = () => {
     onProgress({ phase: index === input.integrationIndex ? 'integration' : 'section',
       current: index + 1, total: prompts.length, completed: verdicts.length,
       subprocess: null, retry: 0, retryCategory: null, sectionStartedAt: new Date().toISOString() });
-    let result;
     const retryHistory = [];
-    for (let retry = 0; ; retry++) {
-      try { result = await run(prompt, onProgress); recordUsage(result.usage); break; }
-      catch (error) {
-        recordUsage(error.reviewDiagnostics?.usage);
-        if (signal?.aborted || !error.retryable || retry >= 2) throw error;
-        retryHistory.push({ retry: retry + 1, category: error.category, diagnostics: error.reviewDiagnostics });
-        onProgress({ retry: retry + 1, retryCategory: error.category, retryHistory: structuredClone(retryHistory) });
-        await delay(1000 * 2 ** retry, undefined, { signal });
+    let v, problem, malformed;
+    // A rejected verdict reruns the section in a fresh reviewer, told only which
+    // rule its answer broke. The evidence standard is unchanged.
+    for (let verdictRetry = 0; ; verdictRetry++) {
+      const attemptPrompt = problem ? `${prompt}\n\nThe host rejected your previous answer for this section: ${problem}. ` +
+        'Review the section again and return only the JSON object with exactly the keys described above.' : prompt;
+      let result;
+      for (let retry = 0; ; retry++) {
+        try { result = await run(attemptPrompt, onProgress); recordUsage(result.usage); break; }
+        catch (error) {
+          recordUsage(error.reviewDiagnostics?.usage);
+          if (signal?.aborted || !error.retryable || retry >= 2) throw error;
+          retryHistory.push({ retry: retry + 1, category: error.category, diagnostics: error.reviewDiagnostics });
+          onProgress({ retry: retry + 1, retryCategory: error.category, retryHistory: structuredClone(retryHistory) });
+          await delay(1000 * 2 ** retry, undefined, { signal });
+        }
       }
+      if (signal?.aborted) throw new Error('Reviewer interrupted.');
+      malformed = false;
+      try { v = normalizeSectionVerdict(JSON.parse(result.verdict)); problem = sectionVerdictProblem(v, input.attemptId, input.headSha); }
+      catch { malformed = true; problem = 'the final answer is not a single JSON object'; }
+      if (!problem) break;
+      if (verdictRetry >= 2) throw Object.assign(new Error(`${malformed ? 'Malformed' : 'Invalid'} section verdict ` +
+        `(${problem}); review remains incomplete.`), { category: 'invalid_verdict', retryable: false });
+      retryHistory.push({ retry: retryHistory.length + 1, category: 'invalid_verdict', problem });
+      onProgress({ retry: retryHistory.length, retryCategory: 'invalid_verdict', retryHistory: structuredClone(retryHistory) });
     }
-    if (signal?.aborted) throw new Error('Reviewer interrupted.');
-    let v;
-    try { v = JSON.parse(result.verdict); } catch { throw new Error("Malformed section verdict; review remains incomplete."); }
-    if (!valid(v, input.attemptId)) throw new Error('Invalid section verdict; review remains incomplete.');
     verdicts.push(v);
     input.onCheckpoint?.(structuredClone(checkpoint));
     onProgress({ completed: verdicts.length, lastCompletedAt: new Date().toISOString() });
