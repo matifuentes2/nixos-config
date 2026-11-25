@@ -47,8 +47,12 @@ Each review reports its scope and reviewer tokens. `get_goal` exposes them as
 
 ## Review evidence and recovery
 
-Each source section runs sequentially in a fresh, read-only reviewer context on
-the selected provider/model. A successful Pi retry can recover a transient
+Each source section runs in its own fresh, read-only reviewer context on the
+selected provider/model. Up to four sections run at once; they share no context,
+so this changes wall-clock time, not what each reviewer sees. The integration
+pass starts only after every section is validated. A failure stops new launches;
+sections already running finish and keep their verdicts, and the lowest failed
+step is reported. A successful Pi retry can recover a transient
 assistant error only when the event stream explicitly records retry success and
 a subsequent successful response. Cancellation, truncation, extension errors,
 exhausted retries, malformed output and model mismatches cannot authorize approval.
@@ -68,7 +72,9 @@ never reset the protected goal to bypass its failure. Transient command failures
 remain diagnosable and do not grant approval.
 
 The host persists each validated section verdict in its protected session ledger
-before starting the next section. A retry resumes this checkpoint only when the
+as soon as it is validated. Sections that finish ahead of an earlier one are kept
+in `checkpoint.outOfOrder` by index; a host without concurrency ignores that
+field and reruns those sections. A retry resumes this checkpoint only when the
 repository/PR, goal, head, base SHA, reviewer, policy, prompts and integration
 scope are identical. Each saved verdict retains its original attempt ID; the
 host aggregates validated evidence for the new attempt without rewriting those

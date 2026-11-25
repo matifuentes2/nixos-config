@@ -342,7 +342,9 @@ console.log(JSON.stringify({ type: 'agent_end', messages: [message] }));
     for (const { update, saved } of pulses) {
       assert.equal(saved.progress.phase, update.details.review.progress.phase);
     }
-    assert.deepEqual(readFileSync(process.env.PI_REVIEW_FIXTURE_TRACE, 'utf8').trim().split('\n'), ['one', 'two', 'two', 'integration']);
+    // Sections one and two start together; only the failed one reruns.
+    const trace = readFileSync(process.env.PI_REVIEW_FIXTURE_TRACE, 'utf8').trim().split('\n');
+    assert.deepEqual([...trace.slice(0, 2).sort(), ...trace.slice(2)], ['one', 'two', 'two', 'integration']);
     delete process.env.PI_REVIEW_FIXTURE_TRACE;
     const displayedUpdates = updates.map(({ update }) => update);
     let review = structuredClone(protectedSnapshot().reviewExecution);
