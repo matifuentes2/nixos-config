@@ -92,9 +92,10 @@ identity, so old raw-diff checkpoints cannot approve changed review inputs.
 The trusted host partitions large diffs into roughly 32,000-character sections
 and includes the complete file manifest in each prompt. Oversized files are
 continued without dropping text. A final integration pass checks cross-file
-contracts. Small PRs still use a single review. Sections execute sequentially
-with the persisted provider/model, and raw section verdicts are stored alongside
-the aggregate execution evidence. Every section must be valid and current;
+contracts. Small PRs still use a single review. Up to four sections execute at
+once (`SECTION_CONCURRENCY`) with the persisted provider/model, each in its own
+fresh reviewer; integration runs after all of them. Raw section verdicts are
+stored alongside the aggregate execution evidence. Every section must be valid and current;
 malformed, stale, interrupted or failed sections never produce approval.
 
 This bounds input size, not investigative freedom: reviewers choose which

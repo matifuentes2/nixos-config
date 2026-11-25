@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { setTimeout as delay } from 'node:timers/promises';
 const { reviewSections, runReviewSections } = await import(process.argv[2] ?? '../patches/pi-goals/review-batches.mjs');
 const headSha = 'a'.repeat(40), attemptId = 'attempt';
 const diff = 'diff --git a/one b/one\n' + '+a\n'.repeat(30) + 'diff --git a/two b/two\n+b\n';
@@ -9,13 +10,8 @@ assert.throws(() => reviewSections(''), /empty/);
 assert.equal(reviewSections('diff --git a/one b/one\n+a\n').length, 1);
 const input = { prompts: sections, attemptId, headSha };
 const verdict = (decision = 'clean', findings = []) => ({ verdict: JSON.stringify({ schemaVersion: 1, attemptId, headSha, decision, findings }) });
-let running = 0, count = 0;
-const result = await runReviewSections(input, async () => {
-  assert.equal(running++, 0);
-  await Promise.resolve();
-  running--; count++;
-  return verdict();
-});
+let count = 0;
+const result = await runReviewSections(input, async () => { await Promise.resolve(); count++; return verdict(); });
 assert.equal(count, sections.length);
 assert.equal(result.sections.length, sections.length);
 assert.equal(JSON.parse(result.verdict).decision, 'clean');
@@ -28,7 +24,7 @@ for (const bad of [verdict('changes_requested'), { verdict: '{}' }, { verdict: v
 await assert.rejects(runReviewSections(input, async () => { throw Error('launch failed'); }), /launch failed/);
 const abort = new AbortController();
 await assert.rejects(runReviewSections(input, async () => { abort.abort(); return verdict(); }, abort.signal), /interrupted/);
-console.log('Section coverage, sequential execution, aggregation, malformed/stale verdicts, launch failure and interruption passed.');
+console.log('Section coverage, aggregation, malformed/stale verdicts, launch failure and interruption passed.');
 const progress = [];
 await runReviewSections({ ...input, integrationIndex: sections.length - 1 }, async () => verdict(), undefined,
   update => progress.push(update));
@@ -39,7 +35,7 @@ assert.equal(progress.at(-2).phase, 'integration');
 assert.equal(progress.at(-1).completed, sections.length);
 assert(progress.at(-1).lastCompletedAt);
 const invalidProgress = [];
-await assert.rejects(runReviewSections(input, async () => ({ verdict: '{}' }), undefined,
+await assert.rejects(runReviewSections({ ...input, prompts: ['one'] }, async () => ({ verdict: '{}' }), undefined,
   update => invalidProgress.push(update)));
 assert(invalidProgress.every(update => !update.completed), 'Malformed verdict must not advance progress');
 assert.equal(invalidProgress.filter(update => update.retryCategory === 'invalid_verdict').length, 2);
@@ -50,6 +46,93 @@ await assert.rejects(runReviewSections({ ...input, prompts: ['only'] }, async ()
 }, cancelled.signal, update => cancelledProgress.push(update)), /interrupted/);
 assert.equal(cancelledProgress.length, 1, 'Cancellation during final section must not advance progress');
 console.log('Progress counts, integration phase, invalid verdict and final-section cancellation passed.');
+
+// Sections run concurrently up to the limit; integration waits for all of them.
+{
+  const { SECTION_CONCURRENCY } = await import(process.argv[2] ?? '../patches/pi-goals/review-batches.mjs');
+  assert.equal(SECTION_CONCURRENCY, 4);
+  const prompts = Array.from({ length: 9 }, (_, i) => i === 8 ? 'integration' : `section ${i}`);
+  let active = 0, peak = 0, integrationActive = 0;
+  const finished = [];
+  const updates = [];
+  const parallel = await runReviewSections({ ...input, prompts, integrationIndex: 8 }, async prompt => {
+    if (prompt === 'integration') { integrationActive = active; assert.equal(finished.length, 8); }
+    active++; peak = Math.max(peak, active);
+    // Later sections finish first, so completion order differs from launch order.
+    await delay(prompt === 'integration' ? 1 : 40 - 4 * Number(prompt.split(' ')[1]));
+    active--; finished.push(prompt);
+    return verdict(prompt === 'section 5' ? 'changes_requested' : 'clean', prompt === 'section 5' ? ['five.ts:1 defect'] : []);
+  }, undefined, update => updates.push(update));
+  assert.equal(peak, SECTION_CONCURRENCY);
+  assert.equal(integrationActive, 0, 'Integration must start after every section is validated');
+  assert.notDeepEqual(finished.slice(0, 8), prompts.slice(0, 8), 'Fixture must complete sections out of order');
+  assert.equal(parallel.sections.length, 9);
+  assert.deepEqual(JSON.parse(parallel.verdict).findings, ['five.ts:1 defect']);
+  assert(updates.some(u => u.running?.length === SECTION_CONCURRENCY));
+  const completions = updates.filter(u => u.lastCompletedAt).map(u => u.completed);
+  assert.deepEqual(completions, [1, 2, 3, 4, 5, 6, 7, 8, 9], 'Validated counts must increase by one per section');
+  let serial = 0, serialPeak = 0;
+  await runReviewSections({ ...input, prompts, integrationIndex: 8, concurrency: 1 }, async () => {
+    serialPeak = Math.max(serialPeak, ++serial); await delay(1); serial--; return verdict();
+  });
+  assert.equal(serialPeak, 1);
+
+  // A failure stops new launches. Running sections finish and are saved out of
+  // order, and the lowest failed step is reported regardless of timing.
+  let saved, launched = [];
+  const failureUpdates = [];
+  const durableFailure = { ...input, prompts, integrationIndex: 8, concurrency: 3, onCheckpoint: c => { saved = c; } };
+  await assert.rejects(runReviewSections(durableFailure, async prompt => {
+    launched.push(prompt);
+    if (prompt === 'section 2') { await delay(1); throw Error('second failure'); }
+    if (prompt === 'section 1') { await delay(5); throw Error('first failure'); }
+    await delay(15);
+    return verdict();
+  }, undefined, update => failureUpdates.push(update)), /first failure/);
+  assert.deepEqual(launched, ['section 0', 'section 1', 'section 2']);
+  assert.equal(failureUpdates.at(-1).current, 2, 'The lowest failed step must be reported');
+  assert.equal(saved.verdicts.length, 1);
+  assert.equal(saved.outOfOrder, undefined);
+  launched = [];
+  await assert.rejects(runReviewSections({ ...durableFailure, checkpoint: saved }, async prompt => {
+    launched.push(prompt);
+    if (prompt === 'section 1') { await delay(5); throw Error('still failing'); }
+    await delay(15);
+    return verdict();
+  }), /still failing/);
+  assert.deepEqual(launched, ['section 1', 'section 2', 'section 3']);
+  assert.equal(saved.verdicts.length, 1);
+  assert.deepEqual(Object.keys(saved.outOfOrder), ['2', '3']);
+  // Resume runs only the missing sections, then integration.
+  launched = [];
+  const resumedParallel = await runReviewSections({ ...durableFailure, checkpoint: saved }, async prompt => {
+    launched.push(prompt); return verdict();
+  });
+  assert.deepEqual(launched.slice(0, -1).sort(), ['section 1', 'section 4', 'section 5', 'section 6', 'section 7']);
+  assert.equal(launched.at(-1), 'integration');
+  assert.equal(resumedParallel.sections.length, 9);
+  assert.equal(saved.verdicts.length, 9);
+  assert.equal(saved.outOfOrder, undefined);
+  // Out-of-order evidence is validated like the prefix and never trusted blindly.
+  for (const outOfOrder of [{ '1': saved.verdicts[1] }, { '9': saved.verdicts[1] }, { x: saved.verdicts[1] }, []]) {
+    await assert.rejects(runReviewSections({ ...durableFailure, checkpoint: { key: saved.key, verdicts: [saved.verdicts[0]], outOfOrder } },
+      async () => assert.fail('Invalid checkpoint must not launch reviewers')), /Invalid host review checkpoint/);
+  }
+  await assert.rejects(runReviewSections({ ...durableFailure, checkpoint: { key: saved.key, verdicts: [saved.verdicts[0]],
+    outOfOrder: { '3': { ...saved.verdicts[3], findings: ['contradicts clean'] } } } },
+    async () => assert.fail('Corrupt evidence must never be used')), /Invalid host section evidence/);
+  // Cancellation stops new launches and reports interruption.
+  const stop = new AbortController();
+  launched = [];
+  await assert.rejects(runReviewSections({ ...input, prompts, integrationIndex: 8 }, async prompt => {
+    launched.push(prompt);
+    if (prompt === 'section 3') stop.abort();
+    await delay(1);
+    return verdict();
+  }, stop.signal), /interrupted/);
+  assert.equal(launched.length, SECTION_CONCURRENCY);
+}
+console.log('Bounded concurrent sections, integration ordering, out-of-order checkpoints, failure and cancellation passed.');
 
 // Checkpoints are host evidence, survive a retry/reload, and never rebind raw
 // reviewer verdicts to a different attempt. Only the aggregate uses the new ID.

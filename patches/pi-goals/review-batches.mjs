@@ -116,13 +116,13 @@ export function formatReviewProgress(execution) {
   const p = execution.progress;
   return `Review ${p.phase}: ${p.completed}/${p.total ?? '?'} validated` +
     (p.scope ? ` · scope ${p.scope}` : '') +
-    (p.current ? ` · step ${p.current}` : '') +
+    (p.running?.length > 1 ? ` · steps ${p.running.join(',')}` : p.current ? ` · step ${p.current}` : '') +
     (p.usage ? ` · tokens ${p.usage.totalTokens}` : '') +
     ` · attempt ${execution.attemptId} · ${execution.provider ?? '?'}/${execution.model ?? '?'}` +
     ` · head ${execution.headSha || 'pending'} · started ${p.startedAt}` +
     (p.sectionStartedAt ? ` · step started ${p.sectionStartedAt}` : '') +
     (p.lastCompletedAt ? ` · last completed ${p.lastCompletedAt}` : '') +
-    (p.subprocess ? ` · process ${p.subprocess.exitCode === undefined ? (execution.status === 'running' ? 'running' : 'unobserved') : 'exited'} ${Math.floor(p.subprocess.elapsedMs / 1000)}s` +
+    (p.subprocess ? ` · process${p.subprocess.step ? ` (step ${p.subprocess.step})` : ''} ${p.subprocess.exitCode === undefined ? (execution.status === 'running' ? 'running' : 'unobserved') : 'exited'} ${Math.floor(p.subprocess.elapsedMs / 1000)}s` +
       ` · events ${p.subprocess.events} · last ${p.subprocess.lastEvent ?? 'none'}` +
       (p.subprocess.lastEventAt ? ` at ${p.subprocess.lastEventAt}` : '') +
       ` · stdout ${p.subprocess.stdoutBytes}B · stderr ${p.subprocess.stderrBytes}B` : '') +
@@ -169,6 +169,9 @@ export function sectionVerdictProblem(v, attemptId, headSha) {
   return null;
 }
 
+// Sections run in separate fresh reviewers, so up to this many run at once.
+export const SECTION_CONCURRENCY = 4;
+
 export async function runReviewSections(input, run, signal, onProgress = () => {}) {
   if (input.carryClean === true) {
     // Same reviewed content with no open blockers: no model call is needed.
@@ -188,57 +191,106 @@ export async function runReviewSections(input, run, signal, onProgress = () => {
     reviewer: input.reviewer, policy: input.policy, goalId: input.goalId,
     integrationIndex: input.integrationIndex, prompts: prompts.map(normalize) })).digest('hex');
   const checkpoint = input.checkpoint?.key === key ? structuredClone(input.checkpoint) : { key, verdicts: [] };
-  if (!Array.isArray(checkpoint.verdicts) || checkpoint.verdicts.length > prompts.length)
+  // `verdicts` is the validated prefix. Sections that finish ahead of an earlier
+  // one wait in `outOfOrder`, keyed by index; older hosts ignore it and rerun them.
+  const later = checkpoint.outOfOrder ?? {};
+  if (!Array.isArray(checkpoint.verdicts) || checkpoint.verdicts.length > prompts.length ||
+      !later || typeof later !== 'object' || Array.isArray(later) ||
+      Object.keys(later).some(k => !/^\d+$/.test(k) || Number(k) <= checkpoint.verdicts.length || Number(k) >= prompts.length))
     throw new Error('Invalid host review checkpoint.');
-  if (checkpoint.verdicts.some(v => sectionVerdictProblem(v, v?.attemptId, input.headSha)))
+  const done = new Map([...checkpoint.verdicts.entries(), ...Object.entries(later).map(([k, v]) => [Number(k), v])]);
+  if ([...done.values()].some(v => sectionVerdictProblem(v, v?.attemptId, input.headSha)))
     throw new Error('Invalid host section evidence.');
-  const verdicts = checkpoint.verdicts;
+  const save = () => {
+    const verdicts = [];
+    while (done.has(verdicts.length)) verdicts.push(done.get(verdicts.length));
+    const outOfOrder = Object.fromEntries([...done].filter(([i]) => i > verdicts.length)
+      .sort(([a], [b]) => a - b).map(([i, v]) => [String(i), v]));
+    checkpoint.verdicts = verdicts;
+    if (Object.keys(outOfOrder).length) checkpoint.outOfOrder = outOfOrder; else delete checkpoint.outOfOrder;
+    input.onCheckpoint?.(structuredClone(checkpoint));
+  };
   let spent;
   const recordUsage = usage => {
     if (!usage) return;
     spent = addUsage(spent, usage);
     onProgress({ usage: spent });
   };
-  input.onCheckpoint?.(structuredClone(checkpoint));
-  if (verdicts.length) onProgress({ phase: 'resuming', completed: verdicts.length, total: prompts.length });
-  for (const [index, prompt] of prompts.entries()) {
-    if (signal?.aborted) throw new Error('Reviewer interrupted.');
-    if (index < verdicts.length) continue;
+  save();
+  if (done.size) onProgress({ phase: 'resuming', completed: done.size, total: prompts.length });
+  const running = new Set();
+  const runningSteps = () => [...running].sort((a, b) => a - b);
+  const reviewSection = async index => {
+    const prompt = prompts[index], step = index + 1;
+    // Subprocess pulses from concurrent sections name their step.
+    const sectionProgress = update => onProgress(update?.subprocess ? { ...update, subprocess: { ...update.subprocess, step } } : update);
+    running.add(step);
     onProgress({ phase: index === input.integrationIndex ? 'integration' : 'section',
-      current: index + 1, total: prompts.length, completed: verdicts.length,
+      current: step, running: runningSteps(), total: prompts.length, completed: done.size,
       subprocess: null, retry: 0, retryCategory: null, sectionStartedAt: new Date().toISOString() });
     const retryHistory = [];
     let v, problem, malformed;
-    // A rejected verdict reruns the section in a fresh reviewer, told only which
-    // rule its answer broke. The evidence standard is unchanged.
-    for (let verdictRetry = 0; ; verdictRetry++) {
-      const attemptPrompt = problem ? `${prompt}\n\nThe host rejected your previous answer for this section: ${problem}. ` +
-        'Review the section again and return only the JSON object with exactly the keys described above.' : prompt;
-      let result;
-      for (let retry = 0; ; retry++) {
-        try { result = await run(attemptPrompt, onProgress); recordUsage(result.usage); break; }
-        catch (error) {
-          recordUsage(error.reviewDiagnostics?.usage);
-          if (signal?.aborted || !error.retryable || retry >= 2) throw error;
-          retryHistory.push({ retry: retry + 1, category: error.category, diagnostics: error.reviewDiagnostics });
-          onProgress({ retry: retry + 1, retryCategory: error.category, retryHistory: structuredClone(retryHistory) });
-          await delay(1000 * 2 ** retry, undefined, { signal });
+    try {
+      // A rejected verdict reruns the section in a fresh reviewer, told only which
+      // rule its answer broke. The evidence standard is unchanged.
+      for (let verdictRetry = 0; ; verdictRetry++) {
+        const attemptPrompt = problem ? `${prompt}\n\nThe host rejected your previous answer for this section: ${problem}. ` +
+          'Review the section again and return only the JSON object with exactly the keys described above.' : prompt;
+        let result;
+        for (let retry = 0; ; retry++) {
+          try { result = await run(attemptPrompt, sectionProgress); recordUsage(result.usage); break; }
+          catch (error) {
+            recordUsage(error.reviewDiagnostics?.usage);
+            if (signal?.aborted || !error.retryable || retry >= 2) throw error;
+            retryHistory.push({ retry: retry + 1, category: error.category, diagnostics: error.reviewDiagnostics });
+            onProgress({ current: step, retry: retry + 1, retryCategory: error.category, retryHistory: structuredClone(retryHistory) });
+            await delay(1000 * 2 ** retry, undefined, { signal });
+          }
         }
+        if (signal?.aborted) throw new Error('Reviewer interrupted.');
+        malformed = false;
+        try { v = normalizeSectionVerdict(JSON.parse(result.verdict)); problem = sectionVerdictProblem(v, input.attemptId, input.headSha); }
+        catch { malformed = true; problem = 'the final answer is not a single JSON object'; }
+        if (!problem) break;
+        if (verdictRetry >= 2) throw Object.assign(new Error(`${malformed ? 'Malformed' : 'Invalid'} section verdict ` +
+          `(${problem}); review remains incomplete.`), { category: 'invalid_verdict', retryable: false });
+        retryHistory.push({ retry: retryHistory.length + 1, category: 'invalid_verdict', problem });
+        onProgress({ current: step, retry: retryHistory.length, retryCategory: 'invalid_verdict', retryHistory: structuredClone(retryHistory) });
       }
-      if (signal?.aborted) throw new Error('Reviewer interrupted.');
-      malformed = false;
-      try { v = normalizeSectionVerdict(JSON.parse(result.verdict)); problem = sectionVerdictProblem(v, input.attemptId, input.headSha); }
-      catch { malformed = true; problem = 'the final answer is not a single JSON object'; }
-      if (!problem) break;
-      if (verdictRetry >= 2) throw Object.assign(new Error(`${malformed ? 'Malformed' : 'Invalid'} section verdict ` +
-        `(${problem}); review remains incomplete.`), { category: 'invalid_verdict', retryable: false });
-      retryHistory.push({ retry: retryHistory.length + 1, category: 'invalid_verdict', problem });
-      onProgress({ retry: retryHistory.length, retryCategory: 'invalid_verdict', retryHistory: structuredClone(retryHistory) });
+    } finally { running.delete(step); }
+    done.set(index, v);
+    save();
+    onProgress({ completed: done.size, running: runningSteps(), lastCompletedAt: new Date().toISOString() });
+  };
+  // A failure stops new launches; sections already running finish and keep their
+  // validated verdicts. The lowest failed step is reported, so the result does
+  // not depend on which reviewer happened to fail first.
+  const failures = new Map();
+  const raise = () => {
+    if (failures.size) {
+      const [index, error] = [...failures].sort(([a], [b]) => a - b)[0];
+      if (!signal?.aborted) onProgress({ current: index + 1, running: runningSteps() });
+      throw error;
     }
-    verdicts.push(v);
-    input.onCheckpoint?.(structuredClone(checkpoint));
-    onProgress({ completed: verdicts.length, lastCompletedAt: new Date().toISOString() });
+    if (signal?.aborted) throw new Error('Reviewer interrupted.');
+  };
+  const integration = Number.isInteger(input.integrationIndex) && input.integrationIndex < prompts.length ? input.integrationIndex : null;
+  const queue = prompts.map((_, i) => i).filter(i => !done.has(i) && i !== integration);
+  const limit = Math.max(1, Math.floor(input.concurrency ?? SECTION_CONCURRENCY));
+  const worker = async () => {
+    while (queue.length && !failures.size && !signal?.aborted) {
+      const index = queue.shift();
+      try { await reviewSection(index); } catch (error) { failures.set(index, error); }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, queue.length) }, worker));
+  raise();
+  // Integration reviews cross-file contracts after every section is validated.
+  if (integration !== null && !done.has(integration)) {
+    try { await reviewSection(integration); } catch (error) { failures.set(integration, error); }
+    raise();
   }
+  const verdicts = prompts.map((_, i) => done.get(i));
   const findings = verdicts.flatMap(v => v.findings);
   return { verdict: JSON.stringify({ schemaVersion: 1, attemptId: input.attemptId,
     headSha: input.headSha, decision: findings.length ? 'changes_requested' : 'clean', findings }),
