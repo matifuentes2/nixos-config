@@ -8,7 +8,6 @@
   herdr-collie,
   mcp-nixos,
   pi-codex-goal,
-  pi-pr-review-goal,
   pi-parallel-go-pr-herdr,
   pi-execution-time,
   enableCollie ? true,
@@ -26,7 +25,6 @@ let
       nixpkgs-unstable
       herdr-collie
       pi-codex-goal
-      pi-pr-review-goal
       pi-parallel-go-pr-herdr
       pi-execution-time
       ;
@@ -40,9 +38,9 @@ let
     piVersion
     piExtensions
     piCodexGoalPackage
-    piPrReviewGoalPackage
     piParallelGoPrHerdrPackage
     piExecutionTimePackage
+    prReviewGate
     ;
 
   playwrightMcp = import ../../packages/playwright-mcp.nix { inherit lib pkgs; };
@@ -109,6 +107,7 @@ in
     pi
     chromeDevtoolsMcp
     playwrightMcp
+    prReviewGate
     herdrPackage
     mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
@@ -352,7 +351,6 @@ in
       packages = [
         "${piExtensions}"
         "${piCodexGoalPackage}"
-        "${piPrReviewGoalPackage}"
         "${piParallelGoPrHerdrPackage}"
         "${piExecutionTimePackage}"
       ];
@@ -368,10 +366,22 @@ in
   home.file.".pi/agent/skills/herdr/SKILL.md".source = "${herdr}/skills/herdr/SKILL.md";
   home.file.".pi/agent/skills/devenv-setup/SKILL.md".source = ../../pi-skills/devenv-setup/SKILL.md;
 
+  # The T3 Code native PR review loop is a provider-agnostic skill: Pi, Claude
+  # Code and Codex (~/.agents/skills) all load the same tracked file. Pi also
+  # gets a /pr-review-goal prompt template that invokes it.
+  home.file.".pi/agent/skills/pr-review-goal/SKILL.md".source =
+    ../../pi-skills/pr-review-goal/SKILL.md;
+  home.file.".claude/skills/pr-review-goal/SKILL.md".source = ../../pi-skills/pr-review-goal/SKILL.md;
+  home.file.".agents/skills/pr-review-goal/SKILL.md".source = ../../pi-skills/pr-review-goal/SKILL.md;
+
   # Keep shared Pi prompt templates reproducible across every host.
   home.file.".pi/agent/prompts/go-pr.md" = {
     force = true;
     source = ../../pi-prompts/go-pr.md;
+  };
+  home.file.".pi/agent/prompts/pr-review-goal.md" = {
+    force = true;
+    source = ../../pi-prompts/pr-review-goal.md;
   };
 
   # Append routing and delegation rules without replacing Pi's built-in prompt

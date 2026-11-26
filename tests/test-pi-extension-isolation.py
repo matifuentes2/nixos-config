@@ -15,8 +15,9 @@ class ExtensionIsolation(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="pi-extension-isolation-") as temporary:
             root = pathlib.Path(temporary)
             shutil.copytree(REPO / "pi-extensions", root / "pi-extensions")
-            shutil.copytree(REPO / "patches", root / "patches")
             (root / "packages").mkdir()
+            (root / "scripts").mkdir()
+            shutil.copyfile(REPO / "scripts/pr-review-gate.sh", root / "scripts/pr-review-gate.sh")
             for name in ("home-tools.nix", "pi-extensions.nix"):
                 shutil.copyfile(REPO / "packages" / name, root / "packages" / name)
 
@@ -29,7 +30,7 @@ class ExtensionIsolation(unittest.TestCase):
                       inherit pkgs;
                       inherit (pkgs) lib;
                       inherit (f.inputs) nixpkgs-unstable herdr-collie
-                        pi-codex-goal pi-pr-review-goal pi-parallel-go-pr-herdr
+                        pi-codex-goal pi-parallel-go-pr-herdr
                         pi-execution-time;
                     };
                   in {
@@ -37,8 +38,8 @@ class ExtensionIsolation(unittest.TestCase):
                     contextNative = tools.piExtensionPackages.context-mode.unpatchedPackage.drvPath;
                     packages = builtins.mapAttrs (_: p: p.drvPath) tools.piExtensionPackages;
                     consumers = map (p: p.drvPath) [ tools.chromeDevtoolsMcp
-                      tools.piCodexGoalPackage tools.piPrReviewGoalPackage
-                      tools.piParallelGoPrHerdrPackage tools.piExecutionTimePackage ];
+                      tools.piCodexGoalPackage tools.piParallelGoPrHerdrPackage
+                      tools.prReviewGate tools.piExecutionTimePackage ];
                   }
                 '''.replace("REPOSITORY", json.dumps(str(REPO))).replace(
                     "MODULE", str(root / "packages/home-tools.nix")

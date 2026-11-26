@@ -4,7 +4,6 @@
   nixpkgs-unstable,
   herdr-collie,
   pi-codex-goal,
-  pi-pr-review-goal,
   pi-parallel-go-pr-herdr,
   pi-execution-time,
 }:
@@ -264,34 +263,20 @@ let
     '';
 
   # Descriptive output names preserve package provenance in Pi's registry.
-  # PR-review compatibility is established by the completion-policy host API.
-  piCodexGoalPackage = (mkPiExtensionPackage "pi-codex-goal" pi-codex-goal).overrideAttrs (old: {
-    buildCommand = old.buildCommand + ''
-      chmod -R u+w "$out/dist"
-      patch -d "$out" -p1 < ${../patches/pi-goals/recovery.patch}
-      patch -d "$out" -p1 < ${../patches/pi-goals/progress.patch}
-      patch -d "$out" -p1 < ${../patches/pi-goals/observability.patch}
-      patch -d "$out" -p1 < ${../patches/pi-goals/resilience.patch}
-      patch -d "$out" -p1 < ${../patches/pi-goals/focused-review-host.patch}
-      cp ${../patches/pi-goals/review-runner.mjs} "$out/dist/review-runner.mjs"
-      cp ${../patches/pi-goals/review-batches.mjs} "$out/dist/review-batches.mjs"
-    '';
-  });
-  piPrReviewGoalPackage =
-    (mkPiExtensionPackage "pi-pr-review-goal" pi-pr-review-goal).overrideAttrs
-      (old: {
-        buildCommand = old.buildCommand + ''
-          chmod -R u+w "$out/src" "$out/extensions"
-          patch -d "$out" -p1 < ${../patches/pi-goals/pr-review.patch}
-          patch -d "$out" -p1 < ${../patches/pi-goals/review-snapshot.patch}
-          patch -d "$out" -p1 < ${../patches/pi-goals/focused-review-command.patch}
-          cp ${../patches/pi-goals/review-input.mjs} "$out/src/review-input.mjs"
-          cp ${../patches/pi-goals/review-snapshot.mjs} "$out/src/review-snapshot.mjs"
-          cp ${../patches/pi-goals/review-batches.mjs} "$out/src/review-batches.mjs"
-        '';
-      });
+  piCodexGoalPackage = mkPiExtensionPackage "pi-codex-goal" pi-codex-goal;
   piParallelGoPrHerdrPackage = mkPiExtensionPackage "pi-parallel-go-pr-herdr" pi-parallel-go-pr-herdr;
   piExecutionTimePackage = mkPiExtensionPackage "pi-execution-time" pi-execution-time;
+
+  # Deterministic completion gate used by the shared pr-review-goal skill.
+  prReviewGate = pkgs.writeShellApplication {
+    name = "pr-review-gate";
+    runtimeInputs = [
+      pkgs.gh
+      pkgs.git
+      pkgs.jq
+    ];
+    text = builtins.readFile ../scripts/pr-review-gate.sh;
+  };
 
   chromeDevtoolsMcp = pkgs.writeShellApplication {
     name = "chrome-devtools-mcp";
@@ -322,8 +307,8 @@ in
     piExtensions
     piExtensionPackages
     piCodexGoalPackage
-    piPrReviewGoalPackage
     piParallelGoPrHerdrPackage
     piExecutionTimePackage
+    prReviewGate
     ;
 }
