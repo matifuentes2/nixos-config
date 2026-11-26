@@ -20,7 +20,7 @@ the run. There is never a fallback to another model.
 
 | Concern | T3 Code mechanism | Replaces |
 | --- | --- | --- |
-| Fresh independent reviewers | `delegate_task` (`role: review`, `isolation: worktree`), up to 4 sections in parallel, plus an integration pass for split reviews | The Pi goal host's `pi --print` reviewer subprocesses |
+| Fresh independent reviewers | `delegate_task` (`role: review`, `isolation: worktree`), one reviewer by default; above ~10,000 reviewable lines, up to 4 feature-cut sections in parallel plus a contract-focused integration pass | The Pi goal host's `pi --print` reviewer subprocesses |
 | Waiting for CI, comments and conflicts | `link_pull_request` + `watch_pull_request` wakes the thread | `/goal` continuation turns and manual polling |
 | Runtime and UI validation | The built-in preview browser (`preview_*`), with no Playwright fallback | Playwright MCP extension mode |
 | Visibility | Reviewer child threads and the linked PR show in the T3 UI | `get_goal` review progress records |
@@ -38,7 +38,10 @@ since the last reviewed head, and re-verify every prior blocking finding. A full
 pass runs again after a rebase, force-push or merge, when the reviewer changes,
 or when the base changed a file the PR also changes. Diffs are computed locally
 from the merge base, never with `gh pr diff`, which fails on PRs with more than
-300 files. There is no round limit: the loop ends when a review of the current
+300 files. Reviewers read the diff per file or directory, so a large diff is
+not by itself a reason to split. Only the reviewable size (excluding lockfiles,
+generated code, snapshots, vendored files and pure renames) decides whether a
+round is split; file count never does. There is no round limit: the loop ends when a review of the current
 head has no blocking findings. Per-round state is kept in
 `$(git rev-parse --git-common-dir)/pr-review-goal/<pr>.json`, outside the
 working tree, so the loop can resume after a wake or a context summary.
