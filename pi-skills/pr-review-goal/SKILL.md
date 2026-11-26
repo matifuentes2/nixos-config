@@ -105,14 +105,25 @@ depth) rather than reviewing a partial diff.
 - If only the base tip moved, without touching PR files, and the last round was
   clean, the clean result carries forward. CI still gates the latest head.
 
-**Sections.** One reviewer is enough when the scoped diff has at most about
-2,000 changed lines and 40 files. Otherwise, split it into at most 4 sections:
+**Sections.** Use one reviewer for the whole scope by default. Reviewers fetch
+the diff themselves and read it file by file, so a large diff alone is not a
+reason to split. Measure the scope's *reviewable* size: changed lines excluding
+lockfiles, generated code, snapshots, vendored files and pure renames. File
+count never triggers a split. Split only when the reviewable size exceeds about
+10,000 changed lines:
 
-- group files by path, keep each file whole, and balance by changed lines;
+- use the fewest sections that bring each under that limit
+  (`ceil(reviewableLines / 10,000)`, at most 4);
+- cut along feature and dependency seams, not by path balance. Keep each file
+  whole, and keep producers with their consumers: a route with its client, its
+  schema and their tests. Add shared contract files (schemas, types, API
+  clients, migrations, configuration wiring) to every section that uses them;
 - give every section reviewer the complete file manifest;
 - after all sections validate, run one fresh integration reviewer. It gets the
-  manifest and the full scope and checks cross-file contracts: APIs, schemas,
-  callers, configuration wiring and tests. Do not give it the section findings.
+  manifest and only the contract surfaces (public types and exports, schemas,
+  API routes and clients, migrations, configuration wiring), not the full diff,
+  and checks that producers and consumers across sections agree. Do not give
+  it the section findings.
 
 **Launch.** Start every section in the same turn with `delegate_task`, using
 these settings:
@@ -135,8 +146,9 @@ results with `task_status` once a task completes.
 ```text
 You are an independent, read-only code reviewer for PR #<n> in <owner/repo>.
 Your checkout is at the PR head <headSha>; the PR targets <baseRefName>, merge base <mergeBase>.
-Scope: <full PR | fixes since <lastReviewedHead>> — <section i/k: these files | all files | integration: cross-file contracts across all files>.
-Get the diff yourself: git diff --find-renames <scopeBase> <headSha> -- <section paths, or nothing for all>.
+Scope: <full PR | fixes since <lastReviewedHead>> — <section i/k: these files | all files | integration: these contract files, checked against their callers across the PR>.
+Get the diff yourself: git diff --find-renames <scopeBase> <headSha> -- <section or contract paths, or nothing for all>.
+Start with --stat, then read the diff per file or directory. Never print the whole diff at once.
 Complete PR file manifest:
 <git diff --name-status output for the whole PR>
 <For fixes rounds: "Prior blocking findings, each of which you must re-verify as fixed or still present:" followed by the list.>
