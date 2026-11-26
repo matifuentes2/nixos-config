@@ -4,6 +4,8 @@ For browser work in T3 Code, Pi starts with the built-in browser. It checks
 `preview_status` and opens a task tab with `preview_open` when needed. This path
 works independently of the Chrome extension and uses T3 Code's own profiles.
 Outside T3 Code, Pi defaults to the lazy `playwright` MCP server.
+The [`pr-review-goal` skill](pr-review-goal.md) uses only the built-in browser
+and treats a preview failure as a setup blocker instead of falling back.
 The shared Home Manager module installs a pinned Playwright MCP 0.0.82 with a
 locked dependency tree and launches it with `--extension`. It does not download
 browsers or launch a separate automation profile.

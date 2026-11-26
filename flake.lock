@@ -785,23 +785,6 @@
         "type": "github"
       }
     },
-    "pi-pr-review-goal": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1794163514,
-        "narHash": "sha256-nNLlwRQrqEoGm3pAZx+FllSpa8TqWYrjHnp8Fwhn+UA=",
-        "owner": "matifuentes2",
-        "repo": "pi-pr-review-goal",
-        "rev": "f43390e77efbd205a9ccdc69adcfe111f11ebb1e",
-        "type": "github"
-      },
-      "original": {
-        "owner": "matifuentes2",
-        "repo": "pi-pr-review-goal",
-        "rev": "f43390e77efbd205a9ccdc69adcfe111f11ebb1e",
-        "type": "github"
-      }
-    },
     "pre-commit-hooks": {
       "inputs": {
         "flake-compat": "flake-compat",
@@ -844,7 +827,6 @@
         "pi-codex-goal": "pi-codex-goal",
         "pi-execution-time": "pi-execution-time",
         "pi-parallel-go-pr-herdr": "pi-parallel-go-pr-herdr",
-        "pi-pr-review-goal": "pi-pr-review-goal",
         "sops-nix": "sops-nix"
       }
     },

@@ -48,10 +48,6 @@
       url = "github:matifuentes2/pi-codex-goal/4724cd8bd4843247169e871480a6abc259b7d5ab";
       flake = false;
     };
-    pi-pr-review-goal = {
-      url = "github:matifuentes2/pi-pr-review-goal/f43390e77efbd205a9ccdc69adcfe111f11ebb1e";
-      flake = false;
-    };
     pi-parallel-go-pr-herdr = {
       url = "github:matifuentes2/pi-parallel-go-pr-herdr";
       flake = false;
@@ -90,7 +86,6 @@
       herdr-collie,
       mcp-nixos,
       pi-codex-goal,
-      pi-pr-review-goal,
       pi-parallel-go-pr-herdr,
       pi-execution-time,
       sops-nix,
@@ -118,7 +113,6 @@
           mcp-nixos
           nixpkgs-unstable
           pi-codex-goal
-          pi-pr-review-goal
           pi-parallel-go-pr-herdr
           pi-execution-time
           ;
@@ -142,7 +136,6 @@
             nixpkgs-unstable
             herdr-collie
             pi-codex-goal
-            pi-pr-review-goal
             pi-parallel-go-pr-herdr
             pi-execution-time
             ;
@@ -233,22 +226,30 @@
             ${nixpkgs.lib.getExe homeTools.pi} --version
             touch "$out"
           '';
-          review-batches = pkgs.runCommand "review-batches" { } ''
-            ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/review-batches.mjs} ${./patches/pi-goals/review-batches.mjs}
-            touch "$out"
-          '';
+          pr-review-gate =
+            pkgs.runCommand "pr-review-gate"
+              {
+                nativeBuildInputs = [
+                  pkgs.bash
+                  pkgs.git
+                  pkgs.jq
+                  pkgs.python3
+                ];
+              }
+              ''
+                export HOME="$TMPDIR/home"
+                mkdir -p "$HOME"
+                python3 ${./tests/test-pr-review-gate.py} ${./scripts/pr-review-gate.sh}
+                touch "$out"
+              '';
           pi-context-state = pkgs.runCommand "pi-context-state" { } ''
             ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/context-mode-state.mjs} \
               ${homeTools.piExtensionPackages.context-mode}/${homeTools.piExtensionPackages.context-mode.packageRoot}
             touch "$out"
           '';
-          pi-goal-lifecycle = pkgs.runCommand "pi-goal-lifecycle" { nativeBuildInputs = [ pkgs.git ]; } ''
+          pi-goal-lifecycle = pkgs.runCommand "pi-goal-lifecycle" { } ''
             ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/pi-goal-lifecycle-smoke.mjs} \
-              ${homeTools.piCodexGoalPackage} ${homeTools.piPrReviewGoalPackage}
-            ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/review-runner.mjs} ${homeTools.piCodexGoalPackage}
-            ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/review-batches.mjs} ${homeTools.piCodexGoalPackage}/dist/review-batches.mjs
-            ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/review-input.mjs} ${homeTools.piPrReviewGoalPackage}
-            ${nixpkgs.lib.getExe pkgs.nodejs_24} ${./tests/review-snapshot.mjs} ${homeTools.piPrReviewGoalPackage}
+              ${homeTools.piCodexGoalPackage}
             touch "$out"
           '';
         }
