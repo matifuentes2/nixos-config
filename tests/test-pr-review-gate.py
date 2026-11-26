@@ -9,6 +9,7 @@ needs bash, git and jq but no network, GitHub credentials or model calls.
 import json
 import os
 import pathlib
+import shutil
 import stat
 import subprocess
 import sys
@@ -23,7 +24,9 @@ SKIPPED = [{"name": f"conditional-{i}", "state": "SKIPPED", "bucket": "skipping"
 
 # The fake gh reads its responses from files so a test can change them, and
 # flips the head after the first `pr view` when asked to simulate a push.
-FAKE_GH = r"""#!/usr/bin/env bash
+# Its shebang is filled in with an absolute bash path: the Linux Nix build
+# sandbox has no /usr/bin/env.
+FAKE_GH = r"""#!@BASH@
 set -eu
 state="$FAKE_GH_STATE"
 case "$1 $2" in
@@ -51,7 +54,9 @@ class PrReviewGateTest(unittest.TestCase):
         for directory in (self.checkout, self.state, bin_dir):
             directory.mkdir()
         gh = bin_dir / "gh"
-        gh.write_text(FAKE_GH)
+        bash = shutil.which("bash")
+        self.assertIsNotNone(bash, "bash must be on PATH")
+        gh.write_text(FAKE_GH.replace("@BASH@", bash, 1))
         gh.chmod(gh.stat().st_mode | stat.S_IEXEC)
 
         git = ["git", "-C", str(self.checkout), "-c", "user.name=t", "-c", "user.email=t@example.invalid"]
